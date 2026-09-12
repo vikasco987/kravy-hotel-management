@@ -1,0 +1,301 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// CORE DOMAIN (Shared)
+// ==========================================
+
+model Business {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  
+  hotels    Hotel[]
+  guests    Guest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+}
+
+model Guest {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  businessId String   @db.ObjectId
+  name       String
+  phone      String
+  email      String?
+  idProof    String?
+
+  business   Business @relation(fields: [businessId], references: [id])
+  reservations Reservation[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  String?
+}
+
+model Staff {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId    String   @db.ObjectId
+  name       String
+  role       Role     @default(STAFF)
+
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
+  tasks      HousekeepingTask[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  RECEPTIONIST
+  HOUSEKEEPING
+  STAFF
+}
+
+// ==========================================
+// HOTEL DOMAIN
+// ==========================================
+
+model Hotel {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  businessId String   @db.ObjectId
+  name       String
+  
+  business   Business @relation(fields: [businessId], references: [id])
+  
+  floors     Floor[]
+  roomTypes  RoomType[]
+  rooms      Room[]
+  reservations Reservation[]
+  staff      Staff[]
+  expenses   Expense[]
+  settings   HotelSettings?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  String?
+
+  @@index([businessId])
+}
+
+model HotelSettings {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId    String   @unique @db.ObjectId
+  taxRate    Int      @default(0) // Stored in paise / basis points
+  checkoutTime String @default("11:00 AM")
+  
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
+}
+
+model Floor {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String   @db.ObjectId
+  name        String   // e.g., 1st Floor, 2nd Floor
+  floorNumber Int      // e.g., 1, 2
+  isActive    Boolean  @default(true)
+  
+  hotel       Hotel    @relation(fields: [hotelId], references: [id])
+  rooms       Room[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([hotelId, floorNumber])
+}
+
+model RoomType {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String   @db.ObjectId
+  name        String   // e.g., Deluxe, Suite
+  basePrice   Int      // Stored in minor units (paise)
+  isActive    Boolean  @default(true)
+  
+  hotel       Hotel    @relation(fields: [hotelId], references: [id])
+  rooms       Room[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
+}
+
+model Room {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String     @db.ObjectId
+  floorId     String     @db.ObjectId
+  roomTypeId  String     @db.ObjectId
+  roomNumber  String
+  status      RoomStatus @default(AVAILABLE)
+  isActive    Boolean    @default(true)
+
+  hotel       Hotel      @relation(fields: [hotelId], references: [id])
+  floor       Floor      @relation(fields: [floorId], references: [id])
+  roomType    RoomType   @relation(fields: [roomTypeId], references: [id])
+  
+  stays       StayRoom[]
+  tasks       HousekeepingTask[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  createdBy   String?
+
+  @@unique([hotelId, roomNumber])
+  @@index([hotelId, floorId])
+  @@index([hotelId, status])
+}
+
+model Reservation {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId       String        @db.ObjectId
+  guestId       String        @db.ObjectId
+  
+  status        BookingStatus @default(RESERVED)
+  
+  advancePaid   Int           @default(0) // Paise
+  totalAmount   Int           @default(0) // Paise
+  
+  hotel         Hotel         @relation(fields: [hotelId], references: [id])
+  guest         Guest         @relation(fields: [guestId], references: [id])
+  
+  rooms         ReservationRoom[]
+  stay          Stay?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  createdBy     String?
+}
+
+model ReservationRoom {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  reservationId String      @db.ObjectId
+  roomId        String?     @db.ObjectId // Can be null if room isn't assigned yet
+
+  checkInDate   DateTime
+  checkOutDate  DateTime
+
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+}
+
+model Stay {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  reservationId String   @unique @db.ObjectId
+  
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  stayRooms     StayRoom[]
+  roomCharges   RoomCharge[]
+  payments      Payment[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String?
+}
+
+model StayRoom {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  stayId        String   @db.ObjectId
+  roomId        String   @db.ObjectId
+  
+  checkInDate   DateTime
+  checkOutDate  DateTime? // Null if still checked in
+  
+  stay          Stay     @relation(fields: [stayId], references: [id])
+  room          Room     @relation(fields: [roomId], references: [id])
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model RoomCharge {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  stayId      String   @db.ObjectId
+  description String   // e.g., Room Rent, POS Restaurant Charge, Laundry
+  amount      Int      // Paise
+  
+  stay        Stay     @relation(fields: [stayId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
+}
+
+model Payment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  stayId      String   @db.ObjectId
+  amount      Int      // Paise
+  method      String   // CASH, CARD, UPI
+  
+  stay        Stay     @relation(fields: [stayId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model HousekeepingTask {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  roomId      String   @db.ObjectId
+  staffId     String?  @db.ObjectId
+  status      TaskStatus @default(PENDING)
+  
+  room        Room     @relation(fields: [roomId], references: [id])
+  staff       Staff?   @relation(fields: [staffId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Expense {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String   @db.ObjectId
+  categoryId  String   @db.ObjectId
+  amount      Int      // Paise
+  description String
+  
+  hotel       Hotel    @relation(fields: [hotelId], references: [id])
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
+}
+
+model ExpenseCategory {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  expenses    Expense[]
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum RoomStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  DIRTY
+  CLEANING
+  MAINTENANCE
+  BLOCKED
+}
+
+enum BookingStatus {
+  RESERVED
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
