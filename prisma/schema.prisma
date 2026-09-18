@@ -31,13 +31,30 @@ model Guest {
   phone      String
   email      String?
   idProof    String?
+  guestPhotoUrl String? // Secure reference, NOT base64
 
   business   Business @relation(fields: [businessId], references: [id])
   reservations Reservation[]
+  documents  GuestDocument[]
+  invoices   Invoice[]
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   createdBy  String?
+}
+
+model GuestDocument {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  guestId            String   @db.ObjectId
+  documentType       String   // e.g., AADHAAR, PASSPORT, DRIVING_LICENSE
+  documentNumber     String?  // Masked or partial if required
+  fileReference      String   // Path/URL to the actual file in /uploads/private/
+  verificationStatus String   @default("PENDING") // PENDING, VERIFIED, REJECTED
+  
+  guest              Guest    @relation(fields: [guestId], references: [id])
+
+  uploadedAt         DateTime @default(now())
+  uploadedBy         String?  @db.ObjectId // User/Staff ID
 }
 
 model Staff {
@@ -108,6 +125,8 @@ model Hotel {
   staff      Staff[]
   expenses   Expense[]
   settings   HotelSettings?
+  taxProfiles TaxProfile[]
+  ratePlans  RatePlan[]
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -122,7 +141,34 @@ model HotelSettings {
   taxRate    Int      @default(0) // Stored in paise / basis points
   checkoutTime String @default("11:00 AM")
   
+  // Discount rules
+  maxDiscountPercent Int @default(10)
+  maxFixedDiscount   Int @default(100000) // Paise
+  
   hotel      Hotel    @relation(fields: [hotelId], references: [id])
+}
+
+model TaxProfile {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId    String   @db.ObjectId
+  name       String   // e.g. "GST 12%"
+  rate       Int      // e.g. 1200 for 12%
+  cgstRate   Int?
+  sgstRate   Int?
+  mode       PricingMode @default(INCLUSIVE)
+  isActive   Boolean  @default(true)
+  
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
+  roomTypes  RoomType[]
+}
+
+model ChargeTemplate {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String   @db.ObjectId
+  name        String
+  defaultRate Int      // Paise
+  mode        ChargeMode @default(FIXED)
+  taxProfileId String? @db.ObjectId
 }
 
 model Floor {
@@ -148,8 +194,12 @@ model RoomType {
   basePrice   Int      // Stored in minor units (paise)
   isActive    Boolean  @default(true)
   
+  taxProfileId String? @db.ObjectId
+  taxProfile   TaxProfile? @relation(fields: [taxProfileId], references: [id])
+  
   hotel       Hotel    @relation(fields: [hotelId], references: [id])
   rooms       Room[]
+  pricingRules PricingRule[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -210,6 +260,41 @@ model ReservationRoom {
   checkInDate   DateTime
   checkOutDate  DateTime
 
+  // Price Snapshot
+  baseRate          Int       @default(0)
+  appliedRate       Int       @default(0)
+  ratePlanId        String?   @db.ObjectId
+  pricingRuleId     String?   @db.ObjectId
+  pricingReason     String?
+  nights            Int       @default(1)
+  
+  grossAmount       Int       @default(0)
+  
+  discountType      DiscountType?
+  discountValue     Int?
+  discountAmount    Int       @default(0)
+  discountReason    String?
+  
+  requiresApproval  Boolean   @default(false)
+  discountStatus    DiscountStatus @default(APPROVED)
+  approvedBy        String?   @db.ObjectId
+  approvedAt        DateTime?
+  approvalRemark    String?
+  
+  taxProfileId      String?   @db.ObjectId
+  taxMode           PricingMode @default(INCLUSIVE)
+  taxRate           Int       @default(0)
+  cgstRate          Int       @default(0)
+  sgstRate          Int       @default(0)
+  
+  taxableAmount     Int       @default(0)
+  cgstAmount        Int       @default(0)
+  sgstAmount        Int       @default(0)
+  taxAmount         Int       @default(0)
+  
+  extraChargesAmount Int      @default(0)
+  finalAmount       Int       @default(0)
+
   reservation   Reservation @relation(fields: [reservationId], references: [id])
 }
 
@@ -221,10 +306,37 @@ model Stay {
   stayRooms     StayRoom[]
   roomCharges   RoomCharge[]
   payments      Payment[]
+  invoice       Invoice?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   createdBy     String?
+}
+
+model Invoice {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceNumber  String   @unique
+  stayId         String   @unique @db.ObjectId
+  guestId        String   @db.ObjectId
+  
+  subtotal       Int      @default(0) // Paise
+  discountAmount Int      @default(0)
+  taxableAmount  Int      @default(0)
+  cgstAmount     Int      @default(0)
+  sgstAmount     Int      @default(0)
+  taxAmount      Int      @default(0)
+  totalAmount    Int      @default(0) // Grand Total
+  
+  paidAmount     Int      @default(0)
+  balanceAmount  Int      @default(0)
+  
+  status         String   @default("DRAFT") // DRAFT, ISSUED, PAID, VOID
+  
+  stay           Stay     @relation(fields: [stayId], references: [id])
+  guest          Guest    @relation(fields: [guestId], references: [id])
+
+  issuedAt       DateTime?
+  createdAt      DateTime @default(now())
 }
 
 model StayRoom {
@@ -234,6 +346,41 @@ model StayRoom {
   
   checkInDate   DateTime
   checkOutDate  DateTime? // Null if still checked in
+  
+  // Price Snapshot
+  baseRate          Int       @default(0)
+  appliedRate       Int       @default(0)
+  ratePlanId        String?   @db.ObjectId
+  pricingRuleId     String?   @db.ObjectId
+  pricingReason     String?
+  nights            Int       @default(1)
+  
+  grossAmount       Int       @default(0)
+  
+  discountType      DiscountType?
+  discountValue     Int?
+  discountAmount    Int       @default(0)
+  discountReason    String?
+  
+  requiresApproval  Boolean   @default(false)
+  discountStatus    DiscountStatus @default(APPROVED)
+  approvedBy        String?   @db.ObjectId
+  approvedAt        DateTime?
+  approvalRemark    String?
+  
+  taxProfileId      String?   @db.ObjectId
+  taxMode           PricingMode @default(INCLUSIVE)
+  taxRate           Int       @default(0)
+  cgstRate          Int       @default(0)
+  sgstRate          Int       @default(0)
+  
+  taxableAmount     Int       @default(0)
+  cgstAmount        Int       @default(0)
+  sgstAmount        Int       @default(0)
+  taxAmount         Int       @default(0)
+  
+  extraChargesAmount Int      @default(0)
+  finalAmount       Int       @default(0)
   
   stay          Stay     @relation(fields: [stayId], references: [id])
   room          Room     @relation(fields: [roomId], references: [id])
@@ -246,7 +393,16 @@ model RoomCharge {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   stayId      String   @db.ObjectId
   description String   // e.g., Room Rent, POS Restaurant Charge, Laundry
-  amount      Int      // Paise
+  chargeType  String?  // e.g. EXTRA_BED, LAUNDRY, EARLY_CHECKIN
+  amount      Int      // Paise (Unit Rate)
+  
+  quantity    Int      @default(1)
+  chargeMode  ChargeMode @default(FIXED)
+  nights      Int      @default(1)
+  
+  taxProfileId String? @db.ObjectId
+  taxAmount    Int     @default(0)
+  totalAmount  Int     @default(0)
   
   stay        Stay     @relation(fields: [stayId], references: [id])
 
@@ -382,4 +538,56 @@ enum TaskStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+}
+
+enum PricingMode {
+  INCLUSIVE
+  EXCLUSIVE
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum ChargeMode {
+  FIXED
+  DAILY
+}
+
+enum DiscountStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ==========================================
+// DYNAMIC PRICING DOMAIN
+// ==========================================
+
+model RatePlan {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String   @db.ObjectId
+  name        String   // Standard, Corporate, Weekend
+  description String?
+  isActive    Boolean  @default(true)
+  rules       PricingRule[]
+  
+  hotel       Hotel    @relation(fields: [hotelId], references: [id])
+}
+
+model PricingRule {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  ratePlanId  String   @db.ObjectId
+  roomTypeId  String   @db.ObjectId
+  
+  priority    Int      @default(0) // Higher number = higher priority
+  basePrice   Int      // Paise
+  
+  startDate   DateTime?
+  endDate     DateTime?
+  daysOfWeek  Int[]    // [0, 1, 6] = Sunday, Monday, Saturday
+  
+  ratePlan    RatePlan @relation(fields: [ratePlanId], references: [id])
+  roomType    RoomType @relation(fields: [roomTypeId], references: [id])
 }

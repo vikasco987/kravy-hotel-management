@@ -706,7 +706,7 @@ export default function UserDetailPage() {
                           </div>
                         )}
                         <div 
-                          className={`w-full rounded-t-sm transition-all duration-500 ${val > 0 ? 'bg-indigo-500 group-hover:bg-indigo-400 cursor-pointer shadow-[0_0_8px_rgba(99,102,241,0.3)]' : 'bg-white/[0.03]'}`}
+                          className={`w-full rounded-t-sm transition-all duration-500 ${val > 0 ? 'bg-indigo-500 group-hover:bg-indigo-400 cursor-pointer shadow-sm shadow-indigo-500/30' : 'bg-white/[0.03]'}`}
                           style={{ height: val > 0 ? `${Math.max(10, heightPercent)}%` : '10%' }}
                         />
                       </div>

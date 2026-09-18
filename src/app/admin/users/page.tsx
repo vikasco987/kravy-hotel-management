@@ -521,7 +521,7 @@ export default function AdminUsersPage() {
                                        {u.role}
                                     </div>
                                     <div className="flex items-center gap-1">
-                                       <div className={`w-1.5 h-1.5 rounded-full ${u.isDisabled ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`} />
+                                       <div className={`w-1.5 h-1.5 rounded-full ${u.isDisabled ? 'bg-rose-500 shadow-sm shadow-rose-500/50' : 'bg-emerald-500 shadow-sm shadow-emerald-500/50'}`} />
                                        <span className={`text-[9px] font-black uppercase tracking-tighter ${u.isDisabled ? 'text-rose-600' : 'text-emerald-600'}`}>
                                           {u.isDisabled ? "Access Revoked" : "Live Session"}
                                        </span>

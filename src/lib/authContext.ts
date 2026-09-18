@@ -16,7 +16,7 @@ export async function getAuthContext() {
 
   let decoded: any;
   try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'kravy_pos_secret_key_123');
   } catch (e) {
     console.error("JWT Verification failed", e);
     return null;

@@ -4,6 +4,8 @@ import { getAuthContext } from '@/lib/authContext';
 
 const prisma = new PrismaClient();
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const authContext = await getAuthContext();
@@ -70,8 +72,8 @@ export async function GET() {
 
     const occupancyPercent = totalRooms > 0 ? Math.round(((occupied + reserved) / totalRooms) * 100) : 0;
 
-    const summary = {
-      totalRooms,
+    const roomsRecord = {
+      total: totalRooms,
       available,
       reserved,
       occupied,
@@ -79,11 +81,16 @@ export async function GET() {
       cleaning,
       maintenance,
       blocked,
-      occupancyPercent
     };
 
     return NextResponse.json({
-      summary,
+      rooms: roomsRecord,
+      occupancy: occupancyPercent,
+      checkIns: 0,
+      checkOuts: 0,
+      revenueToday: 0,
+      pendingArrivals: 0,
+      pendingDepartures: 0,
       floors: formattedFloors,
       vacatingRooms: [] // Stub for Phase 2 Check-out workflow
     });

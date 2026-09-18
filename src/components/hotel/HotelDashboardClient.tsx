@@ -79,7 +79,15 @@ export default function HotelDashboardClient() {
         fetch('/api/hotel/dashboard'),
         fetch('/api/hotel/room-types')
       ]);
-      if (!dashRes.ok) throw new Error('Failed to fetch dashboard data');
+      if (!dashRes.ok) {
+        if (dashRes.status === 401) {
+          document.cookie = "kravy_auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+          document.cookie = "kravy_refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+          window.location.href = '/auth/custom';
+          return;
+        }
+        throw new Error('Failed to fetch dashboard data');
+      }
       const dashData = await dashRes.json();
       setData(dashData);
 
@@ -95,7 +103,7 @@ export default function HotelDashboardClient() {
 
   const refreshDashboardQuietly = async () => {
     try {
-      const res = await fetch('/api/hotel/dashboard');
+      const res = await fetch('/api/hotel/dashboard', { cache: 'no-store' });
       if (res.ok) {
         setData(await res.json());
       }
@@ -227,17 +235,17 @@ export default function HotelDashboardClient() {
 
   if (!data) return null;
 
-  const { summary, floors } = data;
+  const { rooms, occupancy, floors } = data;
 
   const filters = [
-    { label: 'ALL', value: 'ALL', count: summary.totalRooms },
-    { label: 'AVAILABLE', value: 'AVAILABLE', count: summary.available },
-    { label: 'RESERVED', value: 'RESERVED', count: summary.reserved },
-    { label: 'OCCUPIED', value: 'OCCUPIED', count: summary.occupied },
-    { label: 'DIRTY', value: 'DIRTY', count: summary.dirty },
-    { label: 'CLEANING', value: 'CLEANING', count: summary.cleaning },
-    { label: 'MAINTENANCE', value: 'MAINTENANCE', count: summary.maintenance },
-    { label: 'BLOCKED', value: 'BLOCKED', count: summary.blocked },
+    { label: 'ALL', value: 'ALL', count: rooms?.total || 0 },
+    { label: 'AVAILABLE', value: 'AVAILABLE', count: rooms?.available || 0 },
+    { label: 'RESERVED', value: 'RESERVED', count: rooms?.reserved || 0 },
+    { label: 'OCCUPIED', value: 'OCCUPIED', count: rooms?.occupied || 0 },
+    { label: 'DIRTY', value: 'DIRTY', count: rooms?.dirty || 0 },
+    { label: 'CLEANING', value: 'CLEANING', count: rooms?.cleaning || 0 },
+    { label: 'MAINTENANCE', value: 'MAINTENANCE', count: rooms?.maintenance || 0 },
+    { label: 'BLOCKED', value: 'BLOCKED', count: rooms?.blocked || 0 },
   ];
 
   return (
@@ -268,14 +276,14 @@ export default function HotelDashboardClient() {
                {/* Simplified visual representation for the donut */}
                <div 
                  className="absolute w-full h-full rounded-full border-8 border-blue-600" 
-                 style={{ clipPath: `polygon(50% 50%, 50% 0, ${summary.occupancyPercent > 50 ? '100% 0, 100% 100%, 0 100%, 0 0' : '100% 0, 100% 100%'})` }}
+                 style={{ clipPath: `polygon(50% 50%, 50% 0, ${occupancy > 50 ? '100% 0, 100% 100%, 0 100%, 0 0' : '100% 0, 100% 100%'})` }}
                ></div>
                <div className="text-center z-10 bg-white w-24 h-24 rounded-full flex flex-col items-center justify-center">
-                 <div className="text-2xl font-bold">{summary.occupancyPercent}%</div>
-                 <div className="text-xs text-gray-500">Occupancy</div>
+                 <div className="text-2xl font-bold">{occupancy}%</div>
+                 <div className="text-[10px] text-gray-500 font-semibold uppercase tracking-widest mt-1">Occupied</div>
                </div>
             </div>
-            <div className="text-center font-medium text-gray-800">Total Rooms: {summary.totalRooms}</div>
+            <div className="text-center font-medium text-gray-800">Total Rooms: {rooms?.total || 0}</div>
           </div>
           
           <div className="col-span-1 lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border grid grid-cols-2 sm:grid-cols-4 gap-4">

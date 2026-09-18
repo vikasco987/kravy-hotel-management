@@ -32,8 +32,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/staff/login",
   "/qr-menu",
   "/qr-menu/(.*)",
-  "/qr/(.*)",
-  "/"
+  "/qr/(.*)"
 ]);
 
 export async function middleware(request: NextRequest) {
@@ -79,6 +78,9 @@ export async function middleware(request: NextRequest) {
   
   // 5. If not authenticated and not a public route, redirect to CUSTOM auth page
   if (!isPublicRoute(request) && !customToken && !staffToken && !customRefreshToken && !staffRefreshToken) {
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const signInUrl = new URL('/auth/custom', request.url);
     return NextResponse.redirect(signInUrl);
   }

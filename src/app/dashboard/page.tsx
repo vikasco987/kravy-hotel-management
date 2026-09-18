@@ -1,9 +1,9 @@
-import HotelDashboardClient from '@/components/hotel/HotelDashboardClient';
+import RoomDashboard from '@/app/components/RoomDashboard';
 
 export default function DashboardPage() {
   return (
     <main>
-      <HotelDashboardClient />
+      <RoomDashboard />
     </main>
   );
 }

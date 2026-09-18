@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight } from "lucide-react";
 
 
@@ -54,209 +54,128 @@ const AMENITIES_LIST = [
   "Balcony View"
 ];
 
+// ----------------------------------------------------------------------
+// NEW UI COMPONENTS
+// ----------------------------------------------------------------------
 
-const STATUS: Record<string, any> = {
-  AVAILABLE: {
-    label: "Available",
-    shortLabel: "Available",
-    icon: Check,
-    dot: "bg-emerald-500",
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    text: "text-emerald-700",
-    strongBg: "bg-emerald-500",
-    ring: "ring-emerald-200",
-  },
-  OCCUPIED: {
-    label: "Occupied",
-    shortLabel: "Occupied",
-    icon: BedDouble,
-    dot: "bg-blue-500",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    text: "text-blue-700",
-    strongBg: "bg-blue-500",
-    ring: "ring-blue-200",
-  },
-  DIRTY: {
-    label: "Dirty",
-    shortLabel: "Dirty",
-    icon: Droplets,
-    dot: "bg-red-500",
-    bg: "bg-red-50",
-    border: "border-red-200",
-    text: "text-red-700",
-    strongBg: "bg-red-500",
-    ring: "ring-red-200",
-  },
-  MAINTENANCE: {
-    label: "Maintenance",
-    shortLabel: "Maintenance",
-    icon: Wrench,
-    dot: "bg-amber-500",
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-    text: "text-amber-700",
-    strongBg: "bg-amber-500",
-    ring: "ring-amber-200",
-  },
-  BLOCKED: {
-    label: "Blocked",
-    shortLabel: "Blocked",
-    icon: X,
-    dot: "bg-slate-500",
-    bg: "bg-slate-100",
-    border: "border-slate-200",
-    text: "text-slate-700",
-    strongBg: "bg-slate-500",
-    ring: "ring-slate-200",
-  },
-  RESERVED: {
-    label: "Reserved",
-    shortLabel: "Rsrvd",
-    icon: Clock3,
-    dot: "bg-purple-500",
-    bg: "bg-purple-50",
-    border: "border-purple-200",
-    text: "text-purple-700",
-    strongBg: "bg-purple-500",
-    ring: "ring-purple-200",
-  },
-  CLEANING: {
-    label: "Cleaning",
-    shortLabel: "Clean",
-    icon: Sparkles,
-    dot: "bg-yellow-500",
-    bg: "bg-yellow-50",
-    border: "border-yellow-200",
-    text: "text-yellow-700",
-    strongBg: "bg-yellow-500",
-    ring: "ring-yellow-200",
-  },
-  INSPECTED: {
-    label: "Inspected",
-    shortLabel: "Insp",
-    icon: Check,
-    dot: "bg-teal-500",
-    bg: "bg-teal-50",
-    border: "border-teal-200",
-    text: "text-teal-700",
-    strongBg: "bg-teal-500",
-    ring: "ring-teal-200",
+const STATUS_COLORS: Record<string, { bg: string, text: string, border: string, dot: string, label: string }> = {
+  AVAILABLE: { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', dot: 'bg-emerald-500', label: 'Available' },
+  OCCUPIED: { bg: 'bg-indigo-50', text: 'text-indigo-800', border: 'border-indigo-200', dot: 'bg-indigo-500', label: 'Occupied' },
+  DIRTY: { bg: 'bg-rose-50', text: 'text-rose-800', border: 'border-rose-200', dot: 'bg-rose-500', label: 'Dirty' },
+  MAINTENANCE: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-500', label: 'Maintenance' },
+  BLOCKED: { bg: 'bg-slate-100', text: 'text-slate-800', border: 'border-slate-200', dot: 'bg-slate-500', label: 'Blocked' },
+  RESERVED: { bg: 'bg-violet-50', text: 'text-violet-800', border: 'border-violet-200', dot: 'bg-violet-500', label: 'Reserved' },
+  CLEANING: { bg: 'bg-yellow-50', text: 'text-yellow-800', border: 'border-yellow-200', dot: 'bg-yellow-500', label: 'Cleaning' },
+  INSPECTED: { bg: 'bg-teal-50', text: 'text-teal-800', border: 'border-teal-200', dot: 'bg-teal-500', label: 'Inspected' },
+};
+
+function FilterBadge({ statusKey, count, isActive, onClick }: { statusKey: string, count: number, isActive: boolean, onClick: () => void }) {
+  if (statusKey === 'ALL') {
+    return (
+      <button onClick={onClick} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isActive ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+        ALL <span className={`px-1.5 py-0.5 rounded text-[10px] ${isActive ? 'bg-white/30' : 'bg-white'}`}>{count}</span>
+      </button>
+    );
   }
-};
-
-
-const statusLabels: Record<string, string> = {
-  AVAILABLE: "Available",
-  OCCUPIED: "Occupied",
-  DIRTY: "Dirty",
-  MAINTENANCE: "Maintenance",
-  BLOCKED: "Blocked",
-  CLEANING: "Cleaning",
-  INSPECTED: "Inspected",
-  RESERVED: "Reserved",
-};
-
-
-
-function FilterBadge({ label, count, color, dot, isActive, onClick }: any) {
+  const config = STATUS_COLORS[statusKey] || STATUS_COLORS.AVAILABLE;
   return (
-    <button 
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] font-bold transition-all ${
-        isActive ? 'ring-2 ring-offset-2 ring-gray-200 opacity-100' : 'opacity-80 hover:opacity-100'
-      } ${color}`}
-    >
-      {dot && <div className={`w-2 h-2 rounded-full ${dot}`}></div>}
-      {label}
-      <span className="ml-1 bg-white/50 px-2 py-0.5 rounded-full text-[11px] text-gray-700">{count}</span>
+    <button onClick={onClick} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isActive ? 'ring-2 ring-offset-1 ring-gray-300 opacity-100 shadow-sm' : 'opacity-80 hover:opacity-100'} ${config.bg} ${config.text} ${config.border}`}>
+      <div className={`w-1.5 h-1.5 rounded-full ${config.dot}`}></div>
+      {config.label} <span className="px-1.5 py-0.5 rounded text-[10px] bg-white/60">{count}</span>
     </button>
   );
 }
 
-function FloorRow({ floor, handleToggleRoom, selectedRooms }: any) {
+function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlightedRoomId, onRoomClick }: any) {
   const availableCount = floor.rooms.filter((r: any) => r.status === 'AVAILABLE').length;
+  
+  // Enforce unique F1, F2 logic using array index
+  const floorNum = floorIndex + 1;
+  const badgeText = `F${floorNum}`;
+  const floorName = `Floor ${floorNum.toString().padStart(2, '0')}`;
 
   return (
-    <div className="flex bg-white rounded-2xl border border-gray-100 p-3 items-center shadow-sm">
-      <div className="flex items-center w-[160px] shrink-0 border-r border-gray-100 mr-4 pr-4">
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl mr-3 bg-gradient-to-br from-emerald-100 to-green-50 text-green-900">
-          {floor.name.replace('Floor ', '0').replace('Ground', '00')}
+    <div className="flex flex-col sm:flex-row bg-white rounded-xl border border-gray-100 p-2 items-center shadow-sm w-full mb-3 gap-2 sm:gap-4">
+      <div className="flex items-center w-full sm:w-[160px] shrink-0 border-b sm:border-b-0 sm:border-r border-gray-100 pb-2 sm:pb-0 sm:pr-4">
+        <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-indigo-50 text-indigo-900 border border-indigo-100 mr-3 shrink-0">
+          <span className="text-base font-black leading-none">{badgeText}</span>
+          <span className="text-[8px] font-bold uppercase tracking-wider text-indigo-500 mt-1">Floor</span>
         </div>
-        <div className="flex flex-col">
-          <span className="font-extrabold text-sm text-gray-800">{floor.name}</span>
-          <span className="text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full mt-1 w-fit">{floor.rooms.length} rooms</span>
+        <div className="flex flex-col min-w-0">
+          <span className="font-extrabold text-sm text-gray-800 truncate" title={floor.name}>{floorName}</span>
+          <span className="text-[10px] font-bold text-gray-400 mt-0.5">{floor.rooms.length} rooms &middot; {availableCount} free</span>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-wrap gap-3">
+      <div className="flex-1 flex overflow-x-auto gap-2 py-1 scrollbar-hide w-full">
         {floor.rooms.map((room: any) => {
-          const isSelected = selectedRooms.includes(room.id);
-          const statusLower = room.status.toLowerCase();
+          const isSelectedForBooking = selectedRooms.includes(room.id);
+          const isFocused = focusedRoomId === room.id;
+          const isHighlighted = highlightedRoomId === room.id;
+          const config = STATUS_COLORS[room.status] || STATUS_COLORS.AVAILABLE;
+          const roomLabel = room.roomNumber || room.number || 'N/A';
           
-          let colorClass = 'bg-gray-50 text-gray-700 border-gray-200';
-          let dotColor = 'bg-gray-400';
-          
-          if (statusLower === 'available') {
-            colorClass = 'bg-emerald-50 text-emerald-800 border-emerald-300';
-            dotColor = 'bg-emerald-500';
-          } else if (statusLower === 'occupied') {
-            colorClass = 'bg-blue-50 text-blue-800 border-transparent';
-            dotColor = 'bg-blue-500';
-          } else if (statusLower === 'dirty') {
-            colorClass = 'bg-red-50 text-red-800 border-transparent';
-            dotColor = 'bg-red-500';
-          } else if (statusLower === 'maintenance') {
-            colorClass = 'bg-orange-50 text-orange-800 border-transparent';
-            dotColor = 'bg-orange-500';
-          } else if (statusLower === 'blocked') {
-            colorClass = 'bg-slate-100 text-slate-800 border-transparent';
-            dotColor = 'bg-slate-500';
-          } else if (statusLower === 'cleaning') {
-             colorClass = 'bg-yellow-50 text-yellow-800 border-transparent';
-             dotColor = 'bg-yellow-500';
-          }
-
           return (
             <div 
               key={room.id}
-              onClick={() => handleToggleRoom(room.id)}
-              className={`relative px-6 py-2.5 min-w-[70px] flex items-center justify-center rounded-xl border cursor-pointer font-extrabold text-base transition-all ${colorClass} ${
-                isSelected ? 'ring-2 ring-indigo-500 shadow-md scale-105 z-10' : 'hover:scale-[1.02]'
-              }`}
+              id={`room-${roomLabel}`}
+              onClick={() => onRoomClick(room.id)}
+              title={`Room ${roomLabel}\n● ${config.label}\nRoom Type: ${room.type || 'Standard'}`}
+              className={`relative px-3 py-1.5 w-[65px] h-[52px] shrink-0 flex flex-col items-center justify-center rounded-xl border cursor-pointer transition-all duration-200 ${config.bg} ${config.text} ${isSelectedForBooking ? 'border-2 border-indigo-600 shadow-md scale-[1.02]' : config.border} ${isFocused ? 'ring-2 ring-offset-2 ring-indigo-400 shadow-lg scale-105 z-10' : 'hover:scale-[1.03] hover:shadow-md hover:-translate-y-0.5 shadow-sm'} ${isHighlighted ? 'ring-4 ring-indigo-400 ring-opacity-50 animate-pulse' : ''}`}
             >
-              {isSelected && (
-                <div className="absolute -top-1.5 -right-1.5 bg-indigo-500 text-white rounded-full p-0.5 shadow-sm z-20">
+              {isSelectedForBooking && (
+                <div className="absolute -top-1.5 -right-1.5 bg-indigo-600 text-white rounded-full p-1 shadow-sm z-20">
                   <Check size={10} strokeWidth={4} />
                 </div>
               )}
-              {room.number}
+              <span className="font-extrabold text-[15px] tracking-tight">{roomLabel}</span>
+              <div className={`w-1.5 h-1.5 rounded-full mt-1 ${config.dot}`}></div>
             </div>
           );
         })}
-      </div>
-
-      <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-100 shrink-0">
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full text-xs font-bold border border-emerald-100">
-           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-           {availableCount} Available
-        </div>
-        <ChevronRight size={18} className="text-gray-400" />
       </div>
     </div>
   );
 }
 
-export default function RoomDashboard() {
+function QuickActionCard({ title, icon: Icon, onClick, colorTheme }: any) {
+  return (
+    <button onClick={onClick} className={`flex items-center gap-2 p-2.5 rounded-xl border border-gray-100 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md bg-white w-full text-left`}>
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${colorTheme.bg} ${colorTheme.text}`}>
+        <Icon size={16} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-extrabold text-gray-800 truncate">{title}</div>
+      </div>
+      <ChevronRight size={14} className="text-gray-300 shrink-0" />
+    </button>
+  );
+}
+function DashboardContent() {
 
 
 
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [filter, setFilter] = useState("ALL");
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+  const [highlightedRoomId, setHighlightedRoomId] = useState<string | null>(null);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const router = useRouter();
+
+  const [focusedRoomId, setFocusedRoomId] = useState<string | null>(null);
+  
+  const handleRoomClick = (roomId: string) => {
+    setFocusedRoomId(roomId);
+  };
+
+  const handleToggleRoomBooking = (roomId: string) => {
+    setSelectedRooms(prev => 
+      prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+    );
+  };
+
 
   const [quickStatusRoomId, setQuickStatusRoomId] = useState<string>('');
   const [isStatusChanging, setIsStatusChanging] = useState(false);
@@ -387,178 +306,326 @@ export default function RoomDashboard() {
 
 
   // Derived Data
-  const totalRooms = data ? Object.values(data.rooms).reduce((a: any, b: any) => a + b, 0) : 0;
   
-  if (!data) return <div className="p-8 text-center text-gray-500">Loading Dashboard...</div>;
+  // Derived Data
+
+
+  
+  // Global search effect
+  useEffect(() => {
+    if (!searchQuery || !data) {
+      setHighlightedRoomId(null);
+      return;
+    }
+    const term = searchQuery.toLowerCase();
+    
+    // Find matching room
+    let foundRoomId = null;
+    let foundRoomNum = null;
+    for (const floor of data.floors) {
+      for (const r of floor.rooms) {
+        const num = r.roomNumber || r.number || '';
+        if (num.toLowerCase().includes(term) || (r.guest && r.guest.toLowerCase().includes(term))) {
+           foundRoomId = r.id;
+           foundRoomNum = num;
+           break;
+        }
+      }
+      if (foundRoomId) break;
+    }
+    
+    if (foundRoomId && foundRoomNum) {
+       setHighlightedRoomId(foundRoomId);
+       const el = document.getElementById(`room-${foundRoomNum}`);
+       if (el) {
+         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+       }
+    } else {
+       setHighlightedRoomId(null);
+    }
+  }, [searchQuery, data]);
+
+  // Derived Data
+  const totalRooms = data ? Object.values(data.rooms).reduce((a: any, b: any) => (typeof b === 'number' && a !== 'total' ? a + b : a), 0) : 0;
+  const focusedRoom = data ? data.floors.flatMap(f => f.rooms).find(r => r.id === focusedRoomId) : null;
+
+  if (!data) return <div className="min-h-screen flex items-center justify-center bg-[#F7F8FC] text-gray-500 font-bold">Loading Dashboard...</div>;
 
   return (
-    <>
-      <div className="dash-page">
-        <div className="dash-page-head">
+    <div className="min-h-screen bg-[#F7F8FC] font-sans flex overflow-hidden">
+      
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-screen overflow-y-auto relative">
+        
+        {/* SMALL SUBHEADER */}
+        <div className="bg-white/50 backdrop-blur-md border-b border-gray-100 px-8 py-2 flex items-center gap-3 sticky top-0 z-20">
+          <div className="w-6 h-6 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600">
+            <Building2 size={14} />
+          </div>
           <div>
-            <h1>Main dashboard</h1>
-            <div className="sub">Everything moving through Grand Plaza today</div>
+            <h1 className="text-sm font-black text-gray-900 leading-none">Main Dashboard</h1>
+            <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Grand Plaza Control Center</div>
           </div>
         </div>
+        <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full">
 
-        {/* KPI ribbon */}
-        <div className="kpi-row">
-          <div className="kpi accent">
-            <div className="kpi-label">Occupancy</div>
-            <div className="kpi-value">{data.occupancy}<small>%</small></div>
+          {/* QUICK ACTIONS GRID */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-8">
+             <QuickActionCard title="Guest Check-in" icon={Check} onClick={() => router.push('/dashboard/book')} colorTheme={{bg: 'bg-emerald-50', text: 'text-emerald-600'}} />
+             <QuickActionCard title="Guest Check-out" icon={Check} onClick={() => {}} colorTheme={{bg: 'bg-indigo-50', text: 'text-indigo-600'}} />
+             <QuickActionCard title="Reservations" icon={Clock3} onClick={() => {}} colorTheme={{bg: 'bg-violet-50', text: 'text-violet-600'}} />
+             <QuickActionCard title="Housekeeping" icon={Sparkles} onClick={() => {}} colorTheme={{bg: 'bg-amber-50', text: 'text-amber-600'}} />
+             <QuickActionCard title="Restaurant" icon={Droplets} onClick={() => {}} colorTheme={{bg: 'bg-rose-50', text: 'text-rose-600'}} />
+             <QuickActionCard title="WhatsApp" icon={Check} onClick={() => {}} colorTheme={{bg: 'bg-teal-50', text: 'text-teal-600'}} />
+             <QuickActionCard title="Rooms" icon={BedDouble} onClick={() => {}} colorTheme={{bg: 'bg-blue-50', text: 'text-blue-600'}} />
+             <QuickActionCard title="Staff" icon={Check} onClick={() => {}} colorTheme={{bg: 'bg-sky-50', text: 'text-sky-600'}} />
+             <QuickActionCard title="Floors" icon={Building2} onClick={() => {}} colorTheme={{bg: 'bg-emerald-50', text: 'text-emerald-600'}} />
+             <QuickActionCard title="Reports" icon={Check} onClick={() => {}} colorTheme={{bg: 'bg-amber-50', text: 'text-amber-600'}} />
+             <QuickActionCard title="Settings" icon={Wrench} onClick={() => {}} colorTheme={{bg: 'bg-slate-100', text: 'text-slate-600'}} />
+             <QuickActionCard title="Expenses & P&L" icon={Check} onClick={() => {}} colorTheme={{bg: 'bg-rose-50', text: 'text-rose-600'}} />
           </div>
-          <div className="kpi" style={{background: 'var(--card-sky)', borderColor: 'transparent'}}>
-            <div className="kpi-label">Pending check-ins</div>
-            <div className="kpi-value">{data.pendingArrivals}</div>
-          </div>
-          <div className="kpi" style={{background: 'var(--card-coral)', borderColor: 'transparent'}}>
-            <div className="kpi-label">Pending departures</div>
-            <div className="kpi-value">{data.pendingDepartures}</div>
-          </div>
-          <div className="kpi" style={{background: 'var(--card-brass)', borderColor: 'transparent'}}>
-            <div className="kpi-label">Revenue today</div>
-            <div className="kpi-value">₹{data.revenueToday.toLocaleString()}</div>
-          </div>
-        </div>
 
-        <div className="dash-grid-2">
-          <div>
-            <div className="section-label">Quick actions</div>
-            <div className="actions">
-              {/* Render actions... */}
-              <div className="action-card" style={{background: 'var(--card-moss)'}} onClick={() => router.push('/dashboard/book')}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-moss)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          <div className="w-full h-px bg-gray-200 mb-8"></div>
+
+          {/* LOWER SECTION: FLOORS (LEFT) AND WIDGETS (RIGHT) */}
+          <div className="flex flex-col xl:flex-row gap-8">
+            
+            {/* LEFT: FLOORS */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
+                <div className="flex items-center gap-2 shrink-0">
+                  <h2 className="text-base font-black text-gray-900 uppercase tracking-widest">Floors & Rooms</h2>
                 </div>
-                <div className="action-title">Guest check-in</div>
+                
+                <div className="flex flex-wrap gap-2">
+                  <FilterBadge statusKey="ALL" count={totalRooms} isActive={filter === 'ALL'} onClick={() => setFilter('ALL')} />
+                  <FilterBadge statusKey="AVAILABLE" count={data.rooms.available||0} isActive={filter === 'AVAILABLE'} onClick={() => setFilter('AVAILABLE')} />
+                  <FilterBadge statusKey="OCCUPIED" count={data.rooms.occupied||0} isActive={filter === 'OCCUPIED'} onClick={() => setFilter('OCCUPIED')} />
+                  <FilterBadge statusKey="DIRTY" count={data.rooms.dirty||0} isActive={filter === 'DIRTY'} onClick={() => setFilter('DIRTY')} />
+                  <FilterBadge statusKey="MAINTENANCE" count={data.rooms.maintenance||0} isActive={filter === 'MAINTENANCE'} onClick={() => setFilter('MAINTENANCE')} />
+                  <FilterBadge statusKey="BLOCKED" count={data.rooms.blocked||0} isActive={filter === 'BLOCKED'} onClick={() => setFilter('BLOCKED')} />
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => { setNewRoomFloorId(data.floors[0]?.id || ""); setIsAddRoomOpen(true); }} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-indigo-100 transition-colors">
+                    <Plus size={14} /> Add Room
+                  </button>
+                  <button onClick={() => setIsAddFloorOpen(true)} className="px-3 py-1.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-gray-100 transition-colors">
+                    <Plus size={14} /> Add Floor
+                  </button>
+                </div>
               </div>
-              <div className="action-card" style={{background: 'var(--card-teal)'}}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-teal)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                </div>
-                <div className="action-title">Guest check-out</div>
+
+              <div className="space-y-4 pb-10">
+                {data.floors.map((floor, index) => {
+                  const visibleRooms = filter === 'ALL' ? floor.rooms : floor.rooms.filter((r: any) => r.status === filter);
+                  if (visibleRooms.length === 0 && filter !== 'ALL') return null;
+                  return (
+                    <FloorRow 
+                      key={floor.id}
+                      floor={{...floor, rooms: visibleRooms}} 
+                      floorIndex={index}
+                      selectedRooms={selectedRooms} 
+                      focusedRoomId={focusedRoomId}
+                      highlightedRoomId={highlightedRoomId}
+                      onRoomClick={handleRoomClick} 
+                    />
+                  );
+                })}
               </div>
-              <div className="action-card" style={{background: 'var(--card-sky)'}}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-sky)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+
+            {/* RIGHT: WIDGETS */}
+            <div className="w-full xl:w-[280px] shrink-0 space-y-6">
+              
+              {/* Occupancy Widget */}
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-5">Occupancy</h3>
+                
+                <div className="flex flex-col items-center gap-6">
+                  <div className="relative w-28 h-28 cursor-pointer transition-transform hover:scale-105" title="Click to view all rooms" onClick={() => setFilter('ALL')}>
+                    <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                      <path className="text-gray-100" strokeWidth="4" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-indigo-500" strokeDasharray={`${data.occupancy}, 100`} strokeWidth="4" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-2xl font-black text-gray-900 leading-none">{data.occupancy}%</span>
+                    </div>
+                  </div>
+                  
+                  <div className="w-full space-y-2 border-t border-gray-100 pt-4">
+                    <button onClick={() => setFilter('AVAILABLE')} className="w-full flex justify-between items-center text-xs font-bold p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-2 text-gray-600"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Available</div>
+                      <span className="text-gray-900">{data.rooms.available || 0}</span>
+                    </button>
+                    <button onClick={() => setFilter('OCCUPIED')} className="w-full flex justify-between items-center text-xs font-bold p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-2 text-gray-600"><div className="w-2 h-2 rounded-full bg-indigo-500"></div>Occupied</div>
+                      <span className="text-gray-900">{data.rooms.occupied || 0}</span>
+                    </button>
+                    <button onClick={() => setFilter('DIRTY')} className="w-full flex justify-between items-center text-xs font-bold p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-2 text-gray-600"><div className="w-2 h-2 rounded-full bg-rose-500"></div>Dirty</div>
+                      <span className="text-gray-900">{data.rooms.dirty || 0}</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="action-title">Reservations</div>
-              </div>
-              <div className="action-card" style={{background: 'var(--card-indigo)'}}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-indigo)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11l2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg>
-                </div>
-                <div className="action-title">Housekeeping</div>
               </div>
               
-              {/* Row 2 */}
-              <div className="action-card" style={{background: 'var(--card-coral)'}}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-coral)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h0a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg>
+              {/* Quick Alerts Widget */}
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Quick Alerts</h3>
+                <div className="space-y-3">
+                  {(!data.rooms.dirty && !data.rooms.maintenance) ? (
+                    <div className="w-full bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0"><Check size={16} strokeWidth={3} /></div>
+                      <div>
+                        <div className="text-xs font-black text-emerald-800 uppercase">All clear</div>
+                        <div className="text-[10px] font-bold text-emerald-600 mt-0.5">No dirty or maintenance rooms</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {data.rooms.dirty > 0 && (
+                        <button onClick={() => setFilter('DIRTY')} className="w-full bg-rose-50 p-3 rounded-xl border border-rose-100 flex items-center justify-between cursor-pointer hover:bg-rose-100 hover:shadow-sm transition-all group">
+                           <div>
+                             <div className="text-xs font-bold text-rose-600 uppercase mb-1 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"></div>Dirty</div>
+                             <div className="text-xl font-black text-rose-700 leading-none">{data.rooms.dirty}</div>
+                           </div>
+                           <span className="text-[10px] font-bold text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">View rooms <ChevronRight size={10} /></span>
+                        </button>
+                      )}
+                      {data.rooms.maintenance > 0 && (
+                        <button onClick={() => setFilter('MAINTENANCE')} className="w-full bg-amber-50 p-3 rounded-xl border border-amber-100 flex items-center justify-between cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all group">
+                           <div>
+                             <div className="text-xs font-bold text-amber-600 uppercase mb-1 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div>Maintenance</div>
+                             <div className="text-xl font-black text-amber-700 leading-none">{data.rooms.maintenance}</div>
+                           </div>
+                           <span className="text-[10px] font-bold text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">View rooms <ChevronRight size={10} /></span>
+                        </button>
+                      )}
+                    </>
+                  )}
+                  <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-gray-100">
+                    <div>
+                      <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Check-ins</div>
+                      <div className="text-lg font-black text-gray-800">{data.pendingArrivals || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Departures</div>
+                      <div className="text-lg font-black text-gray-800">{data.pendingDepartures || 0}</div>
+                    </div>
+                  </div>
                 </div>
-                <div className="action-title">Restaurant</div>
-              </div>
-              <div className="action-card" style={{background: 'var(--card-moss)'}}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-moss)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-                </div>
-                <div className="action-title">WhatsApp</div>
-              </div>
-              <div className="action-card" style={{background: 'var(--card-plum)'}}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-plum)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                </div>
-                <div className="action-title">Rooms</div>
-              </div>
-              <div className="action-card" style={{background: 'var(--card-indigo)'}}>
-                <div className="action-badge">2 tasks</div>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-indigo)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                </div>
-                <div className="action-title">Staff</div>
               </div>
 
-              {/* Row 3 */}
-              <div className="action-card" style={{background: 'var(--card-teal)'}}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-teal)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
-                </div>
-                <div className="action-title">Floors</div>
-              </div>
-              <div className="action-card" style={{background: 'var(--card-brass)'}}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-brass)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 3 3 5-8"/></svg>
-                </div>
-                <div className="action-title">Reports</div>
-              </div>
-              <div className="action-card" style={{background: 'var(--card-rose)'}}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-rose)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                </div>
-                <div className="action-title">Settings</div>
-              </div>
-              <div className="action-card" style={{background: 'var(--card-coral)'}}>
-                <div className="action-icon" style={{background: 'rgba(255,255,255,0.6)', color: 'var(--c-coral)'}}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                </div>
-                <div className="action-title">Expenses & P&L</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="overview">
-            <h3>Operational overview</h3>
-            <div className="overview-grid">
-              <div className="overview-item"><div className="lbl">Occupancy</div><div className="val">{data.occupancy}%</div></div>
-              <div className="overview-item"><div className="lbl">Check-ins</div><div className="val">{data.pendingArrivals}</div></div>
-              <div className="overview-item"><div className="lbl">Departures</div><div className="val">{data.pendingDepartures}</div></div>
-              <div className="overview-item gold"><div className="lbl">Revenue</div><div className="val">₹{data.revenueToday.toLocaleString()}</div></div>
             </div>
           </div>
         </div>
-
-
       </div>
-      <div className="bg-white p-6 mt-8">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex gap-3 flex-wrap">
-             <FilterBadge label="All" count={totalRooms} color="bg-indigo-500 text-white" isActive={filter === 'ALL'} onClick={() => setFilter('ALL')} />
-             <FilterBadge label="Available" count={data.rooms.available||0} color="bg-emerald-50 text-emerald-800 border border-emerald-100" dot="bg-emerald-500" isActive={filter === 'AVAILABLE'} onClick={() => setFilter('AVAILABLE')} />
-             <FilterBadge label="Occupied" count={data.rooms.occupied||0} color="bg-blue-50 text-blue-800 border border-blue-100" dot="bg-blue-500" isActive={filter === 'OCCUPIED'} onClick={() => setFilter('OCCUPIED')} />
-             <FilterBadge label="Dirty" count={data.rooms.dirty||0} color="bg-red-50 text-red-800 border border-red-100" dot="bg-red-500" isActive={filter === 'DIRTY'} onClick={() => setFilter('DIRTY')} />
-             <FilterBadge label="Maintenance" count={data.rooms.maintenance||0} color="bg-orange-50 text-orange-800 border border-orange-100" dot="bg-orange-500" isActive={filter === 'MAINTENANCE'} onClick={() => setFilter('MAINTENANCE')} />
-             <FilterBadge label="Blocked" count={data.rooms.blocked||0} color="bg-gray-100 text-gray-800 border border-gray-200" dot="bg-gray-500" isActive={filter === 'BLOCKED'} onClick={() => setFilter('BLOCKED')} />
-          </div>
-          <div className="flex gap-3">
-            {selectedRooms.length > 0 && (
-              <button 
-                onClick={() => router.push('/dashboard/book?rooms=' + selectedRooms.join(','))}
-                className="px-5 py-2.5 bg-[#ea580c] text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm hover:bg-[#c2410c] transition-colors"
-              >
-                 Book Selected ({selectedRooms.length})
-              </button>
-            )}
-            <button onClick={() => setIsAddRoomOpen(true)} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-gray-50">
-              <Plus size={16} /> Add Room
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          {data.floors.map((floor) => {
-            const visibleRooms = filter === 'ALL' ? floor.rooms : floor.rooms.filter((r: any) => r.status === filter);
-            if (visibleRooms.length === 0) return null;
-            return (
-              <FloorRow 
-                key={floor.id} 
-                floor={{...floor, rooms: visibleRooms}} 
-                selectedRooms={selectedRooms} 
-                handleToggleRoom={handleToggleRoom} 
-              />
-            );
-          })}
-        </div>
+      
+      {/* ROOM DETAIL DRAWER */}
+      <div 
+        className={`fixed top-0 right-0 w-[400px] h-screen bg-white shadow-2xl border-l border-gray-100 transform transition-transform duration-300 ease-out z-40 ${focusedRoomId ? 'translate-x-0' : 'translate-x-full'}`}
+      >
+        {focusedRoom && (() => {
+           const conf = STATUS_COLORS[focusedRoom.status] || STATUS_COLORS.AVAILABLE;
+           const isSelectedForBooking = selectedRooms.includes(focusedRoom.id);
+           return (
+             <div className="flex flex-col h-full">
+               <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                 <div>
+                   <h2 className="text-2xl font-black text-gray-900 tracking-tight">Room {focusedRoom.roomNumber || focusedRoom.number || 'N/A'}</h2>
+                   <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${conf.bg} ${conf.text} ${conf.border}`}>
+                     <div className={`w-2 h-2 rounded-full ${conf.dot}`}></div>
+                     {conf.label}
+                   </div>
+                 </div>
+                 <button onClick={() => setFocusedRoomId(null)} className="p-2.5 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-gray-800 hover:bg-gray-50 transition-colors shadow-sm">
+                   <X size={18} />
+                 </button>
+               </div>
+               
+               <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                 
+                 {/* Booking Selection Action */}
+                 <div className={`border p-4 rounded-xl flex items-center justify-between shadow-sm transition-colors ${isSelectedForBooking ? 'bg-indigo-600 border-indigo-700' : 'bg-indigo-50 border-indigo-100'}`}>
+                   <div>
+                     <div className={`text-sm font-bold ${isSelectedForBooking ? 'text-white' : 'text-indigo-900'}`}>Select for Booking</div>
+                     <div className={`text-[11px] font-medium mt-1 ${isSelectedForBooking ? 'text-indigo-100' : 'text-indigo-600/80'}`}>{isSelectedForBooking ? 'Room added to selection' : 'Add to current bulk selection'}</div>
+                   </div>
+                   <button 
+                     onClick={() => handleToggleRoomBooking(focusedRoom.id)}
+                     className={`w-12 h-7 rounded-full flex items-center p-1 transition-colors ${isSelectedForBooking ? 'bg-indigo-800' : 'bg-indigo-200'}`}
+                   >
+                     <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${isSelectedForBooking ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                   </button>
+                 </div>
+                 
+                 <div>
+                   <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Guest</h4>
+                   {focusedRoom.guest ? (
+                     <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl bg-white shadow-sm">
+                       <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">{focusedRoom.guest[0]}</div>
+                       <div>
+                         <div className="text-sm font-bold text-gray-800">{focusedRoom.guest}</div>
+                       </div>
+                     </div>
+                   ) : (
+                     <div className="text-sm font-bold text-gray-500 italic">No guest</div>
+                   )}
+                 </div>
+                 
+                 <div>
+                   <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Room Information</h4>
+                   <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                     <div className="flex justify-between items-center">
+                       <span className="text-xs font-bold text-gray-500">Room Type</span>
+                       <span className="text-sm font-bold text-gray-800">{focusedRoom.type || 'Standard'}</span>
+                     </div>
+                     <div className="w-full h-px bg-gray-200"></div>
+                     <div className="flex justify-between items-center">
+                       <span className="text-xs font-bold text-gray-500">Last Cleaned</span>
+                       <span className="text-sm font-bold text-gray-800">10:42 AM</span>
+                     </div>
+                   </div>
+                 </div>
+                 
+                 <div>
+                   <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Actions</h4>
+                   <div className="grid grid-cols-2 gap-3">
+                     <button className="py-3 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-xs font-bold hover:bg-emerald-100 shadow-sm">Check-in</button>
+                     <button className="py-3 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl text-xs font-bold hover:bg-rose-100 shadow-sm">Set Dirty</button>
+                     <button className="py-3 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 shadow-sm col-span-2">Block Room</button>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           );
+        })()}
       </div>
+      
+      {/* Drawer Overlay Backdrop */}
+      {focusedRoomId && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 transition-opacity" 
+          onClick={() => setFocusedRoomId(null)}
+        ></div>
+      )}
+
+      {/* Floating Book Action */}
+      <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-2 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 ease-out ${selectedRooms.length > 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
+        <div className="flex items-center gap-3 px-4">
+          <span className="bg-indigo-500 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">{selectedRooms.length}</span> 
+          <span className="text-sm font-bold">{selectedRooms.length === 1 ? 'Room Selected' : 'Rooms Selected'}</span>
+        </div>
+        <button onClick={() => setSelectedRooms([])} className="text-xs font-bold text-gray-400 hover:text-white px-3 transition-colors">Clear</button>
+        <button 
+          onClick={() => router.push('/dashboard/book?rooms=' + selectedRooms.join(','))}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black px-6 py-2.5 rounded-full transition-colors flex items-center gap-2 ml-1"
+        >
+          Book Rooms <ChevronRight size={16} />
+        </button>
+      </div>
+
       {/* Add Floor Modal */}
       {/* Add Floor Modal */}
       {isAddFloorOpen && (
@@ -734,46 +801,15 @@ export default function RoomDashboard() {
            </div>
         </div>
       )}
-    </>
+    
+    </div>
   );
 }
 
-// Subcomponents
-function QuickLink({ title, icon, bgColor, badge }: { title: string, icon: string, bgColor: string, badge?: string }) {
+export default function RoomDashboard() {
   return (
-    <button className={`${bgColor} rounded-xl p-3 flex flex-col items-center justify-center gap-2 hover:opacity-90 transition-opacity relative h-20 shadow-sm border border-black/5`}>
-       {badge && (
-         <span className="absolute -top-2 -right-2 bg-[#ffb703] text-black text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white">
-           {badge}
-         </span>
-       )}
-       <div className="w-5 h-5 bg-black/20 rounded-full flex items-center justify-center text-white text-xs">
-          {title[0]}
-       </div>
-       <span className="text-[10px] font-bold text-gray-800 leading-tight text-center">{title}</span>
-    </button>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#F7F8FC] text-gray-500 font-bold">Loading Dashboard...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
-
-function RoomBlock({ room }: { room: Room }) {
-  const getStatusColor = (status: RoomStatus) => {
-    switch (status) {
-      case 'AVAILABLE': return 'bg-[#1b4332] text-white';
-      case 'OCCUPIED': return 'bg-[#1b3a4b] text-white';
-      case 'DIRTY': return 'bg-[#e63946] text-white';
-      case 'MAINTENANCE': return 'bg-[#f4a261] text-white';
-      case 'RESERVED': return 'bg-[#4361ee] text-white';
-      case 'CLEANING': return 'bg-[#ffd166] text-black';
-      case 'INSPECTED': return 'bg-[#06d6a0] text-black';
-      case 'BLOCKED': return 'bg-[#6c757d] text-white';
-      default: return 'bg-gray-200 text-black';
-    }
-  };
-
-  return (
-    <button className={`w-[42px] h-[32px] rounded flex items-center justify-center text-[11px] font-bold shadow-sm transition-transform hover:scale-105 ${getStatusColor(room.status)}`} title={room.notes ? `Notes: ${room.notes}` : ''}>
-      {room.number}
-    </button>
-  );
-}
-
