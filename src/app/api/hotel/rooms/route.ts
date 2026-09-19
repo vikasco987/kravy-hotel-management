@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     const { hotel } = authContext;
     const body = await req.json();
-    const { floorId, roomTypeId, roomNumber, status } = body;
+    const { floorId, roomTypeId, roomTypeName, roomNumber, status } = body;
 
     // 1. Validate Floor belongs to current hotel
     const floor = await prisma.floor.findFirst({
@@ -44,11 +44,32 @@ export async function POST(req: Request) {
     });
     if (!floor) return NextResponse.json({ error: 'Invalid floor for this hotel' }, { status: 400 });
 
-    // 2. Validate RoomType belongs to current hotel
-    const roomType = await prisma.roomType.findFirst({
-      where: { id: roomTypeId, hotelId: hotel.id }
-    });
+    // 2. Resolve RoomType
+    let roomType = null;
+    if (roomTypeId) {
+      roomType = await prisma.roomType.findFirst({
+        where: { id: roomTypeId, hotelId: hotel.id }
+      });
+    } else if (roomTypeName) {
+      roomType = await prisma.roomType.findFirst({
+        where: { name: roomTypeName, hotelId: hotel.id }
+      });
+      // Fallback: if room type name doesn't exist, create it on the fly!
+      if (!roomType) {
+        roomType = await prisma.roomType.create({
+          data: {
+            hotelId: hotel.id,
+            name: roomTypeName,
+            basePrice: 150000 // default to 1500 INR
+          }
+        });
+      }
+    }
+    
     if (!roomType) return NextResponse.json({ error: 'Invalid room type for this hotel' }, { status: 400 });
+    
+    // override the id for creation
+    const finalRoomTypeId = roomType.id;
 
     // 3. Validate unique room number within the hotel
     const existingRoom = await prisma.room.findUnique({
@@ -72,7 +93,7 @@ export async function POST(req: Request) {
       data: {
         hotelId: hotel.id,
         floorId,
-        roomTypeId,
+        roomTypeId: finalRoomTypeId,
         roomNumber,
         status: safeStatus as RoomStatus,
       },

@@ -22,6 +22,26 @@ export async function GET() {
         rooms: {
           include: {
             roomType: true,
+            tasks: {
+              where: { status: 'COMPLETED' },
+              orderBy: { updatedAt: 'desc' },
+              take: 1
+            },
+            stays: {
+              where: { checkOutDate: null },
+              include: {
+                stay: {
+                  include: {
+                    reservation: {
+                      include: {
+                        guest: true,
+                        rooms: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           orderBy: { roomNumber: 'asc' }
         }
@@ -53,12 +73,39 @@ export async function GET() {
           case 'BLOCKED': blocked++; break;
         }
 
+        let guestInfo = undefined;
+        // Strictly use active stay where checkOutDate is null
+        const activeStayRoom = room.stays?.find(s => s.checkOutDate === null);
+        
+        if (room.status === 'OCCUPIED' && activeStayRoom && activeStayRoom.stay && activeStayRoom.stay.reservation) {
+          const reservation = activeStayRoom.stay.reservation;
+          const guest = reservation.guest;
+          // Match the exact reservation room
+          const reservationRoom = reservation.rooms?.find(r => r.roomId === room.id);
+          
+          guestInfo = {
+            name: guest.name,
+            phone: guest.phone,
+            idProof: guest.idProof || 'Not Provided',
+            checkInDate: activeStayRoom.checkInDate,
+            expectedCheckOutDate: reservationRoom ? reservationRoom.checkOutDate : undefined,
+            amountPaid: reservation.advancePaid || 0,
+            totalAmount: reservation.totalAmount || 0,
+            balance: (reservation.totalAmount || 0) - (reservation.advancePaid || 0)
+          };
+        }
+
+        // Get last cleaned timestamp if available
+        const lastCleaned = (room.tasks && room.tasks.length > 0) ? room.tasks[0].updatedAt : null;
+
         return {
           id: room.id,
           roomNumber: room.roomNumber,
           status: room.status,
           roomType: room.roomType?.name || 'Unknown',
-          price: room.roomType?.basePrice || 0
+          price: room.roomType?.basePrice || 0,
+          lastCleaned,
+          guestInfo
         };
       });
 

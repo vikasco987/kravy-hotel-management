@@ -76,7 +76,30 @@ export async function POST(request: Request) {
       });
       
       // Save documents for the lead guest if any
-      if (leadGuestData?.idUrl) {
+      if (leadGuestData?.idUrls && leadGuestData.idUrls.length > 0) {
+         for (const url of leadGuestData.idUrls) {
+            await tx.guestDocument.create({
+               data: {
+                  guestId: guest.id,
+                  documentType: 'ID',
+                  documentNumber: leadGuestData.idNumber || null,
+                  fileReference: url
+               }
+            });
+         }
+      } else if (leadGuestData?.idDocuments && leadGuestData.idDocuments.length > 0) {
+         for (const doc of leadGuestData.idDocuments) {
+            await tx.guestDocument.create({
+               data: {
+                  guestId: guest.id,
+                  documentType: 'ID',
+                  documentNumber: doc.number || null,
+                  fileReference: doc.url
+               }
+            });
+         }
+      } else if (leadGuestData?.idUrl) {
+         // Fallback for legacy data
          await tx.guestDocument.create({
             data: {
                guestId: guest.id,
@@ -98,11 +121,17 @@ export async function POST(request: Request) {
                  guestPhotoUrl: g.photoUrl || null,
                }
             });
-            if (g.idUrl) {
-               await tx.guestDocument.create({
-                  data: { guestId: secondaryGuest.id, documentType: 'ID', documentNumber: g.idNumber || null, fileReference: g.idUrl }
-               });
-            }
+             if (g.idUrls && g.idUrls.length > 0) {
+                 for (const url of g.idUrls) {
+                    await tx.guestDocument.create({
+                       data: { guestId: secondaryGuest.id, documentType: 'ID', documentNumber: g.idNumber || null, fileReference: url }
+                    });
+                 }
+             } else if (g.idUrl) {
+                await tx.guestDocument.create({
+                   data: { guestId: secondaryGuest.id, documentType: 'ID', documentNumber: g.idNumber || null, fileReference: g.idUrl }
+                });
+             }
          }
       }
 

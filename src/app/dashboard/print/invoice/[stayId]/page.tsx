@@ -1,21 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Printer } from 'lucide-react';
+import React, { useState, useEffect, use } from 'react';
+import { Printer, ArrowLeft } from 'lucide-react';
 
-export default function InvoicePrintPage({ params }: { params: { stayId: string } }) {
+export default function InvoicePrintPage({ params }: { params: Promise<{ stayId: string }> }) {
+  const { stayId } = use(params);
   const [data, setData] = useState<any>(null);
   const [format, setFormat] = useState<'A4' | '80MM'>('A4');
 
   useEffect(() => {
     // We fetch the data from a dedicated API to avoid making the whole component async (for interactive toggle)
-    fetch(`/api/hotel/invoice-data/${params.stayId}`)
+    fetch(`/api/hotel/invoice-data/${stayId}`)
       .then(res => res.json())
       .then(d => {
         if (d.success) setData(d.data);
       })
       .catch(console.error);
-  }, [params.stayId]);
+  }, [stayId]);
 
   if (!data) return <div className="p-8">Loading Invoice Data...</div>;
 
@@ -30,9 +31,14 @@ export default function InvoicePrintPage({ params }: { params: { stayId: string 
       
       {/* Controls (Hidden in Print) */}
       <div className="mb-6 flex gap-4 print:hidden bg-white p-4 rounded-lg shadow w-full max-w-4xl justify-between items-center">
-         <div>
-            <h2 className="font-bold">Invoice Print Settings</h2>
+         <div className="flex items-center gap-4">
+            <button onClick={() => { if (window.history.length > 1 && document.referrer) { window.history.back(); } else { window.close(); } }} className="text-gray-500 hover:text-black hover:bg-gray-100 p-2 rounded-full transition">
+               <ArrowLeft size={20} />
+            </button>
+            <div>
+               <h2 className="font-bold">Invoice Print Settings</h2>
             <p className="text-xs text-gray-500">Select format before printing</p>
+         </div>
          </div>
          <div className="flex gap-2 items-center">
             <select value={format} onChange={e => setFormat(e.target.value as any)} className="border p-2 rounded text-sm font-bold">
@@ -47,7 +53,7 @@ export default function InvoicePrintPage({ params }: { params: { stayId: string 
 
       {/* -------------------- A4 FORMAT -------------------- */}
       {format === 'A4' && (
-        <div className="bg-white w-full max-w-4xl p-12 shadow-xl print:shadow-none print:w-full print:max-w-none print:p-8">
+        <div className="bg-white text-black w-full max-w-4xl p-12 shadow-xl print:shadow-none print:w-full print:max-w-none print:p-8">
            
            <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
               <div>
@@ -56,7 +62,7 @@ export default function InvoicePrintPage({ params }: { params: { stayId: string 
                  <p className="text-sm">GSTIN: {hotel.gstin || 'N/A'}</p>
               </div>
               <div className="text-right">
-                 <h2 className="text-4xl font-black text-gray-200 uppercase tracking-widest">INVOICE</h2>
+                 <h2 className="text-4xl font-black text-gray-300 uppercase tracking-widest">INVOICE</h2>
                  <p className="text-sm font-bold mt-2">Invoice No: {invoice?.invoiceNumber || 'DRAFT'}</p>
                  <p className="text-sm">Date: {new Date().toLocaleDateString()}</p>
               </div>

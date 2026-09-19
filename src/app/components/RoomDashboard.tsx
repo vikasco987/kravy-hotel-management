@@ -2,19 +2,37 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight } from "lucide-react";
+import dayjs from 'dayjs';
+import { Check, Sun, ArrowUp, ArrowDown, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight, Hotel, Users, IndianRupee, Snowflake, Wifi, Tv, Bath, Mountain, UserRound, ChevronDown, UserCheck, CalendarDays, UtensilsCrossed, MessageCircle, BarChart3, Wallet, Settings } from "lucide-react";
 
 
 type RoomStatus = 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'DIRTY' | 'CLEANING' | 'INSPECTED' | 'MAINTENANCE' | 'BLOCKED';
 
+interface GuestInfo {
+  name: string;
+  phone: string;
+  idProof: string;
+  checkInDate: string;
+  expectedCheckOutDate?: string;
+  amountPaid: number;
+  totalAmount: number;
+  balance: number;
+}
+
 interface Room {
   id: string;
-  number: string;
+  roomNumber: string;
+  number?: string; // fallback
   status: RoomStatus;
-  type: string;
+  roomType: string;
+  type?: string; // fallback
+  price?: number;
+  lastCleaned?: string | null;
+  guestInfo?: GuestInfo;
+  
+  // Keep these as optional fallbacks for the new room form state
   guest?: string;
   capacity?: number;
-  price?: number;
   staff?: string;
   amenities?: string[];
   notes?: string;
@@ -59,29 +77,30 @@ const AMENITIES_LIST = [
 // ----------------------------------------------------------------------
 
 const STATUS_COLORS: Record<string, { bg: string, text: string, border: string, dot: string, label: string }> = {
-  AVAILABLE: { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', dot: 'bg-emerald-500', label: 'Available' },
-  OCCUPIED: { bg: 'bg-indigo-50', text: 'text-indigo-800', border: 'border-indigo-200', dot: 'bg-indigo-500', label: 'Occupied' },
-  DIRTY: { bg: 'bg-rose-50', text: 'text-rose-800', border: 'border-rose-200', dot: 'bg-rose-500', label: 'Dirty' },
-  MAINTENANCE: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-500', label: 'Maintenance' },
-  BLOCKED: { bg: 'bg-slate-100', text: 'text-slate-800', border: 'border-slate-200', dot: 'bg-slate-500', label: 'Blocked' },
-  RESERVED: { bg: 'bg-violet-50', text: 'text-violet-800', border: 'border-violet-200', dot: 'bg-violet-500', label: 'Reserved' },
-  CLEANING: { bg: 'bg-yellow-50', text: 'text-yellow-800', border: 'border-yellow-200', dot: 'bg-yellow-500', label: 'Cleaning' },
-  INSPECTED: { bg: 'bg-teal-50', text: 'text-teal-800', border: 'border-teal-200', dot: 'bg-teal-500', label: 'Inspected' },
+  AVAILABLE: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-100', dot: 'bg-emerald-500', label: 'Available' },
+  OCCUPIED: { bg: 'bg-indigo-50/70', text: 'text-indigo-700', border: 'border-indigo-100/50', dot: 'bg-indigo-500', label: 'Occupied' },
+  DIRTY: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-100', dot: 'bg-rose-500', label: 'Dirty' },
+  MAINTENANCE: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', dot: 'bg-amber-500', label: 'Maintenance' },
+  BLOCKED: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-500', label: 'Blocked' },
+  RESERVED: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-100', dot: 'bg-violet-500', label: 'Reserved' },
+  CLEANING: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-100', dot: 'bg-yellow-500', label: 'Cleaning' },
+  INSPECTED: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-100', dot: 'bg-teal-500', label: 'Inspected' },
 };
 
 function FilterBadge({ statusKey, count, isActive, onClick }: { statusKey: string, count: number, isActive: boolean, onClick: () => void }) {
   if (statusKey === 'ALL') {
     return (
-      <button onClick={onClick} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isActive ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-        ALL <span className={`px-1.5 py-0.5 rounded text-[10px] ${isActive ? 'bg-white/30' : 'bg-white'}`}>{count}</span>
+      <button onClick={onClick} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${isActive ? 'bg-indigo-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+        <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-white' : 'bg-gray-400'}`}></div>
+        ALL <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${isActive ? 'bg-white/20' : 'bg-gray-100'}`}>{count}</span>
       </button>
     );
   }
   const config = STATUS_COLORS[statusKey] || STATUS_COLORS.AVAILABLE;
   return (
-    <button onClick={onClick} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isActive ? 'ring-2 ring-offset-1 ring-gray-300 opacity-100 shadow-sm' : 'opacity-80 hover:opacity-100'} ${config.bg} ${config.text} ${config.border}`}>
+    <button onClick={onClick} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${isActive ? `ring-2 ring-offset-1 ring-${config.dot.split('-')[1]}-300 shadow-sm` : 'border border-transparent hover:border-gray-200'} ${config.bg} ${config.text}`}>
       <div className={`w-1.5 h-1.5 rounded-full ${config.dot}`}></div>
-      {config.label} <span className="px-1.5 py-0.5 rounded text-[10px] bg-white/60">{count}</span>
+      {config.label} <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-white/60">{count}</span>
     </button>
   );
 }
@@ -89,25 +108,24 @@ function FilterBadge({ statusKey, count, isActive, onClick }: { statusKey: strin
 function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlightedRoomId, onRoomClick }: any) {
   const availableCount = floor.rooms.filter((r: any) => r.status === 'AVAILABLE').length;
   
-  // Enforce unique F1, F2 logic using array index
   const floorNum = floorIndex + 1;
   const badgeText = `F${floorNum}`;
   const floorName = `Floor ${floorNum.toString().padStart(2, '0')}`;
 
   return (
-    <div className="flex flex-col sm:flex-row bg-white rounded-xl border border-gray-100 p-2 items-center shadow-sm w-full mb-3 gap-2 sm:gap-4">
-      <div className="flex items-center w-full sm:w-[160px] shrink-0 border-b sm:border-b-0 sm:border-r border-gray-100 pb-2 sm:pb-0 sm:pr-4">
-        <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-indigo-50 text-indigo-900 border border-indigo-100 mr-3 shrink-0">
-          <span className="text-base font-black leading-none">{badgeText}</span>
-          <span className="text-[8px] font-bold uppercase tracking-wider text-indigo-500 mt-1">Floor</span>
+    <div className="flex flex-col sm:flex-row bg-white rounded-[20px] p-4 items-center shadow-sm border border-gray-100 w-full mb-4 gap-4 sm:gap-6">
+      <div className="flex items-center w-full sm:w-[220px] shrink-0 border-b sm:border-b-0 sm:border-r border-gray-100 pb-4 sm:pb-0 sm:pr-6">
+        <div className="flex flex-col items-center justify-center w-[52px] h-[52px] rounded-[14px] bg-blue-50/80 text-blue-600 border border-blue-100 mr-4 shrink-0">
+          <span className="text-[15px] font-black leading-none">{badgeText}</span>
+          <span className="text-[9px] font-bold uppercase tracking-widest text-blue-400 mt-1">Floor</span>
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="font-extrabold text-sm text-gray-800 truncate" title={floor.name}>{floorName}</span>
-          <span className="text-[10px] font-bold text-gray-400 mt-0.5">{floor.rooms.length} rooms &middot; {availableCount} free</span>
+          <span className="font-extrabold text-[15px] text-gray-900 truncate" title={floor.name}>{floorName}</span>
+          <span className="text-[11px] font-medium text-gray-400 mt-1">{floor.rooms.length} rooms &middot; {availableCount} free</span>
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-x-auto gap-2 py-1 scrollbar-hide w-full">
+      <div className="flex-1 flex overflow-x-auto gap-3 py-1 scrollbar-hide w-full items-center">
         {floor.rooms.map((room: any) => {
           const isSelectedForBooking = selectedRooms.includes(room.id);
           const isFocused = focusedRoomId === room.id;
@@ -120,34 +138,40 @@ function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlighted
               key={room.id}
               id={`room-${roomLabel}`}
               onClick={() => onRoomClick(room.id)}
-              title={`Room ${roomLabel}\n● ${config.label}\nRoom Type: ${room.type || 'Standard'}`}
-              className={`relative px-3 py-1.5 w-[65px] h-[52px] shrink-0 flex flex-col items-center justify-center rounded-xl border cursor-pointer transition-all duration-200 ${config.bg} ${config.text} ${isSelectedForBooking ? 'border-2 border-indigo-600 shadow-md scale-[1.02]' : config.border} ${isFocused ? 'ring-2 ring-offset-2 ring-indigo-400 shadow-lg scale-105 z-10' : 'hover:scale-[1.03] hover:shadow-md hover:-translate-y-0.5 shadow-sm'} ${isHighlighted ? 'ring-4 ring-indigo-400 ring-opacity-50 animate-pulse' : ''}`}
+              title={`Room ${roomLabel}\nStatus: ${config.label}`}
+              className={`relative px-4 w-[76px] h-[48px] shrink-0 flex flex-col items-center justify-center rounded-[14px] cursor-pointer transition-all duration-200 ${config.bg} ${config.text} ${isSelectedForBooking ? 'ring-2 ring-indigo-500 shadow-md scale-[1.02]' : 'border border-transparent hover:border-gray-200'} ${isFocused ? 'ring-2 ring-indigo-400 shadow-lg scale-105 z-10' : 'hover:scale-[1.02] hover:-translate-y-0.5'} ${isHighlighted ? 'ring-4 ring-indigo-400 ring-opacity-50 animate-pulse' : ''}`}
             >
               {isSelectedForBooking && (
                 <div className="absolute -top-1.5 -right-1.5 bg-indigo-600 text-white rounded-full p-1 shadow-sm z-20">
                   <Check size={10} strokeWidth={4} />
                 </div>
               )}
-              <span className="font-extrabold text-[15px] tracking-tight">{roomLabel}</span>
+              <span className="font-extrabold text-[14px] tracking-tight">{roomLabel}</span>
               <div className={`w-1.5 h-1.5 rounded-full mt-1 ${config.dot}`}></div>
             </div>
           );
         })}
       </div>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-50 cursor-pointer transition-colors text-gray-400">
+         <ChevronRight size={18} />
+      </div>
     </div>
   );
 }
 
-function QuickActionCard({ title, icon: Icon, onClick, colorTheme }: any) {
+function QuickActionCard({ title, subtitle, icon: Icon, onClick, colorTheme }: any) {
   return (
-    <button onClick={onClick} className={`flex items-center gap-2 p-2.5 rounded-xl border border-gray-100 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md bg-white w-full text-left`}>
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${colorTheme.bg} ${colorTheme.text}`}>
-        <Icon size={16} />
+    <button onClick={onClick} className="flex items-center justify-between p-3.5 rounded-[18px] border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 bg-white w-full text-left group">
+      <div className="flex items-center gap-3.5 min-w-0">
+        <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${colorTheme.bg} ${colorTheme.text}`}>
+          <Icon size={20} strokeWidth={2.5} />
+        </div>
+        <div className="min-w-0">
+          <div className="text-[13px] font-extrabold text-gray-900 truncate mb-0.5">{title}</div>
+          <div className="text-[10px] font-semibold text-gray-400 truncate">{subtitle}</div>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-xs font-extrabold text-gray-800 truncate">{title}</div>
-      </div>
-      <ChevronRight size={14} className="text-gray-300 shrink-0" />
+      <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-400 shrink-0" />
     </button>
   );
 }
@@ -256,52 +280,76 @@ function DashboardContent() {
     );
   };
 
-  const handleAddRoom = (e: React.FormEvent) => {
+  const handleAddRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!data || !newRoomNumber.trim() || !newRoomFloorId) return;
 
-    const newRoom: Room = {
-      id: `room-${Date.now()}`,
-      number: newRoomNumber,
-      status: newRoomStatus,
-      type: newRoomType,
-      capacity: newRoomCapacity,
-      price: newRoomPrice,
-      staff: newRoomStaff,
-      amenities: newRoomAmenities,
-      notes: newRoomNotes
-    };
-
-    const updatedFloors = data.floors.map(floor => {
-      if (floor.id === newRoomFloorId) {
-        return { ...floor, rooms: [...floor.rooms, newRoom] };
+    try {
+      const res = await fetch('/api/hotel/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          floorId: newRoomFloorId,
+          roomTypeName: newRoomType,
+          roomNumber: newRoomNumber,
+          status: newRoomStatus
+        })
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        alert(errData.error || 'Failed to create room');
+        return;
       }
-      return floor;
-    });
+      
+      const createdRoom = await res.json();
 
-    // Update counts based on status
-    const statusKey = newRoomStatus.toLowerCase();
-    
-    setData({
-      ...data,
-      rooms: {
-        ...data.rooms,
-        total: data.rooms.total + 1,
-        [statusKey]: (data.rooms[statusKey] || 0) + 1
-      },
-      floors: updatedFloors
-    });
+      const newRoom: Room = {
+        id: createdRoom.id,
+        roomNumber: createdRoom.roomNumber,
+        number: createdRoom.roomNumber, // fallback
+        status: createdRoom.status,
+        roomType: createdRoom.roomType?.name || newRoomType,
+        type: createdRoom.roomType?.name || newRoomType,
+        capacity: newRoomCapacity,
+        price: createdRoom.roomType?.basePrice || newRoomPrice,
+        staff: newRoomStaff,
+        amenities: newRoomAmenities,
+        notes: newRoomNotes
+      };
 
-    // Reset form
-    setNewRoomNumber("");
-    setNewRoomType("Standard");
-    setNewRoomCapacity(2);
-    setNewRoomPrice(1500);
-    setNewRoomStatus("AVAILABLE");
-    setNewRoomStaff("");
-    setNewRoomAmenities([]);
-    setNewRoomNotes("");
-    setIsAddRoomOpen(false);
+      const updatedFloors = data.floors.map(floor => {
+        if (floor.id === newRoomFloorId) {
+          return { ...floor, rooms: [...floor.rooms, newRoom].sort((a, b) => (a.roomNumber || a.number || "").localeCompare(b.roomNumber || b.number || "")) };
+        }
+        return floor;
+      });
+
+      const statusKey = newRoomStatus.toLowerCase();
+      
+      setData({
+        ...data,
+        rooms: {
+          ...data.rooms,
+          total: data.rooms.total + 1,
+          [statusKey]: (data.rooms[statusKey] || 0) + 1
+        },
+        floors: updatedFloors
+      });
+
+      setNewRoomNumber("");
+      setNewRoomType("Standard");
+      setNewRoomCapacity(2);
+      setNewRoomPrice(1500);
+      setNewRoomStatus("AVAILABLE");
+      setNewRoomStaff("");
+      setNewRoomAmenities([]);
+      setNewRoomNotes("");
+      setIsAddRoomOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert('Network error while creating room');
+    }
   };
 
 
@@ -355,63 +403,81 @@ function DashboardContent() {
     <div className="min-h-screen bg-[#F7F8FC] font-sans flex overflow-hidden">
       
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-screen overflow-y-auto relative">
+      <div className="flex-1 flex flex-col h-screen overflow-y-auto relative bg-[#F4F6F9]">
         
-        {/* SMALL SUBHEADER */}
-        <div className="bg-white/50 backdrop-blur-md border-b border-gray-100 px-8 py-2 flex items-center gap-3 sticky top-0 z-20">
-          <div className="w-6 h-6 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600">
-            <Building2 size={14} />
+        <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-8">
+
+          {/* HERO BANNER */}
+          <div className="relative w-full h-[140px] rounded-2xl overflow-hidden flex items-center shadow-sm">
+            <img src="/images/hero-hotel.jpg" className="absolute inset-0 w-full h-full object-cover object-center brightness-[0.85]" alt="Hotel Banner" />
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 via-blue-900/60 to-transparent"></div>
+            
+            <div className="relative z-10 flex w-full items-center justify-between px-8">
+              <div className="flex items-center gap-4">
+                <Sun size={48} className="text-yellow-400 fill-yellow-400" />
+                <div>
+                  <h1 className="text-3xl font-bold text-white tracking-tight">Good Afternoon, System Administrator</h1>
+                  <p className="text-blue-100 text-sm mt-1">Here's what's happening at Grand Plaza today.</p>
+                </div>
+              </div>
+
+              {/* Banner Widget */}
+              <div className="bg-white rounded-xl p-4 shadow-lg w-[260px] flex items-center gap-4">
+                 <div className="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0">
+                    <BedDouble size={24} />
+                 </div>
+                 <div>
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Occupancy</div>
+                    <div className="text-3xl font-black text-gray-900 leading-none mt-1">{data.occupancy}%</div>
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 mt-1">
+                      <ArrowUp size={12} strokeWidth={3} /> +5% vs. yesterday
+                    </div>
+                 </div>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm font-black text-gray-900 leading-none">Main Dashboard</h1>
-            <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Grand Plaza Control Center</div>
-          </div>
-        </div>
-        <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full">
 
           {/* QUICK ACTIONS GRID */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-8">
-             <QuickActionCard title="Guest Check-in" icon={Check} onClick={() => router.push('/dashboard/book')} colorTheme={{bg: 'bg-emerald-50', text: 'text-emerald-600'}} />
-             <QuickActionCard title="Guest Check-out" icon={Check} onClick={() => {}} colorTheme={{bg: 'bg-indigo-50', text: 'text-indigo-600'}} />
-             <QuickActionCard title="Reservations" icon={Clock3} onClick={() => {}} colorTheme={{bg: 'bg-violet-50', text: 'text-violet-600'}} />
-             <QuickActionCard title="Housekeeping" icon={Sparkles} onClick={() => {}} colorTheme={{bg: 'bg-amber-50', text: 'text-amber-600'}} />
-             <QuickActionCard title="Restaurant" icon={Droplets} onClick={() => {}} colorTheme={{bg: 'bg-rose-50', text: 'text-rose-600'}} />
-             <QuickActionCard title="WhatsApp" icon={Check} onClick={() => {}} colorTheme={{bg: 'bg-teal-50', text: 'text-teal-600'}} />
-             <QuickActionCard title="Rooms" icon={BedDouble} onClick={() => {}} colorTheme={{bg: 'bg-blue-50', text: 'text-blue-600'}} />
-             <QuickActionCard title="Staff" icon={Check} onClick={() => {}} colorTheme={{bg: 'bg-sky-50', text: 'text-sky-600'}} />
-             <QuickActionCard title="Floors" icon={Building2} onClick={() => {}} colorTheme={{bg: 'bg-emerald-50', text: 'text-emerald-600'}} />
-             <QuickActionCard title="Reports" icon={Check} onClick={() => {}} colorTheme={{bg: 'bg-amber-50', text: 'text-amber-600'}} />
-             <QuickActionCard title="Settings" icon={Wrench} onClick={() => {}} colorTheme={{bg: 'bg-slate-100', text: 'text-slate-600'}} />
-             <QuickActionCard title="Expenses & P&L" icon={Check} onClick={() => {}} colorTheme={{bg: 'bg-rose-50', text: 'text-rose-600'}} />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+             <QuickActionCard title="Guest Check-in" subtitle="New arrivals" icon={UserRound} onClick={() => router.push('/dashboard/book')} colorTheme={{bg: 'bg-blue-50', text: 'text-blue-600'}} />
+             <QuickActionCard title="Guest Check-out" subtitle="Departures today" icon={UserCheck} onClick={() => {}} colorTheme={{bg: 'bg-purple-50', text: 'text-purple-600'}} />
+             <QuickActionCard title="Reservations" subtitle="Manage bookings" icon={CalendarDays} onClick={() => {}} colorTheme={{bg: 'bg-indigo-50', text: 'text-indigo-600'}} />
+             <QuickActionCard title="Housekeeping" subtitle="Room cleaning" icon={Sparkles} onClick={() => {}} colorTheme={{bg: 'bg-amber-50', text: 'text-amber-600'}} />
+             <QuickActionCard title="Restaurant" subtitle="View orders" icon={UtensilsCrossed} onClick={() => {}} colorTheme={{bg: 'bg-rose-50', text: 'text-rose-600'}} />
+             <QuickActionCard title="WhatsApp" subtitle="Guest messaging" icon={MessageCircle} onClick={() => {}} colorTheme={{bg: 'bg-emerald-50', text: 'text-emerald-600'}} />
+             
+             <QuickActionCard title="Rooms" subtitle="Room inventory" icon={BedDouble} onClick={() => {}} colorTheme={{bg: 'bg-sky-50', text: 'text-sky-600'}} />
+             <QuickActionCard title="Staff" subtitle="Manage staff" icon={Users} onClick={() => {}} colorTheme={{bg: 'bg-cyan-50', text: 'text-cyan-600'}} />
+             <QuickActionCard title="Floors" subtitle="Floor overview" icon={Building2} onClick={() => {}} colorTheme={{bg: 'bg-emerald-50', text: 'text-emerald-600'}} />
+             <QuickActionCard title="Reports" subtitle="Analytics & reports" icon={BarChart3} onClick={() => {}} colorTheme={{bg: 'bg-amber-50', text: 'text-amber-600'}} />
+             <QuickActionCard title="Settings" subtitle="System settings" icon={Settings} onClick={() => {}} colorTheme={{bg: 'bg-indigo-50', text: 'text-indigo-600'}} />
+             <QuickActionCard title="Expenses & P&L" subtitle="Financial reports" icon={Wallet} onClick={() => {}} colorTheme={{bg: 'bg-rose-50', text: 'text-rose-600'}} />
           </div>
-
-          <div className="w-full h-px bg-gray-200 mb-8"></div>
 
           {/* LOWER SECTION: FLOORS (LEFT) AND WIDGETS (RIGHT) */}
           <div className="flex flex-col xl:flex-row gap-8">
             
             {/* LEFT: FLOORS */}
             <div className="flex-1 min-w-0">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-                <div className="flex items-center gap-2 shrink-0">
-                  <h2 className="text-base font-black text-gray-900 uppercase tracking-widest">Floors & Rooms</h2>
-                </div>
-                
-                <div className="flex flex-wrap gap-2">
-                  <FilterBadge statusKey="ALL" count={totalRooms} isActive={filter === 'ALL'} onClick={() => setFilter('ALL')} />
-                  <FilterBadge statusKey="AVAILABLE" count={data.rooms.available||0} isActive={filter === 'AVAILABLE'} onClick={() => setFilter('AVAILABLE')} />
-                  <FilterBadge statusKey="OCCUPIED" count={data.rooms.occupied||0} isActive={filter === 'OCCUPIED'} onClick={() => setFilter('OCCUPIED')} />
-                  <FilterBadge statusKey="DIRTY" count={data.rooms.dirty||0} isActive={filter === 'DIRTY'} onClick={() => setFilter('DIRTY')} />
-                  <FilterBadge statusKey="MAINTENANCE" count={data.rooms.maintenance||0} isActive={filter === 'MAINTENANCE'} onClick={() => setFilter('MAINTENANCE')} />
-                  <FilterBadge statusKey="BLOCKED" count={data.rooms.blocked||0} isActive={filter === 'BLOCKED'} onClick={() => setFilter('BLOCKED')} />
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
+                <div className="flex items-center gap-6 flex-wrap">
+                  <h2 className="text-[14px] font-black text-gray-900 uppercase tracking-widest">Floors & Rooms</h2>
+                  <div className="flex flex-wrap gap-2">
+                    <FilterBadge statusKey="ALL" count={totalRooms} isActive={filter === 'ALL'} onClick={() => setFilter('ALL')} />
+                    <FilterBadge statusKey="AVAILABLE" count={data.rooms.available||0} isActive={filter === 'AVAILABLE'} onClick={() => setFilter('AVAILABLE')} />
+                    <FilterBadge statusKey="OCCUPIED" count={data.rooms.occupied||0} isActive={filter === 'OCCUPIED'} onClick={() => setFilter('OCCUPIED')} />
+                    <FilterBadge statusKey="DIRTY" count={data.rooms.dirty||0} isActive={filter === 'DIRTY'} onClick={() => setFilter('DIRTY')} />
+                    <FilterBadge statusKey="MAINTENANCE" count={data.rooms.maintenance||0} isActive={filter === 'MAINTENANCE'} onClick={() => setFilter('MAINTENANCE')} />
+                    <FilterBadge statusKey="BLOCKED" count={data.rooms.blocked||0} isActive={filter === 'BLOCKED'} onClick={() => setFilter('BLOCKED')} />
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => { setNewRoomFloorId(data.floors[0]?.id || ""); setIsAddRoomOpen(true); }} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-indigo-100 transition-colors">
-                    <Plus size={14} /> Add Room
+                  <button onClick={() => { setNewRoomFloorId(data.floors[0]?.id || ""); setIsAddRoomOpen(true); }} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20">
+                    <Plus size={14} strokeWidth={3} /> Add Room
                   </button>
-                  <button onClick={() => setIsAddFloorOpen(true)} className="px-3 py-1.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-gray-100 transition-colors">
-                    <Plus size={14} /> Add Floor
+                  <button onClick={() => setIsAddFloorOpen(true)} className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-[11px] flex items-center gap-1.5 hover:bg-gray-50 transition-colors shadow-sm">
+                    <Plus size={14} strokeWidth={3} /> Add Floor
                   </button>
                 </div>
               </div>
@@ -439,80 +505,99 @@ function DashboardContent() {
             <div className="w-full xl:w-[280px] shrink-0 space-y-6">
               
               {/* Occupancy Widget */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-5">Occupancy</h3>
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2 text-indigo-500 bg-indigo-50 p-2 rounded-lg"><BedDouble size={16} /></div>
+                  <h3 className="text-[11px] font-black text-gray-800 uppercase tracking-widest flex-1 ml-3">Room Occupancy</h3>
+                </div>
                 
-                <div className="flex flex-col items-center gap-6">
-                  <div className="relative w-28 h-28 cursor-pointer transition-transform hover:scale-105" title="Click to view all rooms" onClick={() => setFilter('ALL')}>
+                <div className="flex flex-col items-center gap-8">
+                  <div className="relative w-36 h-36 cursor-pointer transition-transform hover:scale-105" title="Click to view all rooms" onClick={() => setFilter('ALL')}>
                     <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
-                      <path className="text-gray-100" strokeWidth="4" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                      <path className="text-indigo-500" strokeDasharray={`${data.occupancy}, 100`} strokeWidth="4" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-gray-100" strokeWidth="6" stroke="currentColor" fill="none" d="M18 3 a 15 15 0 0 1 0 30 a 15 15 0 0 1 0 -30" />
+                      <path className="text-blue-600" strokeDasharray={`${data.occupancy}, 100`} strokeWidth="6" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 3 a 15 15 0 0 1 0 30 a 15 15 0 0 1 0 -30" />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-2xl font-black text-gray-900 leading-none">{data.occupancy}%</span>
+                      <span className="text-3xl font-black text-gray-900 leading-none">{data.occupancy}%</span>
+                      <span className="text-[10px] font-bold text-gray-400 mt-1">{data.rooms.occupied || 0} / {totalRooms} Rooms</span>
                     </div>
                   </div>
                   
-                  <div className="w-full space-y-2 border-t border-gray-100 pt-4">
-                    <button onClick={() => setFilter('AVAILABLE')} className="w-full flex justify-between items-center text-xs font-bold p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-2 text-gray-600"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Available</div>
+                  <div className="w-full space-y-3">
+                    <button onClick={() => setFilter('AVAILABLE')} className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3 text-gray-600"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>Available</div>
                       <span className="text-gray-900">{data.rooms.available || 0}</span>
                     </button>
-                    <button onClick={() => setFilter('OCCUPIED')} className="w-full flex justify-between items-center text-xs font-bold p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-2 text-gray-600"><div className="w-2 h-2 rounded-full bg-indigo-500"></div>Occupied</div>
+                    <button onClick={() => setFilter('OCCUPIED')} className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3 text-gray-600"><div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>Occupied</div>
                       <span className="text-gray-900">{data.rooms.occupied || 0}</span>
                     </button>
-                    <button onClick={() => setFilter('DIRTY')} className="w-full flex justify-between items-center text-xs font-bold p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-2 text-gray-600"><div className="w-2 h-2 rounded-full bg-rose-500"></div>Dirty</div>
+                    <button onClick={() => setFilter('DIRTY')} className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3 text-gray-600"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>Dirty</div>
                       <span className="text-gray-900">{data.rooms.dirty || 0}</span>
+                    </button>
+                    <button onClick={() => setFilter('MAINTENANCE')} className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3 text-gray-600"><div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>Maintenance</div>
+                      <span className="text-gray-900">{data.rooms.maintenance || 0}</span>
                     </button>
                   </div>
                 </div>
               </div>
               
               {/* Quick Alerts Widget */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Quick Alerts</h3>
-                <div className="space-y-3">
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                    <h3 className="text-[11px] font-black text-gray-800 uppercase tracking-widest">Quick Alerts</h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer">View all</span>
+                </div>
+                
+                <div className="space-y-4">
                   {(!data.rooms.dirty && !data.rooms.maintenance) ? (
-                    <div className="w-full bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0"><Check size={16} strokeWidth={3} /></div>
+                    <>
+                    <div className="w-full bg-emerald-50/70 p-4 rounded-xl border border-emerald-100/50 flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5"><Check size={14} strokeWidth={3} /></div>
                       <div>
-                        <div className="text-xs font-black text-emerald-800 uppercase">All clear</div>
-                        <div className="text-[10px] font-bold text-emerald-600 mt-0.5">No dirty or maintenance rooms</div>
+                        <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-1">All clear</div>
+                        <div className="text-[11px] font-medium text-emerald-600">No dirty or maintenance rooms</div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-3 mt-2 pl-2">
+                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+                       <div>
+                         <div className="text-[11px] font-bold text-gray-800">Everything looks good!</div>
+                         <div className="text-[10px] text-gray-500 font-medium">Keep up the great work!</div>
+                       </div>
+                    </div>
+                    </>
                   ) : (
                     <>
                       {data.rooms.dirty > 0 && (
-                        <button onClick={() => setFilter('DIRTY')} className="w-full bg-rose-50 p-3 rounded-xl border border-rose-100 flex items-center justify-between cursor-pointer hover:bg-rose-100 hover:shadow-sm transition-all group">
+                        <button onClick={() => setFilter('DIRTY')} className="w-full bg-rose-50/70 p-4 rounded-xl border border-rose-100 flex items-center justify-between cursor-pointer hover:bg-rose-50 transition-all group">
                            <div>
-                             <div className="text-xs font-bold text-rose-600 uppercase mb-1 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"></div>Dirty</div>
-                             <div className="text-xl font-black text-rose-700 leading-none">{data.rooms.dirty}</div>
+                             <div className="text-[11px] font-bold text-rose-600 uppercase mb-1 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"></div>Dirty</div>
+                             <div className="text-[11px] font-medium text-rose-700/80 leading-none">{data.rooms.dirty} rooms need cleaning</div>
                            </div>
-                           <span className="text-[10px] font-bold text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">View rooms <ChevronRight size={10} /></span>
+                           <ChevronRight size={16} className="text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </button>
                       )}
                       {data.rooms.maintenance > 0 && (
-                        <button onClick={() => setFilter('MAINTENANCE')} className="w-full bg-amber-50 p-3 rounded-xl border border-amber-100 flex items-center justify-between cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all group">
+                        <button onClick={() => setFilter('MAINTENANCE')} className="w-full bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between cursor-pointer hover:bg-amber-100 transition-all group">
                            <div>
-                             <div className="text-xs font-bold text-amber-600 uppercase mb-1 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div>Maintenance</div>
-                             <div className="text-xl font-black text-amber-700 leading-none">{data.rooms.maintenance}</div>
+                             <div className="text-[11px] font-bold text-amber-600 uppercase mb-1 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div>Maintenance</div>
+                             <div className="text-[11px] font-medium text-amber-700/80 leading-none">{data.rooms.maintenance} rooms under repair</div>
                            </div>
-                           <span className="text-[10px] font-bold text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">View rooms <ChevronRight size={10} /></span>
+                           <ChevronRight size={16} className="text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </button>
                       )}
                     </>
                   )}
-                  <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-gray-100">
-                    <div>
-                      <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Check-ins</div>
-                      <div className="text-lg font-black text-gray-800">{data.pendingArrivals || 0}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Departures</div>
-                      <div className="text-lg font-black text-gray-800">{data.pendingDepartures || 0}</div>
-                    </div>
+                  
+                  {/* Subtle footer */}
+                  <div className="pt-6 text-[10px] text-gray-400 font-medium text-center italic flex items-center justify-center gap-1">
+                     <span className="text-amber-500">♥</span> "Great hospitality creates lasting memories."
                   </div>
                 </div>
               </div>
@@ -524,7 +609,7 @@ function DashboardContent() {
       
       {/* ROOM DETAIL DRAWER */}
       <div 
-        className={`fixed top-0 right-0 w-[400px] h-screen bg-white shadow-2xl border-l border-gray-100 transform transition-transform duration-300 ease-out z-40 ${focusedRoomId ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 w-[400px] h-screen bg-white shadow-2xl border-l border-gray-100 transform transition-transform duration-300 ease-out z-[60] ${focusedRoomId ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {focusedRoom && (() => {
            const conf = STATUS_COLORS[focusedRoom.status] || STATUS_COLORS.AVAILABLE;
@@ -547,55 +632,125 @@ function DashboardContent() {
                <div className="flex-1 overflow-y-auto p-6 space-y-8">
                  
                  {/* Booking Selection Action */}
-                 <div className={`border p-4 rounded-xl flex items-center justify-between shadow-sm transition-colors ${isSelectedForBooking ? 'bg-indigo-600 border-indigo-700' : 'bg-indigo-50 border-indigo-100'}`}>
-                   <div>
-                     <div className={`text-sm font-bold ${isSelectedForBooking ? 'text-white' : 'text-indigo-900'}`}>Select for Booking</div>
-                     <div className={`text-[11px] font-medium mt-1 ${isSelectedForBooking ? 'text-indigo-100' : 'text-indigo-600/80'}`}>{isSelectedForBooking ? 'Room added to selection' : 'Add to current bulk selection'}</div>
+                 {!['OCCUPIED', 'MAINTENANCE', 'BLOCKED'].includes(focusedRoom.status) && (
+                   <div className={`border p-4 rounded-xl flex items-center justify-between shadow-sm transition-colors ${isSelectedForBooking ? 'bg-indigo-600 border-indigo-700' : 'bg-indigo-50 border-indigo-100'}`}>
+                     <div>
+                       <div className={`text-sm font-bold ${isSelectedForBooking ? 'text-white' : 'text-indigo-900'}`}>Select for Booking</div>
+                       <div className={`text-[11px] font-medium mt-1 ${isSelectedForBooking ? 'text-indigo-100' : 'text-indigo-600/80'}`}>{isSelectedForBooking ? 'Room added to selection' : 'Add to current bulk selection'}</div>
+                     </div>
+                     <button 
+                       onClick={() => handleToggleRoomBooking(focusedRoom.id)}
+                       className={`w-12 h-7 rounded-full flex items-center p-1 transition-colors ${isSelectedForBooking ? 'bg-indigo-800' : 'bg-indigo-200'}`}
+                     >
+                       <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${isSelectedForBooking ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                     </button>
                    </div>
-                   <button 
-                     onClick={() => handleToggleRoomBooking(focusedRoom.id)}
-                     className={`w-12 h-7 rounded-full flex items-center p-1 transition-colors ${isSelectedForBooking ? 'bg-indigo-800' : 'bg-indigo-200'}`}
-                   >
-                     <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${isSelectedForBooking ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                   </button>
-                 </div>
+                 )}
                  
                  <div>
-                   <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Guest</h4>
-                   {focusedRoom.guest ? (
-                     <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl bg-white shadow-sm">
-                       <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">{focusedRoom.guest[0]}</div>
-                       <div>
-                         <div className="text-sm font-bold text-gray-800">{focusedRoom.guest}</div>
-                       </div>
-                     </div>
-                   ) : (
-                     <div className="text-sm font-bold text-gray-500 italic">No guest</div>
-                   )}
-                 </div>
-                 
-                 <div>
-                   <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Room Information</h4>
-                   <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                     <div className="flex justify-between items-center">
-                       <span className="text-xs font-bold text-gray-500">Room Type</span>
-                       <span className="text-sm font-bold text-gray-800">{focusedRoom.type || 'Standard'}</span>
-                     </div>
-                     <div className="w-full h-px bg-gray-200"></div>
-                     <div className="flex justify-between items-center">
-                       <span className="text-xs font-bold text-gray-500">Last Cleaned</span>
-                       <span className="text-sm font-bold text-gray-800">10:42 AM</span>
-                     </div>
-                   </div>
-                 </div>
+                  {/* Guest & Stay Details */}
+                  {focusedRoom.guestInfo ? (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Guest Details</h4>
+                      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 space-y-3">
+                        <div className="flex justify-between items-start border-b border-indigo-200/50 pb-3">
+                          <div>
+                            <div className="text-indigo-900 font-bold">{focusedRoom.guestInfo.name}</div>
+                            <div className="text-xs text-indigo-700/70 font-medium">{focusedRoom.guestInfo.phone}</div>
+                          </div>
+                          <div className="bg-white px-2 py-1 rounded text-[10px] font-bold text-indigo-700 border border-indigo-100">
+                            ID: {focusedRoom.guestInfo.idProof}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-indigo-400">Check-in</div>
+                            <div className="text-xs font-semibold text-indigo-900">
+                              {dayjs(focusedRoom.guestInfo.checkInDate).format('DD MMM, hh:mm A')}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-indigo-400">Expected Check-out</div>
+                            <div className="text-xs font-semibold text-indigo-900">
+                              {focusedRoom.guestInfo.expectedCheckOutDate 
+                                ? dayjs(focusedRoom.guestInfo.expectedCheckOutDate).format('DD MMM, hh:mm A')
+                                : 'Not Set'}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white/60 p-3 rounded-lg border border-indigo-100/50 mt-2 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-indigo-400">Room Rate</span>
+                            <span className="text-xs font-bold text-indigo-900">₹{(focusedRoom.price || 0) / 100}/night</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-emerald-500">Amount Paid</span>
+                            <span className="text-xs font-bold text-emerald-600">₹{focusedRoom.guestInfo.amountPaid / 100}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-2 border-t border-indigo-100/50">
+                            <span className="text-xs font-bold text-indigo-400">Balance</span>
+                            <span className={`text-xs font-bold ${focusedRoom.guestInfo.balance > 0 ? 'text-rose-600' : 'text-indigo-900'}`}>
+                              ₹{focusedRoom.guestInfo.balance / 100}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Guest</h4>
+                      <div className="text-sm font-bold text-gray-500 italic">No guest</div>
+                    </div>
+                  )}
+
+                  {/* Room Information */}
+                  <div>
+                    <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Room Information</h4>
+                    <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                      <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+                        <span className="text-xs font-bold text-gray-500">Room Type</span>
+                        <span className="text-sm font-bold text-gray-800">{focusedRoom.roomType || focusedRoom.type || 'Standard'}</span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+                        <span className="text-xs font-bold text-gray-500">Price</span>
+                        <span className="text-sm font-bold text-gray-800">₹{(focusedRoom.price || 0) / 100} <span className="text-[10px] font-medium text-gray-400 uppercase">/ night</span></span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+                        <span className="text-xs font-bold text-gray-500">Capacity</span>
+                        <span className="text-sm font-bold text-gray-800">{focusedRoom.capacity || 2} <span className="text-[10px] font-medium text-gray-400 uppercase">Guests</span></span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-gray-500">Last Cleaned</span>
+                        <span className="text-sm font-bold text-gray-800">
+                          {focusedRoom.lastCleaned ? dayjs(focusedRoom.lastCleaned).format('DD MMM, hh:mm A') : 'Not recorded'}
+                        </span>
+                      </div>
+                    </div>
+                  </div></div>
                  
                  <div>
                    <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Actions</h4>
-                   <div className="grid grid-cols-2 gap-3">
-                     <button className="py-3 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-xs font-bold hover:bg-emerald-100 shadow-sm">Check-in</button>
-                     <button className="py-3 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl text-xs font-bold hover:bg-rose-100 shadow-sm">Set Dirty</button>
-                     <button className="py-3 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 shadow-sm col-span-2">Block Room</button>
-                   </div>
+                   {focusedRoom.status === 'OCCUPIED' ? (
+                     <div className="space-y-3">
+                       <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg text-[10px] text-emerald-800 font-medium">
+                         Manual status change is locked while a guest is staying. Please use the check-out process.
+                       </div>
+                       <button 
+                         onClick={() => router.push(`/dashboard/checkout?roomId=${focusedRoom.id}`)}
+                         className="w-full py-3 bg-emerald-600 text-white rounded-xl text-sm font-black hover:bg-emerald-700 shadow-md transition-colors"
+                       >
+                         Check-Out Guest & Settle Bill
+                       </button>
+                     </div>
+                   ) : (
+                     <div className="grid grid-cols-2 gap-3">
+                       <button className="py-3 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-xs font-bold hover:bg-emerald-100 shadow-sm">Check-in</button>
+                       <button className="py-3 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl text-xs font-bold hover:bg-rose-100 shadow-sm">Set Dirty</button>
+                       <button className="py-3 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 shadow-sm col-span-2">Block Room</button>
+                     </div>
+                   )}
                  </div>
                </div>
              </div>
@@ -657,89 +812,164 @@ function DashboardContent() {
 
       {/* Add Room Modal */}
       {isAddRoomOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-           <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl overflow-hidden relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
-              <div className="p-6 border-b border-gray-100 shrink-0">
-                <h2 className="text-lg font-bold">Add New Room</h2>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* HEADER */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-7 py-5 shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                  <Hotel size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">Add New Room</h2>
+                  <p className="mt-0.5 text-sm text-slate-500">Create a room and configure its details</p>
+                </div>
               </div>
-              <form onSubmit={handleAddRoom} className="p-6 overflow-y-auto">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Column 1 */}
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-bold border-b pb-1">Basic Details</h3>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">Select Floor</label>
-                        <select 
-                          value={newRoomFloorId}
-                          onChange={(e) => setNewRoomFloorId(e.target.value)}
-                          className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none bg-white"
-                          required
-                        >
-                          {data.floors.map(f => (
-                            <option key={f.id} value={f.id}>{f.name}</option>
-                          ))}
-                        </select>
+              <button
+                onClick={() => setIsAddRoomOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={21} />
+              </button>
+            </div>
+
+            {/* BODY */}
+            <div className="overflow-y-auto p-7">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                
+                {/* LEFT */}
+                <div className="space-y-6">
+                  
+                  {/* ROOM DETAILS */}
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <Hotel size={18} />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Room Details</h3>
+                        <p className="mt-0.5 text-xs text-slate-500">Basic information about the room</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 space-y-5">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Select Floor <span className="ml-1 text-red-500">*</span></label>
+                        <div className="relative">
+                          <select 
+                            value={newRoomFloorId}
+                            onChange={(e) => setNewRoomFloorId(e.target.value)}
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 appearance-none"
+                            required
+                          >
+                            <option value="" disabled>Choose a floor</option>
+                            {data.floors.map(f => (
+                              <option key={f.id} value={f.id}>{f.name}</option>
+                            ))}
+                          </select>
+                          <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">Room Number</label>
+                          <label className="mb-2 block text-sm font-semibold text-slate-700">Room Number <span className="ml-1 text-red-500">*</span></label>
                           <input 
                             type="text" 
                             value={newRoomNumber}
                             onChange={(e) => setNewRoomNumber(e.target.value)}
-                            placeholder="e.g., 301" 
-                            className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none"
+                            placeholder="e.g. 301" 
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">Room Type</label>
-                          <select 
-                            value={newRoomType}
-                            onChange={(e) => setNewRoomType(e.target.value)}
-                            className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none bg-white"
-                          >
-                            <option>Standard</option>
-                            <option>Deluxe</option>
-                            <option>Suite</option>
-                          </select>
+                          <label className="mb-2 block text-sm font-semibold text-slate-700">Room Type <span className="ml-1 text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={newRoomType}
+                              onChange={(e) => setNewRoomType(e.target.value)}
+                              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 appearance-none"
+                            >
+                              <option>Standard</option>
+                              <option>Deluxe</option>
+                              <option>Suite</option>
+                            </select>
+                            <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          </div>
                         </div>
                       </div>
+                    </div>
+                  </section>
 
-                      <h3 className="text-sm font-bold border-b pb-1 mt-6">Capacity & Pricing</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">Capacity (Guests)</label>
+                  {/* CAPACITY + PRICE */}
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <Users size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Capacity & Pricing</h3>
+                        <p className="mt-0.5 text-xs text-slate-500">Set occupancy and room rate</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Capacity</label>
+                        <div className="relative">
                           <input 
                             type="number" 
                             min="1"
                             value={newRoomCapacity}
                             onChange={(e) => setNewRoomCapacity(parseInt(e.target.value) || 1)}
-                            className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none"
+                            placeholder="2" 
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-3.5 pr-16 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                             required
                           />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">Guests</span>
                         </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">Base Price (₹/night)</label>
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Base Price</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">₹</span>
                           <input 
                             type="number" 
                             min="0"
                             value={newRoomPrice}
                             onChange={(e) => setNewRoomPrice(parseInt(e.target.value) || 0)}
-                            className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none"
+                            placeholder="1500" 
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-16 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                             required
                           />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">/ night</span>
                         </div>
                       </div>
+                    </div>
+                  </section>
 
-                      <h3 className="text-sm font-bold border-b pb-1 mt-6">Status & Management</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">Initial Status</label>
+                  {/* STATUS */}
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <UserRound size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Status & Management</h3>
+                        <p className="mt-0.5 text-xs text-slate-500">Room availability and assignment</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Initial Status</label>
+                        <div className="relative">
                           <select 
                             value={newRoomStatus}
                             onChange={(e) => setNewRoomStatus(e.target.value as RoomStatus)}
-                            className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none bg-white"
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 appearance-none"
                           >
                             <option value="AVAILABLE">Available</option>
                             <option value="OCCUPIED">Occupied</option>
@@ -747,62 +977,143 @@ function DashboardContent() {
                             <option value="MAINTENANCE">Maintenance</option>
                             <option value="BLOCKED">Blocked</option>
                           </select>
+                          <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">Assigned Cleaner</label>
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Assigned Cleaner</label>
+                        <div className="relative">
                           <select 
                             value={newRoomStaff}
                             onChange={(e) => setNewRoomStaff(e.target.value)}
-                            className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none bg-white text-gray-500"
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 appearance-none text-slate-500"
                           >
                             <option value="">Unassigned</option>
                             <option value="Ramesh">Ramesh (HK)</option>
                             <option value="Sita">Sita (HK)</option>
                           </select>
+                          <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         </div>
                       </div>
                     </div>
+                  </section>
+                </div>
 
-                    {/* Column 2 */}
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-bold border-b pb-1">Amenities & Features</h3>
-                      <div className="space-y-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                        {AMENITIES_LIST.map(amenity => (
-                          <label key={amenity} className="flex items-center gap-2 cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={newRoomAmenities.includes(amenity)}
-                              onChange={() => toggleAmenity(amenity)}
-                              className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-                            />
-                            <span className="text-sm text-gray-700">{amenity}</span>
-                          </label>
-                        ))}
+                {/* RIGHT */}
+                <div className="space-y-6">
+                  
+                  {/* AMENITIES */}
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <Snowflake size={18} />
                       </div>
-
-                      <h3 className="text-sm font-bold border-b pb-1 mt-6">Additional Details</h3>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">Description / Notes</label>
-                        <textarea 
-                          value={newRoomNotes}
-                          onChange={(e) => setNewRoomNotes(e.target.value)}
-                          placeholder="e.g., Corner room with a great view..." 
-                          className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none min-h-[100px] resize-none"
-                        />
+                        <h3 className="text-sm font-bold text-slate-900">Amenities & Features</h3>
+                        <p className="mt-0.5 text-xs text-slate-500">Select everything included</p>
                       </div>
                     </div>
-                 </div>
-                 
-                 <div className="mt-8 pt-4 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
-                    <button type="button" onClick={() => setIsAddRoomOpen(false)} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50">Cancel</button>
-                    <button type="submit" className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800">Save Room</button>
-                 </div>
-              </form>
-           </div>
+
+                    <div className="mt-5 grid gap-2">
+                      {[
+                        { id: 'AC / Heater', icon: <Snowflake size={18} /> },
+                        { id: 'Wi-Fi', icon: <Wifi size={18} /> },
+                        { id: 'TV', icon: <Tv size={18} /> },
+                        { id: 'Attached Bathroom / Geyser', icon: <Bath size={18} /> },
+                        { id: 'Balcony View', icon: <Mountain size={18} /> },
+                      ].map((amenity) => {
+                        const selected = newRoomAmenities.includes(amenity.id);
+                        return (
+                          <button
+                            type="button"
+                            key={amenity.id}
+                            onClick={() => toggleAmenity(amenity.id)}
+                            className={`group flex w-full items-center justify-between rounded-xl border p-3.5 text-left transition-all ${
+                              selected
+                                ? "border-indigo-200 bg-indigo-50"
+                                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                                  selected ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-500"
+                                }`}
+                              >
+                                {amenity.icon}
+                              </div>
+                              <span className={`text-sm font-medium ${selected ? "text-indigo-900" : "text-slate-700"}`}>
+                                {amenity.id}
+                              </span>
+                            </div>
+                            <div
+                              className={`flex h-5 w-5 items-center justify-center rounded-md border transition ${
+                                selected ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300 bg-white"
+                              }`}
+                            >
+                              {selected && <Check size={13} strokeWidth={3} />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  {/* DESCRIPTION */}
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <Hotel size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Additional Details</h3>
+                        <p className="mt-0.5 text-xs text-slate-500">Optional notes about this room</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5">
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">Description / Notes</label>
+                      <textarea
+                        rows={6}
+                        value={newRoomNotes}
+                        onChange={(e) => setNewRoomNotes(e.target.value)}
+                        placeholder="e.g. Corner room with a great view..."
+                        className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                      />
+                    </div>
+                  </section>
+
+                </div>
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/80 px-7 py-4 shrink-0">
+              <p className="hidden text-xs text-slate-400 sm:block">
+                Fields marked with <span className="text-red-500">*</span> are required
+              </p>
+              <div className="ml-auto flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsAddRoomOpen(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddRoom}
+                  className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-[0.98]"
+                >
+                  <Check size={17} />
+                  Save Room
+                </button>
+              </div>
+            </div>
+            
+          </div>
         </div>
       )}
-    
-    </div>
+</div>
   );
 }
 

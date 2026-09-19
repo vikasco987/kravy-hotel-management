@@ -1,0 +1,310 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { 
+  CalendarDays, 
+  CheckCircle2, 
+  LogOut, 
+  CalendarPlus, 
+  CalendarCheck,
+  Search,
+  Calendar,
+  ChevronDown,
+  Plus,
+  MoreHorizontal,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
+import dayjs from 'dayjs';
+import { useRouter } from 'next/navigation';
+
+interface Reservation {
+  id: string;
+  shortId: string;
+  guestName: string;
+  guestPhone: string;
+  rooms: string[];
+  checkInDate: string;
+  checkOutDate: string;
+  nights: number;
+  totalAmount: number;
+  status: string;
+}
+
+export default function ReservationsPage() {
+  const [data, setData] = useState<{stats: any, reservations: Reservation[]} | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    fetch('/api/hotel/reservations')
+      .then(res => res.json())
+      .then(d => {
+        if (d.success) {
+          setData({ stats: d.stats, reservations: d.reservations });
+        }
+        setLoading(false);
+      })
+      .catch(e => {
+        console.error(e);
+        setLoading(false);
+      });
+  }, []);
+
+  const getStatusBadge = (status: string) => {
+    switch(status) {
+      case 'CHECKED_IN':
+        return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Checked In</span>;
+      case 'CHECKED_OUT':
+        return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Checked Out</span>;
+      case 'CONFIRMED':
+        return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span> Confirmed</span>;
+      default:
+        return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Pending</span>;
+    }
+  };
+
+  const getRandomInitials = (name: string) => {
+    if (!name) return 'GS';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
+
+  const getAvatarColor = (name: string) => {
+    const colors = ['bg-blue-100 text-blue-700', 'bg-rose-100 text-rose-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700', 'bg-purple-100 text-purple-700'];
+    let hash = 0;
+    for (let i = 0; i < (name || '').length; i++) hash = (name || '').charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500 bg-[#F4F6F9]">Loading Reservations...</div>;
+
+  const stats = data?.stats || { total: 0, checkedIn: 0, checkedOut: 0, upcomingCheckIns: 0, upcomingCheckOuts: 0 };
+  const reservations = data?.reservations || [];
+
+  return (
+    <div className="min-h-screen bg-[#F4F6F9] font-sans">
+      <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-6">
+        
+        {/* HERO HEADER */}
+        <div className="relative w-full h-[180px] md:h-[220px] rounded-2xl overflow-hidden flex flex-col justify-center shadow-md">
+           <img src="/images/reservations-banner.jpg" className="absolute inset-0 w-full h-full object-cover object-center" alt="Background" />
+           <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-transparent w-[90%] md:w-[70%]"></div>
+           
+           <div className="relative z-10 px-6 md:px-10 flex flex-col md:flex-row items-start md:items-center gap-5 mb-4">
+             <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-white/80 backdrop-blur-md flex items-center justify-center text-indigo-600 shadow-sm border border-white/50">
+               <CalendarDays size={32} strokeWidth={2.5} />
+             </div>
+             <div>
+               <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">Reservations</h1>
+               <p className="text-gray-600 font-bold text-xs md:text-sm mt-1">Manage guest reservations and bookings</p>
+             </div>
+           </div>
+        </div>
+
+        {/* STATS CARDS */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 -mt-10 relative z-20 px-4">
+           {/* Card 1 */}
+           <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 flex items-center justify-between col-span-2 md:col-span-1 min-w-[220px]">
+             <div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Reservations</div>
+                <div className="text-3xl font-black text-gray-900 mt-1">{stats.total}</div>
+             </div>
+             <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                <CalendarDays size={20} />
+             </div>
+           </div>
+           
+           {/* Card 2 */}
+           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+             <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <CheckCircle2 size={20} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Checked In</div>
+                  <div className="text-2xl font-black text-gray-900 leading-none mt-1">{stats.checkedIn}</div>
+                </div>
+             </div>
+             <ChevronRight size={16} className="text-gray-300" />
+           </div>
+
+           {/* Card 3 */}
+           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+             <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                  <LogOut size={20} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Checked Out</div>
+                  <div className="text-2xl font-black text-gray-900 leading-none mt-1">{stats.checkedOut}</div>
+                </div>
+             </div>
+             <ChevronRight size={16} className="text-gray-300" />
+           </div>
+
+           {/* Card 4 */}
+           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+             <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                  <CalendarPlus size={20} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Upcoming Check-ins</div>
+                  <div className="text-2xl font-black text-gray-900 leading-none mt-1">{stats.upcomingCheckIns}</div>
+                </div>
+             </div>
+             <ChevronRight size={16} className="text-gray-300" />
+           </div>
+
+           {/* Card 5 */}
+           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+             <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                  <CalendarCheck size={20} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Upcoming Check-outs</div>
+                  <div className="text-2xl font-black text-gray-900 leading-none mt-1">{stats.upcomingCheckOuts}</div>
+                </div>
+             </div>
+             <ChevronRight size={16} className="text-gray-300" />
+           </div>
+        </div>
+
+        {/* TOOLBAR */}
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between mt-8">
+           <div className="flex-1 flex gap-4 w-full">
+              <div className="relative flex-1 max-w-[400px]">
+                 <Search size={16} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                 <input type="text" placeholder="Search by guest name, room, or reservation ID..." className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium" />
+              </div>
+              
+              <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2 cursor-pointer hover:bg-gray-50">
+                 <Calendar size={16} className="text-gray-400 mr-2" />
+                 <div className="flex flex-col">
+                   <span className="text-[10px] font-bold text-gray-400 uppercase">Check-in</span>
+                   <span className="text-xs font-bold text-gray-700">Any date</span>
+                 </div>
+                 <ChevronDown size={14} className="text-gray-400 ml-4" />
+              </div>
+              
+              <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2 cursor-pointer hover:bg-gray-50">
+                 <Calendar size={16} className="text-gray-400 mr-2" />
+                 <div className="flex flex-col">
+                   <span className="text-[10px] font-bold text-gray-400 uppercase">Check-out</span>
+                   <span className="text-xs font-bold text-gray-700">Any date</span>
+                 </div>
+                 <ChevronDown size={14} className="text-gray-400 ml-4" />
+              </div>
+              
+              <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2 min-w-[140px] cursor-pointer hover:bg-gray-50">
+                 <span className="text-xs font-bold text-gray-700">All Status</span>
+                 <ChevronDown size={14} className="text-gray-400" />
+              </div>
+           </div>
+           
+           <button onClick={() => router.push('/dashboard/book')} className="bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md hover:bg-indigo-700 transition whitespace-nowrap">
+             <Plus size={16} strokeWidth={3} /> New Reservation
+           </button>
+        </div>
+
+        {/* DATA TABLE */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+           <div className="overflow-x-auto">
+             <table className="w-full text-left border-collapse">
+               <thead>
+                 <tr className="border-b border-gray-100">
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">ID</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Guest</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Rooms</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Check-in</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Check-out</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Nights</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total Amount</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider text-center">Actions</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-gray-50">
+                 {reservations.length === 0 ? (
+                   <tr>
+                     <td colSpan={9} className="px-6 py-12 text-center text-gray-400 font-medium">No reservations found.</td>
+                   </tr>
+                 ) : reservations.map((res) => (
+                   <tr key={res.id} className="hover:bg-gray-50/50 transition-colors">
+                     <td className="px-6 py-4">
+                       <span className="text-xs font-bold text-gray-500">#RES-{res.shortId}</span>
+                     </td>
+                     <td className="px-6 py-4 flex items-center gap-3">
+                       <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${getAvatarColor(res.guestName)}`}>
+                         {getRandomInitials(res.guestName)}
+                       </div>
+                       <div className="flex flex-col">
+                         <span className="text-sm font-bold text-gray-900">{res.guestName}</span>
+                         <span className="text-[11px] text-gray-500 font-medium">{res.guestPhone}</span>
+                       </div>
+                     </td>
+                     <td className="px-6 py-4">
+                       <div className="flex flex-col">
+                         <span className="text-sm font-bold text-gray-800">{res.rooms.length > 0 ? res.rooms[0].split('(')[0].trim() : 'Unassigned'}</span>
+                         {res.rooms.length > 0 && <span className="text-[11px] text-gray-500 font-medium">({res.rooms[0].split('(')[1] || 'Standard)'}</span>}
+                       </div>
+                     </td>
+                     <td className="px-6 py-4">
+                       <div className="flex flex-col">
+                         <span className="text-xs font-bold text-gray-800">{res.checkInDate ? dayjs(res.checkInDate).format('DD MMM YYYY') : '-'}</span>
+                         <span className="text-[11px] text-gray-500 font-medium">{res.checkInDate ? dayjs(res.checkInDate).format('hh:mm A') : '-'}</span>
+                       </div>
+                     </td>
+                     <td className="px-6 py-4">
+                       <div className="flex flex-col">
+                         <span className="text-xs font-bold text-gray-800">{res.checkOutDate ? dayjs(res.checkOutDate).format('DD MMM YYYY') : '-'}</span>
+                         <span className="text-[11px] text-gray-500 font-medium">{res.checkOutDate ? dayjs(res.checkOutDate).format('hh:mm A') : '-'}</span>
+                       </div>
+                     </td>
+                     <td className="px-6 py-4 text-sm font-bold text-gray-800">
+                       {res.nights}
+                     </td>
+                     <td className="px-6 py-4 text-sm font-bold text-gray-800">
+                       ₹ {res.totalAmount ? (res.totalAmount/100).toLocaleString() : '0'}
+                     </td>
+                     <td className="px-6 py-4">
+                       {getStatusBadge(res.status)}
+                     </td>
+                     <td className="px-6 py-4 text-center">
+                       <button className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
+                         <MoreHorizontal size={16} />
+                       </button>
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
+           
+           {/* PAGINATION FOOTER */}
+           {reservations.length > 0 && (
+             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+               <span className="text-xs font-medium text-gray-500">Showing {reservations.length} of {stats.total} reservations</span>
+               <div className="flex items-center gap-2">
+                 <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition">
+                   <ChevronLeft size={14} />
+                 </button>
+                 <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-xs shadow-sm">
+                   1
+                 </button>
+                 <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 font-bold text-xs hover:bg-gray-50 transition">
+                   2
+                 </button>
+                 <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition">
+                   <ChevronRight size={14} />
+                 </button>
+               </div>
+             </div>
+           )}
+        </div>
+
+      </div>
+    </div>
+  );
+}

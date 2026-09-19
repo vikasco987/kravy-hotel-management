@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import { Search, Settings, X, Trash2, Camera, User, Download, FileText, CheckCircle, Smartphone, Printer, Settings2, ShieldCheck, Banknote } from "lucide-react";
+import { useBookingStore } from '@/lib/bookingContext';
 import RoomSetupModal, { RoomPricingSnapshot, GuestData } from "./RoomSetupModal";
 import CheckInReceiptModal from "@/components/hotel/CheckInReceiptModal";
 import ChangeRoomModal from "@/components/hotel/ChangeRoomModal";
@@ -22,11 +23,9 @@ function GuestCheckInSuite() {
     idProof: true,
     extraCharges: true
   });
-  const [setupRoomId, setSetupRoomId] = useState<string | null>(null);
   const [changeRoomId, setChangeRoomId] = useState<string | null>(null);
   const [fetchedRooms, setFetchedRooms] = useState<any[]>([]);
-  const [roomPricing, setRoomPricing] = useState<Record<string, RoomPricingSnapshot>>({});
-  const [roomGuests, setRoomGuests] = useState<Record<string, GuestData[]>>({});
+
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
@@ -35,17 +34,7 @@ function GuestCheckInSuite() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
   
-  // Date State
-  const [checkInDate, setCheckInDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
-  
-  const [checkOutDate, setCheckOutDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
-  });
+  const { roomPricing, roomGuests, setRoomPricing, setRoomGuests, checkInDate, checkOutDate } = useBookingStore();
 
   useEffect(() => {
     if (roomsParam) {
@@ -414,7 +403,7 @@ function GuestCheckInSuite() {
                                    </div>
                                  ) : (
                                    <span 
-                                     onClick={() => setSetupRoomId(roomId)}
+                                     onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}`)}
                                      className="text-xs font-bold text-gray-800 cursor-pointer hover:underline decoration-dashed decoration-gray-400"
                                    >
                                      Click to Setup Guests
@@ -458,7 +447,7 @@ function GuestCheckInSuite() {
                               <td className="px-3 py-4">
                                  <div className="flex items-center justify-center gap-1">
                                     <button 
-                                      onClick={() => setSetupRoomId(roomId)}
+                                      onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}`)}
                                       className="bg-[#0070f3] hover:bg-[#005bb5] text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 shadow-sm"
                                     >
                                        <Settings2 size={12} /> Setup
@@ -624,20 +613,7 @@ function GuestCheckInSuite() {
       )}
 
       {/* Render Setup Modal */}
-      {setupRoomId && (
-         <RoomSetupModal 
-            roomNo={setupRoomId} 
-            checkInDate={checkInDate}
-            checkOutDate={checkOutDate}
-            initialData={roomPricing[setupRoomId]}
-            initialGuests={roomGuests[setupRoomId]}
-            onClose={() => setSetupRoomId(null)} 
-            onSave={(snapshot, guests) => {
-               setRoomPricing(prev => ({ ...prev, [setupRoomId]: snapshot }));
-               setRoomGuests(prev => ({ ...prev, [setupRoomId]: guests }));
-            }}
-         />
-      )}
+
 
       {changeRoomId && (
         <ChangeRoomModal
