@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
-import { Search, Settings, X, Trash2, Camera, User, Download, FileText, CheckCircle, Smartphone, Printer, Settings2, ShieldCheck, Banknote } from "lucide-react";
+import { Search, Settings, X, Trash2, Camera, User, Download, FileText, CheckCircle, Smartphone, Printer, Settings2, ShieldCheck, Banknote, BedDouble, UserRound, CalendarDays, BadgeCheck, TriangleAlert, ArrowLeftRight, Plus, CheckCircle2 } from "lucide-react";
 import { useBookingStore } from '@/lib/bookingContext';
 import RoomSetupModal, { RoomPricingSnapshot, GuestData } from "./RoomSetupModal";
 import CheckInReceiptModal from "@/components/hotel/CheckInReceiptModal";
@@ -96,6 +96,11 @@ function GuestCheckInSuite() {
      }
   });
 
+  const readyRoomsCount = fetchedRooms.filter(room => {
+    const guests = roomGuests[room.id] || [];
+    return guests.length > 0;
+  }).length;
+
   const handleRemoveRoom = (roomIdToRemove: string) => {
      setRooms(prev => prev.filter(id => id !== roomIdToRemove));
      setFetchedRooms(prev => prev.filter(room => room.id !== roomIdToRemove));
@@ -135,6 +140,23 @@ function GuestCheckInSuite() {
 
   const handleCompleteCheckIn = async () => {
     if (rooms.length === 0) return;
+
+    // Strict validation
+    const incompleteRooms = fetchedRooms.filter(room => {
+      const guests = roomGuests[room.id] || [];
+      return guests.length === 0;
+    });
+
+    if (incompleteRooms.length > 0) {
+      alert(`Please complete guest setup for rooms: ${incompleteRooms.map(r => r.roomNumber || r.id.slice(-4)).join(', ')}`);
+      return;
+    }
+
+    const formattedTotal = totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+    if (!window.confirm(`Complete check-in for ${rooms.length} ${rooms.length > 1 ? 'rooms' : 'room'}?\nTotal amount: ₹${formattedTotal}`)) {
+      return;
+    }
+
     setIsCheckingIn(true);
     try {
       const res = await fetch("/api/hotel/bookings/check-in", {
@@ -299,15 +321,20 @@ function GuestCheckInSuite() {
                  </div>
                  <span className="text-[10px] text-blue-200">Click any room row or 'Configure' button to add guests, children, webcam photos, and extra charges</span>
                </div>
-               <div className="text-xs font-bold text-blue-100 bg-white/10 px-3 py-1 rounded-full">
-                  {rooms.length} Rooms Allocated
+               <div className="flex items-center gap-2">
+                 <div className="text-xs font-bold text-blue-100 bg-white/10 px-3 py-1 rounded-full">
+                    {rooms.length} Rooms Allocated
+                 </div>
+                 <div className={`text-xs font-bold px-3 py-1 rounded-full ${readyRoomsCount === rooms.length ? 'bg-green-500/20 text-green-100' : 'bg-orange-500/20 text-orange-100'}`}>
+                    {readyRoomsCount} / {rooms.length} Rooms Ready
+                 </div>
                </div>
             </div>
 
             {/* Table */}
             <div className="overflow-auto flex-1">
                <table className="w-full text-sm text-left border-collapse">
-                  <thead className="bg-[#f8fafc] text-[10px] uppercase font-bold text-gray-600 border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+                  <thead className="bg-white text-[10px] uppercase font-bold text-gray-500 border-b border-gray-200 sticky top-0 z-10">
                      <tr>
                         <th className="px-3 py-3 text-center">Room No.</th>
                         <th className="px-3 py-3 text-right">Room Rent</th>
@@ -403,10 +430,10 @@ function GuestCheckInSuite() {
                                    </div>
                                  ) : (
                                    <span 
-                                     onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}`)}
-                                     className="text-xs font-bold text-gray-800 cursor-pointer hover:underline decoration-dashed decoration-gray-400"
+                                     onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${roomData.roomType?.basePrice ?? 250000}`)}
+                                     className="text-[10px] font-bold text-orange-600 cursor-pointer hover:bg-orange-100 flex items-center justify-center gap-1 bg-orange-50 px-2 py-1 rounded-full border border-orange-200 transition-colors"
                                    >
-                                     Click to Setup Guests
+                                     <TriangleAlert size={10} /> Setup Missing
                                    </span>
                                  )}
                               </td>
@@ -415,10 +442,10 @@ function GuestCheckInSuite() {
                                 <td className="px-3 py-4 text-center">
                                    <div className="flex flex-col items-center border border-gray-200 rounded-md bg-white shadow-sm overflow-hidden w-24">
                                       <div className="bg-blue-50 text-blue-700 text-[10px] font-bold py-1 w-full text-center flex items-center justify-center gap-1">
-                                         <User size={10} /> {guests.length > 0 ? guests.length : 1} Adult
+                                         <UserRound size={10} /> {guests.length > 0 ? guests.length : 1} Adult
                                       </div>
-                                      <div className={`px-2 py-1 rounded-b-md flex items-center justify-center gap-1 border-t w-full text-[10px] font-bold ${isVerified ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
-                                         <ShieldCheck size={10} /> {isVerified ? 'Verified' : 'Not Verified'}
+                                      <div className={`px-2 py-1 rounded-b-md flex items-center justify-center gap-1 border-t w-full text-[10px] font-bold ${isVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                                         {isVerified ? <><BadgeCheck size={10} /> Verified</> : <><div className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-0.5"></div> Not Verified</>}
                                       </div>
                                    </div>
                                 </td>
@@ -435,8 +462,8 @@ function GuestCheckInSuite() {
                               </td>
                               {columnSettings.idProof && (
                                 <td className="px-3 py-4 text-center">
-                                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${isVerified ? 'bg-green-100 text-green-800' : 'bg-red-50 text-red-500 border border-red-200'}`}>
-                                     {isVerified ? 'ID Provided' : 'No ID'}
+                                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isVerified ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 text-gray-500 border border-gray-200'}`}>
+                                     {isVerified ? <span className="flex items-center gap-1"><BadgeCheck size={10}/> ID Provided</span> : '● No ID'}
                                    </span>
                                 </td>
                               )}
@@ -447,22 +474,22 @@ function GuestCheckInSuite() {
                               <td className="px-3 py-4">
                                  <div className="flex items-center justify-center gap-1">
                                     <button 
-                                      onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}`)}
-                                      className="bg-[#0070f3] hover:bg-[#005bb5] text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 shadow-sm"
+                                      onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${roomData.roomType?.basePrice ?? 250000}`)}
+                                      className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[10px] font-bold px-2 py-1.5 rounded-md flex items-center gap-1 shadow-sm transition-colors"
                                     >
-                                       <Settings2 size={12} /> Setup
+                                       <Settings2 size={12} className="text-[#0070f3]" /> Setup
                                     </button>
                                     <button 
                                       onClick={() => setChangeRoomId(roomId)}
-                                      className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 shadow-sm"
+                                      className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[10px] font-bold px-2 py-1.5 rounded-md flex items-center gap-1 shadow-sm transition-colors"
                                     >
-                                       <CheckCircle size={12} /> Change Room
+                                       <ArrowLeftRight size={12} className="text-orange-500" /> Change Room
                                     </button>
                                     <button 
                                       onClick={() => handleRemoveRoom(roomId)}
-                                      className="bg-red-600 hover:bg-red-700 text-white p-1 rounded shadow-sm"
+                                      className="bg-white border border-red-200 hover:bg-red-50 text-red-600 px-2 py-1.5 rounded-md flex items-center gap-1 shadow-sm transition-colors"
                                     >
-                                       <Trash2 size={12} />
+                                       <X size={12} />
                                     </button>
                                  </div>
                               </td>
@@ -521,9 +548,9 @@ function GuestCheckInSuite() {
                   </div>
 
                   {/* Total */}
-                  <div className="flex justify-between items-center">
-                     <span className="text-sm font-black text-gray-900">Total Amount:</span>
-                     <span className="text-lg font-black text-[#0e2a6d]">₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <div className="flex justify-between items-center py-2 border-t border-gray-200 mt-2">
+                     <span className="text-sm font-black text-gray-900">TOTAL</span>
+                     <span className="text-xl font-black text-[#0e2a6d]">₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
 
                   {/* Advance Payment */}

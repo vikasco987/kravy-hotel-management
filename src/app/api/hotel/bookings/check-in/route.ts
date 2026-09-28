@@ -142,10 +142,28 @@ export async function POST(request: Request) {
           hotelId: authContext.hotel.id,
           guestId: guest.id,
           status: 'CHECKED_IN',
-          totalAmount: Math.round(totalAmount * 100), // Note: We should ideally recalculate this total too, but keeping as is for now
+          totalAmount: Math.round(totalAmount * 100),
           advancePaid: Math.round(advancePaid * 100),
         }
       });
+
+      console.log("Creating ReservationRoom records to persist check-in/out dates");
+      const nights = calculateNights(checkInDate, checkOutDate);
+      for (const roomId of roomIds) {
+          if (roomId.length === 24) {
+             const room = await tx.room.findFirst({ where: { id: roomId }, include: { roomType: true } });
+             await tx.reservationRoom.create({
+                data: {
+                   reservationId: reservation.id,
+                   roomId: roomId,
+                   checkInDate: new Date(checkInDate),
+                   checkOutDate: new Date(checkOutDate),
+                   baseRate: room?.roomType?.basePrice || 250000,
+                   appliedRate: Math.round((roomPricing?.[roomId]?.baseRate || 2500) * 100)
+                }
+             });
+          }
+      }
 
       console.log("Creating Stay record");
       // 3. Create Stay

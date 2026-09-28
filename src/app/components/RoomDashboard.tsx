@@ -212,6 +212,26 @@ function DashboardContent() {
     );
   };
 
+  const handleStatusChange = async (roomId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/hotel/rooms/${roomId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      
+      const refreshRes = await fetch('/api/hotel/dashboard');
+      if (refreshRes.ok) {
+        const newData = await refreshRes.json();
+        setData(newData);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to update room status');
+    }
+  };
+
 
   // Modal States
   const [isAddFloorOpen, setIsAddFloorOpen] = useState(false);
@@ -746,9 +766,17 @@ function DashboardContent() {
                      </div>
                    ) : (
                      <div className="grid grid-cols-2 gap-3">
-                       <button className="py-3 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-xs font-bold hover:bg-emerald-100 shadow-sm">Check-in</button>
-                       <button className="py-3 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl text-xs font-bold hover:bg-rose-100 shadow-sm">Set Dirty</button>
-                       <button className="py-3 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 shadow-sm col-span-2">Block Room</button>
+                       <button onClick={() => router.push(`/dashboard/book?rooms=${focusedRoom.id}`)} className="py-3 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-xs font-bold hover:bg-emerald-100 shadow-sm">Check-in</button>
+                       {focusedRoom.status === 'DIRTY' ? (
+                         <button onClick={() => handleStatusChange(focusedRoom.id, 'AVAILABLE')} className="py-3 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl text-xs font-bold hover:bg-blue-100 shadow-sm">Set Clean</button>
+                       ) : (
+                         <button onClick={() => handleStatusChange(focusedRoom.id, 'DIRTY')} className="py-3 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl text-xs font-bold hover:bg-rose-100 shadow-sm">Set Dirty</button>
+                       )}
+                       {focusedRoom.status === 'BLOCKED' ? (
+                         <button onClick={() => handleStatusChange(focusedRoom.id, 'AVAILABLE')} className="py-3 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 shadow-sm col-span-2">Unblock Room</button>
+                       ) : (
+                         <button onClick={() => handleStatusChange(focusedRoom.id, 'BLOCKED')} className="py-3 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 shadow-sm col-span-2">Block Room</button>
+                       )}
                      </div>
                    )}
                  </div>

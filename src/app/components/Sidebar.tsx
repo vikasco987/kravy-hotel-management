@@ -1,7 +1,8 @@
 "use client";
 
+import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   BedDouble, 
@@ -36,9 +37,33 @@ const MENU_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [optimisticPath, setOptimisticPath] = useState(pathname);
+  
+  useEffect(() => {
+    setOptimisticPath(pathname);
+  }, [pathname]);
+
+  const handleNav = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    
+    // Check active based on the same logic used for rendering
+    const isAlreadyActive = optimisticPath === href || (href !== '/dashboard' && optimisticPath.startsWith(href));
+    
+    if (isAlreadyActive) {
+      e.preventDefault();
+      return;
+    }
+    
+    // Set optimistic path to update sidebar UI instantly.
+    // Do NOT call e.preventDefault() so Next.js native <Link> navigation continues,
+    // which instantly triggers the loading.tsx fallback instead of blocking.
+    setOptimisticPath(href);
+  };
   
   // Hide sidebar completely on specific pages like invoice print
-  if (pathname.includes('/print/invoice') || pathname === '/dashboard/checkout' || pathname === '/dashboard/book') {
+  if (pathname.includes('/print/invoice') || pathname === '/dashboard/checkout' || pathname === '/dashboard/book' || pathname.startsWith('/auth')) {
     return null;
   }
 
@@ -53,14 +78,14 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto py-4 scrollbar-hide">
         <ul className="space-y-1 px-3">
           {MENU_ITEMS.map((item) => {
-            // For this mockup, we only have /dashboard actually working, so we consider it active if we are there.
-            // In a real app, we check if pathname starts with the item href.
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+            const isActive = optimisticPath === item.href || (item.href !== '/dashboard' && optimisticPath.startsWith(item.href));
             
             return (
               <li key={item.name}>
                 <Link 
                   href={item.href}
+                  onClick={(e) => handleNav(e, item.href)}
+                  prefetch={true}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                     isActive 
                       ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' 
@@ -69,6 +94,9 @@ export default function Sidebar() {
                 >
                   <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
                   {item.name}
+                  {isPending && isActive && (
+                    <div className="ml-auto w-3 h-3 border-2 border-indigo-200 border-t-white rounded-full animate-spin" />
+                  )}
                 </Link>
               </li>
             );

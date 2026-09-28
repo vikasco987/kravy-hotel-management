@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     const { hotel } = authContext;
     const body = await req.json();
-    const { floorId, roomTypeId, roomTypeName, roomNumber, status } = body;
+    const { floorId, roomTypeId, roomTypeName, roomNumber, status, basePrice } = body;
 
     // 1. Validate Floor belongs to current hotel
     const floor = await prisma.floor.findFirst({
@@ -60,9 +60,14 @@ export async function POST(req: Request) {
           data: {
             hotelId: hotel.id,
             name: roomTypeName,
-            basePrice: 150000 // default to 1500 INR
+            basePrice: basePrice ? Math.round(basePrice * 100) : 150000
           }
         });
+      } else if (basePrice) {
+         roomType = await prisma.roomType.update({
+            where: { id: roomType.id },
+            data: { basePrice: Math.round(basePrice * 100) }
+         });
       }
     }
     

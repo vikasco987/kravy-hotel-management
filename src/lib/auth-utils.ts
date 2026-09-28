@@ -60,7 +60,7 @@ export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
             // 🔍 ALWAYS FETCH LATEST DATA FROM DB (Sync Fix)
             const user = await prisma.user.findUnique({ 
                 where: { id: userId },
-                select: { id: true, role: true, ownerId: true, clerkId: true, allowedPaths: true, name: true, email: true, privateMetadata: true }
+                select: { id: true, role: true, ownerId: true, clerkId: true, allowedPaths: true, name: true, email: true, privateMetadata: true, businessId: true }
             });
             
             if (user) {
@@ -82,7 +82,7 @@ export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
                 return {
                     id: user.id,
                     type: user.role as 'ADMIN' | 'SELLER' | 'STAFF' | 'OWNER' | 'USER',
-                    businessId: user.ownerId || user.clerkId || "",
+                    businessId: user.businessId || user.ownerId || "",
                     permissions: user.allowedPaths,
                     name: user.name,
                     email: user.email,

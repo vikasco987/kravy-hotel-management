@@ -1,15 +1,19 @@
 'use client';
 
 import React from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import RoomSetupModal from '../../RoomSetupModal';
 import { useBookingStore } from '@/lib/bookingContext';
 
 export default function SetupRoomPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   
   const roomId = params.roomId as string;
+  const basePriceParam = searchParams.get('basePrice');
+  const defaultRent = basePriceParam ? (parseInt(basePriceParam) / 100).toString() : undefined;
+
   const { roomPricing, roomGuests, checkInDate, checkOutDate, setRoomPricing, setRoomGuests, setCheckInDate, setCheckOutDate } = useBookingStore();
 
   const handleSave = (snapshot: any, guests: any) => {
@@ -30,6 +34,7 @@ export default function SetupRoomPage() {
       checkOutDate={checkOutDate}
       initialData={roomPricing[roomId]}
       initialGuests={roomGuests[roomId]}
+      defaultRent={defaultRent}
       onClose={handleClose}
       onSave={handleSave}
       onCheckInDateChange={setCheckInDate}

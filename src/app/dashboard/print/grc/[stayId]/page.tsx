@@ -26,10 +26,14 @@ export default async function GRCPrintPage({ params }: { params: { stayId: strin
 
   if (!stay) return notFound();
 
-  const hotel = stay.reservation.hotel;
+   const hotel = stay.reservation.hotel;
   const guest = stay.reservation.guest;
   const leadStayRoom = stay.stayRooms[0];
   if (!leadStayRoom) return notFound();
+
+  const expectedOut = new Date(leadStayRoom.checkInDate);
+  expectedOut.setDate(expectedOut.getDate() + leadStayRoom.nights);
+  const displayCheckOutDate = leadStayRoom.checkOutDate ? new Date(leadStayRoom.checkOutDate) : expectedOut;
 
   return (
     <div className="bg-white text-black min-h-screen p-8 font-sans print:p-0">
@@ -82,7 +86,7 @@ export default async function GRCPrintPage({ params }: { params: { stayId: strin
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm mb-1">
                  <span className="font-semibold text-gray-600 col-span-1">Expected Out:</span>
-                 <span className="col-span-2 font-bold">{leadStayRoom.checkOutDate ? new Date(leadStayRoom.checkOutDate!).toLocaleDateString() : 'N/A'}</span>
+                 <span className="col-span-2 font-bold">{displayCheckOutDate.toLocaleDateString()}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm mb-1">
                  <span className="font-semibold text-gray-600 col-span-1">Nights:</span>

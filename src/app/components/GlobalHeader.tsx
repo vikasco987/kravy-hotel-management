@@ -8,7 +8,7 @@ import Image from 'next/image';
 export default function GlobalHeader({ today }: { today: string }) {
   const pathname = usePathname();
   
-  if (pathname === '/dashboard/checkout' || pathname === '/dashboard/book' || pathname.includes('/dashboard/print/')) {
+  if (pathname === '/dashboard/checkout' || pathname === '/dashboard/book' || pathname.includes('/dashboard/print/') || pathname.startsWith('/auth')) {
     return null;
   }
 

@@ -19,7 +19,7 @@ export async function GET(req: Request) {
       include: {
         guest: true,
         rooms: true,
-        stay: true
+        stay: { include: { rooms: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -55,14 +55,16 @@ export async function GET(req: Request) {
       let totalNights = 0;
       let roomNames: string[] = [];
 
-      for (const rr of res.rooms) {
-         if (!minCheckIn || new Date(rr.checkInDate) < minCheckIn) minCheckIn = new Date(rr.checkInDate);
-         if (!maxCheckOut || new Date(rr.checkOutDate) > maxCheckOut) maxCheckOut = new Date(rr.checkOutDate);
-         if (rr.nights > totalNights) totalNights = rr.nights;
+      const roomsToMap = res.rooms && res.rooms.length > 0 ? res.rooms : (res.stay?.rooms || []);
+      
+      for (const rr of roomsToMap) {
+         if (rr.checkInDate && (!minCheckIn || new Date(rr.checkInDate) < minCheckIn)) minCheckIn = new Date(rr.checkInDate);
+         if (rr.checkOutDate && (!maxCheckOut || new Date(rr.checkOutDate) > maxCheckOut)) maxCheckOut = new Date(rr.checkOutDate);
+         if (rr.nights && rr.nights > totalNights) totalNights = rr.nights;
          
          if (rr.roomId && roomMap.has(rr.roomId)) {
            const rObj = roomMap.get(rr.roomId);
-           roomNames.push(`${rObj.roomNumber} - ${rObj.roomType.name} (₹${rr.appliedRate}/night)`);
+           roomNames.push(`${rObj.roomNumber} - ${rObj.roomType.name}`);
          } else {
            roomNames.push(`Unassigned`);
          }

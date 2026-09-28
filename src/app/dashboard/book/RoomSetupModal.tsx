@@ -52,15 +52,24 @@ interface RoomSetupModalProps {
   checkOutDate: string;
   initialData?: RoomPricingSnapshot;
   initialGuests?: GuestData[];
+  defaultRent?: string;
   onClose: () => void;
   onSave?: (snapshot: RoomPricingSnapshot, guests: GuestData[]) => void;
   onCheckInDateChange?: (date: string) => void;
   onCheckOutDateChange?: (date: string) => void;
 }
 
-export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, initialData, initialGuests, onClose, onSave, onCheckInDateChange, onCheckOutDateChange }: RoomSetupModalProps) {
-  const [rent, setRent] = useState(initialData ? (initialData.baseRate / 100).toString() : "2500.00");
-  const [discount, setDiscount] = useState(initialData ? (initialData.discountValue || 0).toString() : "0");
+export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, initialData, initialGuests, defaultRent, onClose, onSave, onCheckInDateChange, onCheckOutDateChange }: RoomSetupModalProps) {
+  const [rent, setRent] = useState(() => {
+    if (initialData) {
+      if (defaultRent && initialData.baseRate === 250000 && defaultRent !== "2500" && defaultRent !== "2500.00") {
+        return defaultRent;
+      }
+      return (initialData.baseRate / 100).toString();
+    }
+    return defaultRent || "2500.00";
+  });
+  const [discount, setDiscount] = useState(initialData ? (initialData.discountType === 'FIXED' ? ((initialData.discountValue || 0) / 100).toString() : (initialData.discountValue || 0).toString()) : "0");
   const [discountType, setDiscountType] = useState<"percent" | "amount">(initialData?.discountType === 'FIXED' ? 'amount' : 'percent');
   
   const [taxMode, setTaxMode] = useState<"INCLUSIVE" | "EXCLUSIVE">(initialData?.taxMode || "INCLUSIVE");
@@ -201,7 +210,7 @@ const handleMediaUpload = async (docs: any[]) => {
             checkOutDate,
             baseRate: Math.round((parseFloat(rent) || 0) * 100),
             discountType: discountType === 'percent' ? 'PERCENTAGE' : 'FIXED',
-            discountValue: parseFloat(discount) || 0,
+            discountValue: discountType === 'percent' ? (parseFloat(discount) || 0) : Math.round((parseFloat(discount) || 0) * 100),
             taxMode,
             taxRate: taxRate * 100,
             extraCharges: [

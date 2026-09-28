@@ -1,192 +1,9 @@
-"use client";
+import re
 
-import React, { useState, useEffect } from 'react';
-import { Mail, Phone, Lock, User, ArrowRight, ShieldCheck, RefreshCw, KeyRound, Eye, EyeOff, MessageSquare } from 'lucide-react';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+with open('src/app/auth/custom/page.tsx', 'r') as f:
+    content = f.read()
 
-export default function CustomAuthPage() {
-  const [mode, setMode] = useState<'login' | 'signup' | 'verify' | 'forgot' | 'reset'>('login');
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      const errorStr = urlParams.get("error");
-      if (errorStr === "session_expired") {
-        toast.error("Your session has expired. Please login again to continue.");
-        // Clean URL without refreshing page
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } else if (errorStr) {
-        toast.error(errorStr);
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    }
-  }, []);
-
-  // Form States
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-    newPassword: '',
-    otp: ''
-  });
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    
-    // ✅ Phone Validation: Numbers only, max 10 digits
-    if (name === 'phone') {
-      const cleaned = value.replace(/\D/g, '').slice(0, 10);
-      setFormData({ ...formData, [name]: cleaned });
-      return;
-    }
-
-    // ✅ OTP Validation: Numbers only, max 6 digits
-    if (name === 'otp') {
-      const cleaned = value.replace(/\D/g, '').slice(0, 6);
-      setFormData({ ...formData, [name]: cleaned });
-      return;
-    }
-
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleAction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      if (mode === 'signup') {
-        if (formData.phone.length !== 10) {
-          toast.error("Please enter a valid 10-digit phone number.");
-          setLoading(false);
-          return;
-        }
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
-        });
-        
-        const responseText = await res.text();
-        let data: any = {};
-        try {
-          data = JSON.parse(responseText);
-        } catch (e) {
-          console.error("RAW_RESPONSE_ERROR:", responseText);
-          throw new Error(`Server Error (${res.status}): ${responseText.substring(0, 50)}...`);
-        }
-
-        if (!res.ok) {
-          if (data.needsVerification) {
-            setMode('verify');
-            setFormData(prev => ({ ...prev, email: data.email || prev.email }));
-            toast.info(data.error || "Verification required");
-            return;
-          }
-          throw new Error(data.error || "Failed to register");
-        }
-        toast.success("OTP sent to your email!");
-        setMode('verify');
-      } 
-      else if (mode === 'verify') {
-        const cleanEmail = formData.email.trim().toLowerCase();
-        console.log("[DEBUG_AUTH] Verifying OTP for:", cleanEmail, "OTP:", formData.otp);
-        const res = await fetch('/api/auth/verify-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, otp: formData.otp })
-        });
-        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
-        console.log("[DEBUG_AUTH] Verification Response:", data);
-        if (!res.ok) throw new Error(data.error || "Verification failed");
-        toast.success("Account verified! Please login.");
-        setMode('login');
-      }
-      else if (mode === 'login') {
-        const identifier = (formData.email || formData.phone).trim().toLowerCase();
-        console.log("[DEBUG_AUTH] Attempting Login with identifier:", identifier);
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier, password: formData.password })
-        });
-        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
-        console.log("[DEBUG_AUTH] Login Response:", data);
-        if (!res.ok) {
-          if (data.notVerified) {
-            console.log("[DEBUG_AUTH] User not verified. Switching to verify mode with email:", data.email);
-            setMode('verify');
-            setFormData(prev => ({ ...prev, email: data.email || prev.email }));
-            toast.info(data.error || "Not verified");
-            return;
-          }
-          throw new Error(data.error || "Login failed");
-        }
-        toast.success("Logged in successfully!");
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 500);
-      }
-      else if (mode === 'forgot') {
-        const res = await fetch('/api/auth/forgot-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email })
-        });
-        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
-        if (!res.ok) throw new Error(data.error || "Request failed");
-        toast.success("Reset OTP sent to your email!");
-        setMode('reset');
-      }
-      else if (mode === 'reset') {
-        const res = await fetch('/api/auth/reset-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            email: formData.email, 
-            otp: formData.otp, 
-            newPassword: formData.newPassword 
-          })
-        });
-        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
-        if (!res.ok) throw new Error(data.error || "Reset failed");
-        toast.success("Password reset successfully! Please login.");
-        setMode('login');
-      }
-    } catch (error: any) {
-      console.error("Auth Error:", error);
-      toast.error(error.message || "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOTP = async () => {
-    if (!formData.email) return;
-    setLoading(true);
-    try {
-      const res = await fetch('/api/auth/resend-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Resend failed");
-      toast.success("New OTP sent to your email!");
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
+new_return = """  return (
     <div className="min-h-screen bg-[#F8F6F1] flex font-sans selection:bg-[#0B6B57]/20 text-[#1C2421]">
       {/* Left Column: Image */}
       <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-[#0B6B57]">
@@ -447,3 +264,16 @@ export default function CustomAuthPage() {
     </div>
   );
 }
+"""
+
+# Find `  return (` and replace everything till the end
+match = re.search(r'  return \(\n    <div className="min-h-screen bg-\[#0a0a0a\]', content)
+if match:
+    start_idx = match.start()
+    new_content = content[:start_idx] + new_return
+    with open('src/app/auth/custom/page.tsx', 'w') as f:
+        f.write(new_content)
+    print("Success")
+else:
+    print("Pattern not found")
+

@@ -22,6 +22,10 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ stayId:
 
   const { stay, hotel, guest, leadStayRoom, invoice } = data;
 
+  const expectedOut = new Date(leadStayRoom.checkInDate);
+  expectedOut.setDate(expectedOut.getDate() + leadStayRoom.nights);
+  const displayCheckOutDate = leadStayRoom.checkOutDate ? new Date(leadStayRoom.checkOutDate) : expectedOut;
+
   const handlePrint = () => {
     window.print();
   };
@@ -81,7 +85,7 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ stayId:
                     <span className="text-gray-600">Check-In:</span>
                     <span className="font-bold text-right">{new Date(leadStayRoom.checkInDate).toLocaleDateString()}</span>
                     <span className="text-gray-600">Check-Out:</span>
-                    <span className="font-bold text-right">{leadStayRoom.checkOutDate ? new Date(leadStayRoom.checkOutDate).toLocaleDateString() : 'N/A'}</span>
+                    <span className="font-bold text-right">{displayCheckOutDate.toLocaleDateString()}</span>
                     <span className="text-gray-600">Nights:</span>
                     <span className="font-bold text-right">{leadStayRoom.nights}</span>
                  </div>
@@ -160,7 +164,7 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ stayId:
            <div className="mb-3 text-[11px] border-b border-dashed border-gray-400 pb-3">
               <p>Guest: <span className="font-bold">{guest.name}</span></p>
               <p>Room: <span className="font-bold">{leadStayRoom.room.roomNumber}</span></p>
-              <p>Date: {new Date(leadStayRoom.checkInDate).toLocaleDateString()} to {leadStayRoom.checkOutDate ? new Date(leadStayRoom.checkOutDate).toLocaleDateString() : 'N/A'}</p>
+              <p>Date: {new Date(leadStayRoom.checkInDate).toLocaleDateString()} to {displayCheckOutDate.toLocaleDateString()}</p>
            </div>
 
            <table className="w-full text-[11px] mb-3">
