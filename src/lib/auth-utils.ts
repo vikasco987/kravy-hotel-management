@@ -115,7 +115,7 @@ export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
                     businessId: staff.businessId || "",
                     permissions: staff.permissions || [],
                     name: staff.name,
-                    email: staff.email,
+                    email: staff.email || undefined,
                     role: 'STAFF'
                 };
             }

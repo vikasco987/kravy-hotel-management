@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Search, X, Check, Banknote, Smartphone, CreditCard, Printer, MessageCircle, 
-  MapPin, Link2, Download, Settings, Trash2, Plus, BedDouble
+  MapPin, Link2, Download, Settings, Trash2, Plus, BedDouble, FileText
 } from 'lucide-react';
 import dayjs from 'dayjs';
 
@@ -423,8 +423,14 @@ function CheckoutSuite() {
                        </div>
                     )}
                     
-                    <button disabled={!settledInvoice} onClick={() => window.open(`/dashboard/print/invoice/${data.stayId}?format=A4`, "_blank")} className="w-full bg-teal-700 hover:bg-[#091a42] text-white font-bold py-3 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
-                       <Printer size={18} /> Print Final Tax Invoice
+                    <button disabled={!settledInvoice} onClick={() => window.open(`/dashboard/print/invoice/${data.stayId}?format=80mm`, "_blank")} className="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
+                       <Printer size={16} /> 3 Inch (80mm) Print
+                    </button>
+                    <button disabled={!settledInvoice} onClick={() => window.open(`/dashboard/print/invoice/${data.stayId}?format=58mm`, "_blank")} className="w-full bg-[#1b3a4b] hover:bg-[#122e3b] text-white font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
+                       <Printer size={16} /> 2 Inch (58mm) Print
+                    </button>
+                    <button disabled={!settledInvoice} onClick={() => window.open(`/dashboard/print/invoice/${data.stayId}?format=A4`, "_blank")} className="w-full bg-[#0e2a6d] hover:bg-[#091a42] text-white font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
+                       <FileText size={16} /> Print A4 Invoice
                     </button>
                     <button disabled={!settledInvoice} className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
                        <MessageCircle size={18} /> Send WhatsApp Invoice

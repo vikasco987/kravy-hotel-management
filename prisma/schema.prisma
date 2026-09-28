@@ -468,6 +468,7 @@ model User {
   
   businessId String? @db.ObjectId
   business   Business? @relation("BusinessUsers", fields: [businessId], references: [id])
+  businessProfile BusinessProfile?
 }
 
 model UserSession {
@@ -590,4 +591,52 @@ model PricingRule {
   
   ratePlan    RatePlan @relation(fields: [ratePlanId], references: [id])
   roomType    RoomType @relation(fields: [roomTypeId], references: [id])
+}
+
+model BusinessProfile {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [clerkId])
+
+  businessType    String?
+  businessName    String?
+  businessTagLine String?
+
+  contactPersonName  String?
+  contactPersonPhone String?
+  contactPersonEmail String?
+  businessEmail      String?
+
+  currencyCode       String? @default("INR")
+  currencySymbol     String? @default("₹")
+
+  upi             String?
+  upiQrEnabled    Boolean @default(true)
+  menuLinkEnabled Boolean @default(true)
+
+  profileImageUrl String?
+  logoUrl         String?
+  signatureUrl    String?
+
+  gstNumber            String?
+  businessAddress      String?
+  state                String?
+  district             String?
+  pinCode              String?
+  taxEnabled           Boolean @default(false)
+  taxRate              Float   @default(5.0)
+  gstType              String? @default("PRODUCT") // "PRODUCT" or "UNIVERSAL"
+  perProductTaxEnabled Boolean @default(false)
+  taxInclusive         Boolean @default(false)
+  servedStatusLabel    String  @default("SERVED")
+  enableFuelBilling    Boolean @default(false)
+  enableHotelManagement Boolean @default(false)
+
+  collectCustomerName    Boolean @default(true)
+  requireCustomerName    Boolean @default(false)
+  collectCustomerPhone   Boolean @default(true)
+  requireCustomerPhone   Boolean @default(false)
+  collectCustomerAddress Boolean @default(false)
+  requireCustomerAddress Boolean @default(false)
 }

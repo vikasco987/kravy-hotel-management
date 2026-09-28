@@ -38,6 +38,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ stayId: 
     const guest = stay.reservation.guest;
     const leadStayRoom = stay.stayRooms[0];
     
+    const businessProfile = await prisma.businessProfile.findFirst({
+        where: { userId: authContext.user.clerkId || authContext.user.id }
+    });
+
     // Create draft invoice if it doesn't exist
     let invoice = stay.invoice;
     if (!invoice) {
@@ -64,7 +68,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ stayId: 
 
     return NextResponse.json({ 
        success: true, 
-       data: { stay, hotel, guest, leadStayRoom, invoice } 
+       data: { stay, hotel, guest, leadStayRoom, invoice, businessProfile } 
     });
   } catch (error) {
     console.error('Invoice Data Error:', error);

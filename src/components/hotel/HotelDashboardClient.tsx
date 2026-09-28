@@ -235,7 +235,18 @@ export default function HotelDashboardClient() {
 
   if (!data) return null;
 
-  const { rooms, occupancy, floors } = data;
+  const { summary, floors } = data;
+  const rooms = {
+    total: summary.totalRooms,
+    available: summary.available,
+    reserved: summary.reserved,
+    occupied: summary.occupied,
+    dirty: summary.dirty,
+    cleaning: summary.cleaning,
+    maintenance: summary.maintenance,
+    blocked: summary.blocked,
+  };
+  const occupancy = summary.occupancyPercent;
 
   const filters = [
     { label: 'ALL', value: 'ALL', count: rooms?.total || 0 },

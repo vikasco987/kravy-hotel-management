@@ -278,8 +278,8 @@ const handleMediaUpload = async (docs: any[]) => {
                        <span className="text-blue-600"><Percent size={16} /></span>
                        <span className="truncate text-[10px] font-bold text-slate-600">Discount</span>
                        <div className="ml-auto flex items-center gap-1 text-[9px] font-bold text-slate-500">
-                          <label className="flex items-center gap-0.5 cursor-pointer"><input type="radio" checked={discountType === 'PERCENTAGE'} onChange={() => setDiscountType('PERCENTAGE')} className="w-2.5 h-2.5 accent-blue-600"/> %</label>
-                          <label className="flex items-center gap-0.5 cursor-pointer"><input type="radio" checked={discountType === 'FIXED'} onChange={() => setDiscountType('FIXED')} className="w-2.5 h-2.5 accent-blue-600"/> ₹</label>
+                          <label className="flex items-center gap-0.5 cursor-pointer"><input type="radio" checked={discountType === 'percent'} onChange={() => setDiscountType('percent')} className="w-2.5 h-2.5 accent-blue-600"/> %</label>
+                          <label className="flex items-center gap-0.5 cursor-pointer"><input type="radio" checked={discountType === 'amount'} onChange={() => setDiscountType('amount')} className="w-2.5 h-2.5 accent-blue-600"/> ₹</label>
                        </div>
                     </div>
                     <input value={discount} onChange={e => setDiscount(e.target.value)} className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold outline-none" />

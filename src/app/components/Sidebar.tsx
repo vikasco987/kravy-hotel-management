@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useProfileCache } from '@/hooks/useProfileCache';
 import { 
   LayoutDashboard, 
   BedDouble, 
@@ -40,10 +41,35 @@ export default function Sidebar() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [optimisticPath, setOptimisticPath] = useState(pathname);
-  
+  const { profile } = useProfileCache();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) {
+          setUser(data);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   useEffect(() => {
     setOptimisticPath(pathname);
   }, [pathname]);
+
+  const handleLogout = async () => {
+    if (confirm("Are you sure you want to sign out?")) {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        router.push('/auth/login');
+        router.refresh();
+      } catch (err) {
+        console.error("Logout failed", err);
+      }
+    }
+  };
 
   const handleNav = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
@@ -107,31 +133,45 @@ export default function Sidebar() {
       {/* Bottom Profile Area */}
       <div className="p-4">
         {/* Property Box */}
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 mb-3 relative flex items-center gap-3">
-          <button className="absolute top-2 right-2 text-slate-500 hover:text-slate-300">
-             <X size={14} />
-          </button>
-          <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center shrink-0 border border-slate-600">
-             <Building2 size={20} className="text-slate-300" />
-          </div>
-          <div>
-            <div className="text-white text-sm font-bold">Grand Plaza</div>
-            <div className="text-[10px] text-slate-400">Hotel & Room Management</div>
-          </div>
-        </div>
-        
-        {/* User Profile */}
-        <div className="flex items-center justify-between cursor-pointer hover:bg-slate-800 p-2 rounded-xl transition">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
-              VK
+        <Link href="/dashboard/profile" className="block cursor-pointer">
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 mb-3 relative flex items-center gap-3 hover:bg-slate-800 transition">
+            <button 
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* optionally close sidebar */ }}
+              className="absolute top-2 right-2 text-slate-500 hover:text-slate-300"
+            >
+               <X size={14} />
+            </button>
+            <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center shrink-0 border border-slate-600 overflow-hidden">
+               {profile?.logoUrl ? (
+                 <img src={profile.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+               ) : (
+                 <Building2 size={20} className="text-slate-300" />
+               )}
             </div>
             <div>
-              <div className="text-white text-sm font-bold">Vikas Kushwaha</div>
-              <div className="text-xs text-slate-400">Admin</div>
+              <div className="text-white text-sm font-bold truncate max-w-[140px]">
+                {profile?.businessName || "My Hotel"}
+              </div>
+              <div className="text-[10px] text-slate-400">Hotel & Room Management</div>
             </div>
           </div>
-          <ChevronRight size={16} className="text-slate-500" />
+        </Link>
+        
+        {/* User Profile & Sign Out */}
+        <div 
+          onClick={handleLogout}
+          className="flex items-center justify-between cursor-pointer hover:bg-slate-800 p-2 rounded-xl transition group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs uppercase">
+              {user?.name?.substring(0, 2) || "AD"}
+            </div>
+            <div>
+              <div className="text-white text-sm font-bold">{user?.name || "Admin"}</div>
+              <div className="text-xs text-slate-400 group-hover:text-red-400 transition">Sign Out</div>
+            </div>
+          </div>
+          <ChevronRight size={16} className="text-slate-500 group-hover:text-red-400" />
         </div>
       </div>
     </aside>

@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, use, Suspense } from 'react';
 import { Printer, ArrowLeft } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
-export default function InvoicePrintPage({ params }: { params: Promise<{ stayId: string }> }) {
-  const { stayId } = use(params);
+function InvoiceContent({ stayId }: { stayId: string }) {
+  const searchParams = useSearchParams();
   const [data, setData] = useState<any>(null);
-  const [format, setFormat] = useState<'A4' | '80MM'>('A4');
+  
+  const initialFormat = (searchParams.get('format')?.toUpperCase() as 'A4' | '80MM' | '58MM') || 'A4';
+  const [format, setFormat] = useState<'A4' | '80MM' | '58MM'>(initialFormat);
 
   useEffect(() => {
-    // We fetch the data from a dedicated API to avoid making the whole component async (for interactive toggle)
     fetch(`/api/hotel/invoice-data/${stayId}`)
       .then(res => res.json())
       .then(d => {
@@ -20,7 +22,7 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ stayId:
 
   if (!data) return <div className="p-8">Loading Invoice Data...</div>;
 
-  const { stay, hotel, guest, leadStayRoom, invoice } = data;
+  const { stay, hotel, guest, leadStayRoom, invoice, businessProfile } = data;
 
   const expectedOut = new Date(leadStayRoom.checkInDate);
   expectedOut.setDate(expectedOut.getDate() + leadStayRoom.nights);
@@ -47,7 +49,8 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ stayId:
          <div className="flex gap-2 items-center">
             <select value={format} onChange={e => setFormat(e.target.value as any)} className="border p-2 rounded text-sm font-bold">
                <option value="A4">A4 / Letter</option>
-               <option value="80MM">80mm Thermal Receipt</option>
+               <option value="80MM">3 Inch (80mm) Thermal Receipt</option>
+               <option value="58MM">2 Inch (58mm) Thermal Receipt</option>
             </select>
             <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded font-bold flex items-center gap-2 hover:bg-blue-700">
                <Printer size={16}/> Print Invoice
@@ -61,9 +64,15 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ stayId:
            
            <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
               <div>
-                 <h1 className="text-3xl font-black uppercase tracking-wider">{hotel.name}</h1>
-                 <p className="text-sm mt-1">{hotel.address || 'Hotel Address'}</p>
-                 <p className="text-sm">GSTIN: {hotel.gstin || 'N/A'}</p>
+                 <h1 className="text-3xl font-black uppercase tracking-wider">
+                    {businessProfile?.businessName || hotel.name}
+                 </h1>
+                 <p className="text-sm mt-1">{businessProfile?.businessAddress || hotel.address || 'Hotel Address'}</p>
+                 <p className="text-sm">{[businessProfile?.district, businessProfile?.state, businessProfile?.pinCode].filter(Boolean).join(', ')}</p>
+                 {(businessProfile?.contactPersonPhone || businessProfile?.businessEmail) && (
+                    <p className="text-sm">Contact: {businessProfile?.contactPersonPhone} {businessProfile?.businessEmail}</p>
+                 )}
+                 <p className="text-sm font-bold mt-1">GSTIN: {businessProfile?.gstNumber || hotel.gstin || 'N/A'}</p>
               </div>
               <div className="text-right">
                  <h2 className="text-4xl font-black text-gray-300 uppercase tracking-widest">INVOICE</h2>
@@ -145,19 +154,20 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ stayId:
            </div>
 
            <div className="border-t border-gray-300 pt-8 mt-16 text-center text-xs text-gray-500">
-              <p>Thank you for choosing {hotel.name}! We hope you had a pleasant stay.</p>
+              <p>Thank you for choosing {businessProfile?.businessName || hotel.name}! We hope you had a pleasant stay.</p>
               <p>This is a computer generated invoice and does not require a signature.</p>
            </div>
         </div>
       )}
 
-      {/* -------------------- 80MM THERMAL FORMAT -------------------- */}
-      {format === '80MM' && (
-        <div className="bg-white p-4 shadow-xl font-mono text-sm leading-tight text-black print:shadow-none" style={{ width: '80mm', minHeight: '100mm' }}>
+      {/* -------------------- 80MM / 58MM THERMAL FORMAT -------------------- */}
+      {(format === '80MM' || format === '58MM') && (
+        <div className="bg-white p-4 shadow-xl font-mono text-sm leading-tight text-black print:shadow-none" style={{ width: format === '58MM' ? '58mm' : '80mm', minHeight: '100mm', margin: '0 auto' }}>
            
            <div className="text-center border-b border-dashed border-gray-400 pb-3 mb-3">
-              <h1 className="text-lg font-black uppercase">{hotel.name}</h1>
-              <p className="text-[10px] uppercase">Tax Invoice</p>
+              <h1 className="text-lg font-black uppercase">{businessProfile?.businessName || hotel.name}</h1>
+              {businessProfile?.businessAddress && <p className="text-[10px]">{businessProfile.businessAddress}</p>}
+              <p className="text-[10px] uppercase mt-1">Tax Invoice</p>
               <p className="text-[10px]">Inv: {invoice?.invoiceNumber || 'DRAFT'}</p>
            </div>
 
@@ -216,5 +226,15 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ stayId:
       )}
 
     </div>
+  );
+}
+
+export default function InvoicePrintPage({ params }: { params: Promise<{ stayId: string }> }) {
+  const { stayId } = use(params);
+  
+  return (
+    <Suspense fallback={<div className="p-8">Loading Print Setup...</div>}>
+      <InvoiceContent stayId={stayId} />
+    </Suspense>
   );
 }

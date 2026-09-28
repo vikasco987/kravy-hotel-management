@@ -55,11 +55,13 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
   const leadGuest = d.rooms[0] || {} as ReceiptRoomData;
 
   const handlePrint = (mode: '80mm' | '58mm' | 'A4') => {
+    console.log(`[CheckInReceipt] Preparing to print in ${mode} format...`);
     setPrintMode(mode);
     setTimeout(() => {
       window.print();
+      console.log(`[CheckInReceipt] Successfully triggered print window for ${mode}.`);
       setPrintMode(null);
-    }, 300); // Give React time to render the style block
+    }, 500); // Give React time to render the style block
   };
 
   const getDynamicCss = () => {
@@ -89,20 +91,28 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
           padding: 0 !important; 
           background: white !important;
         }
-        /* Hide everything by default during print */
-        body > *:not(.receipt-print-wrapper) {
-          display: none !important;
-        }
-        .receipt-print-wrapper {
-          display: block !important;
-          width: ${containerWidth} !important;
-          margin: 0 auto !important;
-          position: absolute;
-          left: 0;
-          top: 0;
+        
+        /* Overlay the print modal on top of everything else */
+        .receipt-modal-root {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          height: auto !important;
+          min-height: 100vh !important;
           background: white !important;
+          z-index: 999999 !important;
+          display: block !important;
         }
-        .no-print {
+
+        .receipt-print-wrapper {
+          width: ${containerWidth} !important;
+          margin: 0 !important;
+          background: white !important;
+          display: block !important;
+        }
+
+        .no-print, .no-print * {
           display: none !important;
         }
         ${isThermal ? `
@@ -116,6 +126,7 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
           }
           /* Hide photos and complex layouts on thermal */
           .thermal-hide { display: none !important; }
+          .thermal-show { display: block !important; }
           .thermal-stack { flex-direction: column !important; align-items: flex-start !important; }
         ` : `
           .receipt-print-wrapper {
@@ -127,15 +138,15 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm no-print">
+    <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm receipt-modal-root print:p-0 print:bg-white print:items-start print:justify-start">
       
       {/* Dynamic Print CSS Injection */}
       <style dangerouslySetInnerHTML={{ __html: getDynamicCss() }} />
 
-      <div className="bg-gray-100 rounded-xl shadow-2xl overflow-hidden w-full max-w-5xl flex flex-col h-[90vh]">
+      <div className="bg-gray-100 rounded-xl shadow-2xl overflow-hidden w-full max-w-5xl flex flex-col h-[90vh] print:h-auto print:overflow-visible print:shadow-none print:rounded-none">
         
         {/* Header - No Print */}
-        <div className="bg-[#0e2a6d] text-white p-3 flex justify-between items-center shrink-0">
+        <div className="bg-[#0e2a6d] text-white p-3 flex justify-between items-center shrink-0 no-print">
           <h3 className="font-bold flex items-center gap-2 text-sm">
             <FileText size={16} /> Guest Check-In Registration Card & Official Receipt
           </h3>
@@ -145,10 +156,10 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
         </div>
 
         {/* Scrollable Receipt Area */}
-        <div className="flex-1 overflow-auto p-6 bg-gray-100 relative">
+        <div className="flex-1 overflow-auto p-6 bg-gray-100 relative print:overflow-visible print:p-0 print:bg-white">
           
           {/* This wrapper becomes the print container */}
-          <div className="receipt-print-wrapper bg-white shadow-md mx-auto max-w-4xl border border-gray-200 p-8 rounded-sm thermal-safe text-gray-900">
+          <div className="receipt-print-wrapper bg-white shadow-md mx-auto max-w-4xl border border-gray-200 p-8 rounded-sm thermal-safe text-gray-900 print:shadow-none print:border-none">
             
             {/* 1. Header Area */}
             <div className="flex justify-between items-start border-b border-gray-200 pb-4 mb-6 thermal-stack">
@@ -310,7 +321,7 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
         </div>
 
         {/* Footer Actions - No Print */}
-        <div className="bg-white border-t border-gray-200 p-4 flex flex-wrap justify-end gap-3 shrink-0">
+        <div className="bg-white border-t border-gray-200 p-4 flex flex-wrap justify-end gap-3 shrink-0 no-print">
           <button onClick={onClose} className="bg-gray-500 hover:bg-gray-600 text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
             <X size={16} /> Close
           </button>
@@ -318,7 +329,10 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
             <Share2 size={16} /> WhatsApp Welcome
           </button>
           <button onClick={() => handlePrint('80mm')} className="bg-[#00875a] hover:bg-[#006f4a] text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
-            <Printer size={16} /> 80mm POS Thermal Print
+            <Printer size={16} /> 3 Inch (80mm) Print
+          </button>
+          <button onClick={() => handlePrint('58mm')} className="bg-[#1b3a4b] hover:bg-[#122e3b] text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
+            <Printer size={16} /> 2 Inch (58mm) Print
           </button>
           <button onClick={() => handlePrint('A4')} className="bg-[#0e2a6d] hover:bg-[#091a42] text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
             <FileText size={16} /> Print A4 Invoice
