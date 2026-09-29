@@ -4,7 +4,7 @@ import { getAuthContext } from '@/lib/authContext';
 
 const prisma = new PrismaClient();
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
@@ -12,9 +12,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     }
 
     const { hotel } = authContext;
+    const { id } = await params;
 
     const room = await prisma.room.findFirst({
-      where: { id: params.id, hotelId: hotel.id },
+      where: { id, hotelId: hotel.id },
       include: {
         _count: {
           select: { stays: true }
@@ -26,15 +27,16 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     }
 
-    if (room._count.stays > 0) {
-      return NextResponse.json({ error: 'This room cannot be deleted because it has historical stay records. Please block the room instead.' }, { status: 400 });
-    }
-
-    await prisma.room.delete({
-      where: { id: room.id }
+    await prisma.room.update({
+      where: { id: room.id },
+      data: { 
+        isActive: false, 
+        status: 'BLOCKED',
+        roomNumber: `${room.roomNumber}_deleted_${Date.now()}`
+      }
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true, softDeleted: true }, { status: 200 });
   } catch (error: any) {
     console.error('Error deleting room:', error);
     if (error?.code === 'P2023' || error?.message?.includes('ObjectId')) {

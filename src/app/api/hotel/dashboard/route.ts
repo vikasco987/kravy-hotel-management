@@ -17,9 +17,10 @@ export async function GET() {
 
     // Securely scoped query to ONLY the authenticated business's hotel
     const floors = await prisma.floor.findMany({
-      where: { hotelId: hotel.id },
+      where: { hotelId: hotel.id, isActive: true },
       include: {
         rooms: {
+          where: { isActive: true },
           include: {
             roomType: true,
             tasks: {

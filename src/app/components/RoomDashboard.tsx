@@ -310,7 +310,7 @@ function DashboardContent() {
   const [newRoomNotes, setNewRoomNotes] = useState("");
 
   useEffect(() => {
-    fetch('/api/hotel/dashboard')
+    fetch(`/api/hotel/dashboard?t=${Date.now()}`, { cache: 'no-store' })
       .then(async res => {
         if (!res.ok) {
           const text = await res.text();
@@ -436,11 +436,51 @@ function DashboardContent() {
         return;
       }
       
-      const refreshRes = await fetch('/api/hotel/dashboard');
+      setData((prev: any) => {
+        if (!prev) return prev;
+        
+        const newFloors = prev.floors.map((f: any) => ({
+          ...f,
+          rooms: f.rooms.filter((r: any) => r.id !== roomId)
+        }));
+
+        const newRooms: Record<string, number> = {
+          total: 0,
+          available: 0,
+          reserved: 0,
+          occupied: 0,
+          dirty: 0,
+          cleaning: 0,
+          maintenance: 0,
+          blocked: 0
+        };
+
+        let newTotal = 0;
+        newFloors.forEach((f: any) => {
+          f.rooms.forEach((r: any) => {
+            newTotal++;
+            if (r.status) {
+              const statusKey = r.status.toLowerCase();
+              newRooms[statusKey] = (newRooms[statusKey] || 0) + 1;
+            }
+          });
+        });
+        newRooms.total = newTotal;
+        const occ = newTotal > 0 ? Math.round(((newRooms.occupied + newRooms.reserved) / newTotal) * 100) : 0;
+
+        return {
+          ...prev,
+          floors: newFloors,
+          rooms: newRooms,
+          occupancy: occ
+        };
+      });
+      setFocusedRoomId(null);
+      
+      const refreshRes = await fetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' });
       if (refreshRes.ok) {
         const newData = await refreshRes.json();
         setData(newData);
-        setFocusedRoomId(null);
       }
     } catch (error) {
       console.error(error);
@@ -576,7 +616,7 @@ function DashboardContent() {
   }, [searchQuery, data]);
 
   // Derived Data
-  const totalRooms = data ? Object.values(data.rooms).reduce((a: any, b: any) => (typeof b === 'number' && a !== 'total' ? a + b : a), 0) : 0;
+  const totalRooms = data?.rooms?.total || 0;
   const focusedRoom = data ? data.floors.flatMap(f => f.rooms).find(r => r.id === focusedRoomId) : null;
 
   if (!data) return <div className="min-h-screen flex items-center justify-center bg-[#F7F8FC] text-gray-500 font-bold">Loading Dashboard...</div>;

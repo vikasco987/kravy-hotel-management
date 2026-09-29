@@ -4,7 +4,7 @@ import { getAuthContext } from '@/lib/authContext';
 
 const prisma = new PrismaClient();
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
@@ -12,11 +12,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     const { hotel } = authContext;
+    const { id } = await params;
     const body = await req.json();
     const { name, floorNumber } = body;
 
     const floor = await prisma.floor.findFirst({
-      where: { id: params.id, hotelId: hotel.id }
+      where: { id, hotelId: hotel.id }
     });
 
     if (!floor) {
@@ -56,7 +57,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
@@ -64,12 +65,17 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     }
 
     const { hotel } = authContext;
+    const { id } = await params;
 
     const floor = await prisma.floor.findFirst({
-      where: { id: params.id, hotelId: hotel.id },
+      where: { id, hotelId: hotel.id },
       include: {
         _count: {
-          select: { rooms: true }
+          select: { 
+            rooms: {
+              where: { isActive: true }
+            }
+          }
         }
       }
     });
@@ -82,8 +88,12 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       return NextResponse.json({ error: 'This floor cannot be deleted because rooms are assigned to it. Remove or move the rooms first.' }, { status: 400 });
     }
 
-    await prisma.floor.delete({
-      where: { id: floor.id }
+    await prisma.floor.update({
+      where: { id: floor.id },
+      data: { 
+        isActive: false,
+        floorNumber: floor.floorNumber + 100000 + Math.floor(Math.random() * 1000) // free up the floor number for reuse
+      }
     });
 
     return NextResponse.json({ success: true }, { status: 200 });

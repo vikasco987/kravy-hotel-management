@@ -15,7 +15,7 @@ export async function GET() {
 
     // Securely filtered to the authenticated hotel
     const rooms = await prisma.room.findMany({
-      where: { hotelId: hotel.id },
+      where: { hotelId: hotel.id, isActive: true },
       include: {
         floor: true,
         roomType: true,

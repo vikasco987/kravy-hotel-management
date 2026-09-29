@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     let finalFloorNumber = floorNumber !== undefined ? parseInt(floorNumber) : 1;
     if (floorNumber === undefined) {
       const maxFloor = await prisma.floor.aggregate({
-        where: { hotelId: hotel.id },
+        where: { hotelId: hotel.id, isActive: true },
         _max: { floorNumber: true }
       });
       finalFloorNumber = (maxFloor._max.floorNumber || 0) + 1;

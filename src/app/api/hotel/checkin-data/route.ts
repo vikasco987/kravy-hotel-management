@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     });
 
     const allRooms = await prisma.room.findMany({ 
-      where: { hotelId }, 
+      where: { hotelId, isActive: true }, 
       include: { roomType: true } 
     });
     
