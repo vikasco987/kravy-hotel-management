@@ -4,7 +4,8 @@ import { Resend } from "resend";
 import { getWelcomeEmailTemplate } from "@/lib/mail-templates";
 
 export async function POST(req: NextRequest) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const resend = resendApiKey ? new Resend(resendApiKey) : null;
   try {
     const { email, otp } = await req.json();
 
@@ -55,12 +56,16 @@ export async function POST(req: NextRequest) {
 
     // 🚀 4. Send Welcome Email
     try {
-      await resend.emails.send({
-        from: 'Kravy POS <auth@kravy.in>',
-        to: email,
-        subject: 'Account Successfully Created! - Kravy POS',
-        html: getWelcomeEmailTemplate(user.name, { phone: user.phone || "N/A", email: user.email })
-      });
+      if (resend) {
+        await resend.emails.send({
+          from: 'Kravy POS <auth@kravy.in>',
+          to: email,
+          subject: 'Account Successfully Created! - Kravy POS',
+          html: getWelcomeEmailTemplate(user.name, { phone: user.phone || "N/A", email: user.email })
+        });
+      } else {
+        console.warn("RESEND_API_KEY is missing, welcome email was not sent.");
+      }
     } catch (emailErr) {
       console.error("WELCOME_EMAIL_ERROR:", emailErr);
     }

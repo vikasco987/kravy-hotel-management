@@ -27,6 +27,9 @@ export function useProfileCache() {
 
     try {
       activePromise = fetch("/api/profile").then(async (res) => {
+        if (res.status === 401) {
+          return null; // Not logged in, avoid console error
+        }
         if (!res.ok) {
           throw new Error(`HTTP Error: ${res.status}`);
         }

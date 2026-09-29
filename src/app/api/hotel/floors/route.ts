@@ -15,15 +15,24 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, floorNumber } = body;
 
-    if (!name || floorNumber === undefined) {
-      return NextResponse.json({ error: 'Name and Floor Number are required' }, { status: 400 });
+    let finalFloorNumber = floorNumber !== undefined ? parseInt(floorNumber) : 1;
+    if (floorNumber === undefined) {
+      const maxFloor = await prisma.floor.aggregate({
+        where: { hotelId: hotel.id },
+        _max: { floorNumber: true }
+      });
+      finalFloorNumber = (maxFloor._max.floorNumber || 0) + 1;
+    }
+
+    if (!name) {
+      return NextResponse.json({ error: 'Floor name is required' }, { status: 400 });
     }
 
     const existingFloor = await prisma.floor.findUnique({
       where: {
         hotelId_floorNumber: {
           hotelId: hotel.id,
-          floorNumber: parseInt(floorNumber),
+          floorNumber: finalFloorNumber,
         }
       }
     });
@@ -36,7 +45,7 @@ export async function POST(req: Request) {
       data: {
         hotelId: hotel.id,
         name,
-        floorNumber: parseInt(floorNumber),
+        floorNumber: finalFloorNumber,
       }
     });
 

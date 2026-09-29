@@ -108,8 +108,14 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(newRoom, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating room:', error);
+    if (error?.code === 'P2023' || error?.message?.includes('ObjectId')) {
+      return NextResponse.json({ error: 'Invalid ID format provided' }, { status: 400 });
+    }
+    if (error?.code === 'P2002') {
+      return NextResponse.json({ error: 'Room number already exists' }, { status: 400 });
+    }
     return NextResponse.json({ error: 'Failed to create room' }, { status: 500 });
   }
 }

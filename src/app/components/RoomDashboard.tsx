@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from 'dayjs';
-import { Check, Sun, ArrowUp, ArrowDown, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight, Hotel, Users, IndianRupee, Snowflake, Wifi, Tv, Bath, Mountain, UserRound, ChevronDown, UserCheck, CalendarDays, UtensilsCrossed, MessageCircle, BarChart3, Wallet, Settings } from "lucide-react";
+import { Check, Sun, ArrowUp, ArrowDown, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight, Hotel, Users, IndianRupee, Snowflake, Wifi, Tv, Bath, Mountain, UserRound, ChevronDown, UserCheck, CalendarDays, UtensilsCrossed, MessageCircle, BarChart3, Wallet, Settings, MoreVertical } from "lucide-react";
 
 
 type RoomStatus = 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'DIRTY' | 'CLEANING' | 'INSPECTED' | 'MAINTENANCE' | 'BLOCKED';
@@ -105,15 +105,34 @@ function FilterBadge({ statusKey, count, isActive, onClick }: { statusKey: strin
   );
 }
 
-function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlightedRoomId, onRoomClick }: any) {
+function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlightedRoomId, onRoomClick, onEditFloor, onDeleteFloor }: any) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const availableCount = floor.rooms.filter((r: any) => r.status === 'AVAILABLE').length;
   
   const floorNum = floorIndex + 1;
   const badgeText = `F${floorNum}`;
   const floorName = `Floor ${floorNum.toString().padStart(2, '0')}`;
 
+  const handleDeleteClick = () => {
+    if (floor.rooms.length > 0) {
+      alert("Cannot delete floor: There are rooms assigned to this floor. Please delete or move the rooms first.");
+      return;
+    }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (onDeleteFloor) {
+      await onDeleteFloor(floor.id);
+    } else {
+      alert("Delete functionality not provided");
+    }
+    setShowDeleteConfirm(false);
+  };
+
   return (
-    <div className="flex flex-col sm:flex-row bg-white rounded-[20px] p-4 items-center shadow-sm border border-gray-100 w-full mb-4 gap-4 sm:gap-6">
+    <div className="flex flex-col sm:flex-row bg-white rounded-[20px] p-4 items-center shadow-sm border border-gray-100 w-full mb-4 gap-4 sm:gap-6 relative">
       <div className="flex items-center w-full sm:w-[220px] shrink-0 border-b sm:border-b-0 sm:border-r border-gray-100 pb-4 sm:pb-0 sm:pr-6">
         <div className="flex flex-col items-center justify-center w-[52px] h-[52px] rounded-[14px] bg-blue-50/80 text-blue-600 border border-blue-100 mr-4 shrink-0">
           <span className="text-[15px] font-black leading-none">{badgeText}</span>
@@ -152,9 +171,46 @@ function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlighted
           );
         })}
       </div>
-      <div className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-50 cursor-pointer transition-colors text-gray-400">
-         <ChevronRight size={18} />
+      <div className="relative shrink-0 flex items-center justify-center">
+        <div 
+          onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
+          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-50 cursor-pointer transition-colors text-gray-400"
+        >
+           <MoreVertical size={18} />
+        </div>
+        {isMenuOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); }}></div>
+            <div className="absolute right-0 top-10 w-36 bg-white border border-gray-100 shadow-lg rounded-xl overflow-hidden z-50 py-1">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); if (onEditFloor) onEditFloor(floor); else alert("Edit not implemented"); }}
+                className="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Edit Floor
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); handleDeleteClick(); }}
+                className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
+              >
+                Delete Floor
+              </button>
+            </div>
+          </>
+        )}
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight mb-2">Delete Floor?</h2>
+            <p className="text-sm text-slate-500 mb-6 font-medium">Are you sure you want to delete {floorName}? This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors">Cancel</button>
+              <button onClick={confirmDelete} className="flex-1 px-4 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-colors shadow-sm shadow-rose-500/20">Delete Floor</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -235,10 +291,12 @@ function DashboardContent() {
 
   // Modal States
   const [isAddFloorOpen, setIsAddFloorOpen] = useState(false);
+  const [isEditFloorOpen, setIsEditFloorOpen] = useState(false);
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
 
   // Form States - Floor
   const [newFloorName, setNewFloorName] = useState("");
+  const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
   
   // Form States - Room
   const [newRoomNumber, setNewRoomNumber] = useState("");
@@ -272,24 +330,128 @@ function DashboardContent() {
       });
   }, []);
 
-  const handleAddFloor = (e: React.FormEvent) => {
+  const handleAddFloor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!data || !newFloorName.trim()) return;
 
-    const newFloor: Floor = {
-      id: `floor-${Date.now()}`,
-      name: newFloorName,
-      rooms: []
-    };
+    try {
+      const res = await fetch('/api/hotel/floors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newFloorName })
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        alert(errData.error || 'Failed to create floor');
+        return;
+      }
+      
+      const createdFloor = await res.json();
+      const newFloor: Floor = {
+        id: createdFloor.id,
+        name: createdFloor.name,
+        rooms: []
+      };
 
-    setData({
-      ...data,
-      floors: [...data.floors, newFloor]
-    });
-    
-    setNewFloorName("");
-    setIsAddFloorOpen(false);
-    if (!newRoomFloorId) setNewRoomFloorId(newFloor.id);
+      setData({
+        ...data,
+        floors: [...data.floors, newFloor]
+      });
+      
+      setNewFloorName("");
+      setIsAddFloorOpen(false);
+      if (!newRoomFloorId) setNewRoomFloorId(newFloor.id);
+    } catch (error) {
+      console.error(error);
+      alert('Network error while creating floor');
+    }
+  };
+
+  const handleEditFloor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!data || !editingFloor || !newFloorName.trim()) return;
+
+    try {
+      const res = await fetch(`/api/hotel/floors/${editingFloor.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newFloorName })
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        alert(errData.error || 'Failed to update floor');
+        return;
+      }
+      
+      const updatedFloor = await res.json();
+      
+      setData({
+        ...data,
+        floors: data.floors.map(f => f.id === updatedFloor.id ? { ...f, name: updatedFloor.name } : f)
+      });
+      
+      setNewFloorName("");
+      setEditingFloor(null);
+      setIsEditFloorOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert('Network error while updating floor');
+    }
+  };
+
+  const handleDeleteFloor = async (floorId: string) => {
+    try {
+      const res = await fetch(`/api/hotel/floors/${floorId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        alert(errData.error || 'Failed to delete floor');
+        return;
+      }
+      
+      setData({
+        ...data,
+        floors: data.floors.filter(f => f.id !== floorId)
+      });
+    } catch (error) {
+      console.error(error);
+      alert('Network error while deleting floor');
+    }
+  };
+
+  const handleDeleteRoom = async (roomId: string) => {
+    if (!confirm('Are you sure you want to delete this room? This action cannot be undone.')) return;
+    try {
+      const res = await fetch(`/api/hotel/rooms/${roomId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        alert(errData.error || 'Failed to delete room');
+        return;
+      }
+      
+      const refreshRes = await fetch('/api/hotel/dashboard');
+      if (refreshRes.ok) {
+        const newData = await refreshRes.json();
+        setData(newData);
+        setFocusedRoomId(null);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Network error while deleting room');
+    }
+  };
+
+  const openEditFloor = (floor: Floor) => {
+    setEditingFloor(floor);
+    setNewFloorName(floor.name);
+    setIsEditFloorOpen(true);
   };
 
   const toggleAmenity = (amenity: string) => {
@@ -515,6 +677,8 @@ function DashboardContent() {
                       focusedRoomId={focusedRoomId}
                       highlightedRoomId={highlightedRoomId}
                       onRoomClick={handleRoomClick} 
+                      onEditFloor={openEditFloor}
+                      onDeleteFloor={handleDeleteFloor}
                     />
                   );
                 })}
@@ -777,6 +941,12 @@ function DashboardContent() {
                        ) : (
                          <button onClick={() => handleStatusChange(focusedRoom.id, 'BLOCKED')} className="py-3 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 shadow-sm col-span-2">Block Room</button>
                        )}
+                       <button 
+                         onClick={() => handleDeleteRoom(focusedRoom.id)} 
+                         className="py-3 bg-rose-600 text-white border border-rose-700 rounded-xl text-xs font-bold hover:bg-rose-700 shadow-sm col-span-2"
+                       >
+                         Delete Room
+                       </button>
                      </div>
                    )}
                  </div>
@@ -810,33 +980,61 @@ function DashboardContent() {
       </div>
 
       {/* Add Floor Modal */}
-      {/* Add Floor Modal */}
-      {isAddFloorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-           <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
-              <form onSubmit={handleAddFloor} className="p-6">
-                 <h2 className="text-lg font-bold mb-4">Add New Floor</h2>
-                 <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Floor Name</label>
-                      <input 
-                        type="text" 
-                        value={newFloorName}
-                        onChange={(e) => setNewFloorName(e.target.value)}
-                        placeholder="e.g., 3rd Floor" 
-                        className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none"
-                        required
-                      />
-                    </div>
-                 </div>
-                 <div className="mt-6 flex justify-end gap-3">
-                    <button type="button" onClick={() => setIsAddFloorOpen(false)} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50">Cancel</button>
-                    <button type="submit" className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800">Save Floor</button>
-                 </div>
-              </form>
-           </div>
-        </div>
-      )}
+       {/* Add Floor Modal */}
+       {isAddFloorOpen && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
+               <form onSubmit={handleAddFloor} className="p-6">
+                  <h2 className="text-lg font-bold mb-4">Add New Floor</h2>
+                  <div className="space-y-4">
+                     <div>
+                       <label className="block text-xs font-semibold text-gray-700 mb-1">Floor Name</label>
+                       <input 
+                         type="text" 
+                         value={newFloorName}
+                         onChange={(e) => setNewFloorName(e.target.value)}
+                         placeholder="e.g., 3rd Floor" 
+                         className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none"
+                         required
+                       />
+                     </div>
+                  </div>
+                  <div className="mt-6 flex justify-end gap-3">
+                     <button type="button" onClick={() => setIsAddFloorOpen(false)} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50">Cancel</button>
+                     <button type="submit" className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800">Save Floor</button>
+                  </div>
+               </form>
+            </div>
+         </div>
+       )}
+
+       {/* Edit Floor Modal */}
+       {isEditFloorOpen && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
+               <form onSubmit={handleEditFloor} className="p-6">
+                  <h2 className="text-lg font-bold mb-4">Edit Floor</h2>
+                  <div className="space-y-4">
+                     <div>
+                       <label className="block text-xs font-semibold text-gray-700 mb-1">Floor Name</label>
+                       <input 
+                         type="text" 
+                         value={newFloorName}
+                         onChange={(e) => setNewFloorName(e.target.value)}
+                         placeholder="e.g., 3rd Floor" 
+                         className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none"
+                         required
+                       />
+                     </div>
+                  </div>
+                  <div className="mt-6 flex justify-end gap-3">
+                     <button type="button" onClick={() => { setIsEditFloorOpen(false); setEditingFloor(null); setNewFloorName(""); }} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50">Cancel</button>
+                     <button type="submit" className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800">Save Changes</button>
+                  </div>
+               </form>
+            </div>
+         </div>
+       )}
 
       {/* Add Room Modal */}
       {isAddRoomOpen && (
