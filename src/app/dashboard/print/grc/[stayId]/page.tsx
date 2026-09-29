@@ -68,7 +68,9 @@ export default async function GRCPrintPage({ params }: { params: { stayId: strin
               <div className="grid grid-cols-3 gap-2 text-sm mb-1">
                  <span className="font-semibold text-gray-600 col-span-1">ID Provided:</span>
                  <span className="col-span-2 font-bold">
-                    {guest.documents.length > 0 ? `${guest.documents[0].documentType} - ${guest.documents[0].documentNumber || 'Verified'}` : 'None'}
+                    {guest.documents.length > 0 ? (
+                       guest.documents[0].verificationStatus === 'VERIFIED' ? `${guest.documents[0].documentType} (Verified)` : `${guest.documents[0].documentType} (Not Verified)`
+                    ) : 'None'}
                  </span>
               </div>
            </div>

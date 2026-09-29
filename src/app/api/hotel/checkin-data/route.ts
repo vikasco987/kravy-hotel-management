@@ -17,7 +17,9 @@ export async function GET(req: Request) {
     const reservations = await prisma.reservation.findMany({
       where: { hotelId },
       include: {
-        guest: true,
+        guest: {
+          include: { documents: true }
+        },
         rooms: true,
         stay: { include: { rooms: true } }
       },
@@ -70,11 +72,23 @@ export async function GET(req: Request) {
          }
       }
 
+      // Determine Document Verification Status
+      let idDocumentType = null;
+      let isVerified = false;
+      const guestDocs = res.guest.documents || [];
+      if (guestDocs.length > 0) {
+        idDocumentType = guestDocs[0].documentType || "ID"; // or map it better
+        isVerified = guestDocs.some((d: any) => d.verificationStatus === 'VERIFIED');
+      }
+
       const formatted = {
         id: res.id,
         shortId: res.id.substring(res.id.length - 6).toUpperCase(),
         guestName: res.guest.name,
         guestPhone: res.guest.phone,
+        guestIdProof: idDocumentType,
+        isGuestVerified: isVerified,
+        hasDocument: guestDocs.length > 0,
         rooms: roomNames,
         checkInDate: minCheckIn,
         checkOutDate: maxCheckOut,

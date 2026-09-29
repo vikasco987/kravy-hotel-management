@@ -43,6 +43,8 @@ export interface GuestData {
   // Legacy fields for backward compatibility during transition
   idUrl?: string;
   idNumber?: string;
+  isVerified?: boolean;
+  documentType?: string;
 }
 
 
@@ -722,7 +724,9 @@ const handleMediaUpload = async (docs: any[]) => {
                   onSave({ 
                      id: initialData?.id || ('g' + Date.now()), 
                      name, phone, age, gender, isLead, 
-                     idUrls, idNumber, photoUrl 
+                     idUrls, idNumber, photoUrl,
+                     isVerified: initialData?.isVerified || false,
+                     documentType: initialData?.documentType || (idUrls.length > 0 ? "ID Document" : undefined)
                   });
                }} 
                className="rounded-lg bg-indigo-600 px-6 py-2.5 text-[12px] font-bold text-white shadow-md hover:bg-indigo-700"
@@ -775,7 +779,7 @@ function ChargeCard({ title, value, icon, onChange, mode, onModeChange }: any) {
 }
 
 function GuestRow({ guest, index, updateGuest, removeGuest, guestsLength, onEditGuest }: any) {
-  const isVerified = (guest.idUrls && guest.idUrls.length > 0) || guest.idUrl || guest.idNumber;
+  const hasDocument = (guest.idUrls && guest.idUrls.length > 0) || guest.idUrl || guest.idNumber || (guest.idDocuments && guest.idDocuments.length > 0);
   return (
     <tr className="border-b last:border-0 hover:bg-slate-50 transition-colors">
       <td className="px-2 py-1.5">
@@ -827,8 +831,8 @@ function GuestRow({ guest, index, updateGuest, removeGuest, guestsLength, onEdit
       <td className="px-2 py-1.5">
         <div className="flex flex-col gap-1">
           <div className="flex gap-1.5">
-            <button onClick={() => onEditGuest(guest.id)} className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-[8px] font-semibold transition-colors ${isVerified ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              {isVerified ? <CheckCircle2 size={13}/> : <Upload size={13} />} ID
+            <button onClick={() => onEditGuest(guest.id)} className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-[8px] font-semibold transition-colors ${hasDocument ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              {hasDocument ? <CheckCircle2 size={13}/> : <Upload size={13} />} ID
             </button>
             <button onClick={() => onEditGuest(guest.id)} className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-[8px] font-semibold transition-colors ${guest.photoUrl ? 'bg-blue-100 text-blue-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
               {guest.photoUrl ? <CheckCircle2 size={13}/> : <Camera size={13} />} CAM

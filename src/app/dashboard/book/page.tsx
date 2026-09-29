@@ -207,7 +207,9 @@ function GuestCheckInSuite() {
             guestName: leadGuest.name || 'GUEST NAME',
             guestPhoto: leadGuest.photoUrl,
             guestMobile: leadGuest.phone,
-            guestIdNumber: leadGuest.idNumber,
+            guestIdNumber: leadGuest.idNumber || leadGuest.idUrl || (leadGuest.idDocuments && leadGuest.idDocuments.length > 0 ? 'Provided' : null),
+            idDocumentType: leadGuest.documentType || 'Aadhaar Card',
+            isVerified: leadGuest.isVerified === true,
             totalGuests: guests.length,
             totalKids: 0,
             rent: rentVal,
@@ -402,7 +404,9 @@ function GuestCheckInSuite() {
                         
                         const guests = roomGuests[roomId] || [];
                         const leadGuest = guests.find(g => g.isLead) || guests[0];
-                        const isVerified = leadGuest && (leadGuest.idUrl || leadGuest.idNumber);
+                        const hasDocument = leadGuest && (leadGuest.idUrl || leadGuest.idNumber || (leadGuest.idDocuments && leadGuest.idDocuments.length > 0));
+                        const isVerified = leadGuest && leadGuest.isVerified === true;
+                        const documentType = leadGuest?.documentType || "Aadhaar Card";
                         
                         return (
                            <tr key={roomId} className="hover:bg-gray-50 transition-colors">
@@ -462,9 +466,21 @@ function GuestCheckInSuite() {
                               </td>
                               {columnSettings.idProof && (
                                 <td className="px-3 py-4 text-center">
-                                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isVerified ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 text-gray-500 border border-gray-200'}`}>
-                                     {isVerified ? <span className="flex items-center gap-1"><BadgeCheck size={10}/> ID Provided</span> : '● No ID'}
-                                   </span>
+                                   {!hasDocument ? (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-200">
+                                        ● No ID
+                                      </span>
+                                   ) : isVerified ? (
+                                      <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 flex flex-col items-center gap-0.5 w-max mx-auto">
+                                        <span className="flex items-center gap-1"><BadgeCheck size={10}/> {documentType}</span>
+                                        <span className="text-[9px]">(Verified)</span>
+                                      </span>
+                                   ) : (
+                                      <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200 flex flex-col items-center gap-0.5 w-max mx-auto">
+                                        <span className="flex items-center gap-1">{documentType}</span>
+                                        <span className="text-[9px]">Not Verified</span>
+                                      </span>
+                                   )}
                                 </td>
                               )}
                               {columnSettings.extraCharges && (

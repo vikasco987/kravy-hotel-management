@@ -19,6 +19,8 @@ interface ReceiptRoomData {
   gst: number;
   netTotal: number;
   nights: number;
+  idDocumentType?: string;
+  isVerified?: boolean;
 }
 
 interface CheckInReceiptModalProps {
@@ -198,7 +200,14 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
                   <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">{leadGuest.guestName || 'GUEST NAME'}</h2>
                   <div className="text-xs text-gray-600 mt-2 space-y-1">
                     <div className="flex items-center gap-2"><span className="opacity-75">📞 Mobile:</span> {leadGuest.guestMobile || '---'}</div>
-                    <div className="flex items-center gap-2"><span className="opacity-75">🪪 ID Proof:</span> {leadGuest.guestIdNumber ? `Verified (${leadGuest.guestIdNumber})` : 'Aadhaar Card (Verified)'}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="opacity-75">🪪 ID Proof:</span> 
+                      {leadGuest.guestIdNumber ? (
+                        leadGuest.isVerified ? `${leadGuest.idDocumentType || 'Aadhaar Card'} (Verified)` : `${leadGuest.idDocumentType || 'Aadhaar Card'} (Not Verified)`
+                      ) : (
+                        'No ID Provided'
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 font-bold text-blue-800 mt-1">
                       👥 Total Guests: {d.rooms.reduce((acc, r) => acc + r.totalGuests, 0)} Adults, {d.rooms.reduce((acc, r) => acc + r.totalKids, 0)} Kid
                     </div>
