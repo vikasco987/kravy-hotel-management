@@ -15,11 +15,13 @@ import {
   Clock,
   Layers,
   Sparkles,
-  ClipboardList
+  ClipboardList,
+  Wrench
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 import { STATUS_COLORS, FilterBadge, FloorRow } from "@/components/hotel/RoomComponents";
+import { GuestDetailsModal } from "@/components/hotel/GuestDetailsModal";
 
 interface Room {
   id: string;
@@ -43,6 +45,7 @@ export default function RoomsManagementPage() {
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   const [isAddFloorOpen, setIsAddFloorOpen] = useState(false);
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
   const [newFloorNumber, setNewFloorNumber] = useState("");
@@ -61,6 +64,29 @@ export default function RoomsManagementPage() {
         setLoading(false);
       });
   }, []);
+
+  const handleStatusChange = async (roomId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/hotel/rooms/${roomId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      
+      const refreshRes = await fetch('/api/hotel/dashboard');
+      if (refreshRes.ok) {
+        const newData = await refreshRes.json();
+        setData(newData);
+        if (selectedRoom?.id === roomId) {
+          setSelectedRoom({ ...selectedRoom, status: newStatus });
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to update room status');
+    }
+  };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500 bg-[#F4F6F9]">Loading...</div>;
 
@@ -225,7 +251,6 @@ export default function RoomsManagementPage() {
       >
         {selectedRoom && (
           <div className="p-6">
-            
             {/* Header */}
             <div className="flex items-start justify-between mb-8">
               <div>
@@ -252,7 +277,7 @@ export default function RoomsManagementPage() {
               <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center text-center">
                 <div className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[8px] mb-2">₹</div>
                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Price</span>
-                <span className="text-xs font-black text-gray-900 mt-0.5">₹ {selectedRoom.price} <span className="font-medium text-[9px] text-gray-500">/ night</span></span>
+                <span className="text-xs font-black text-gray-900 mt-0.5">₹ {selectedRoom.guestInfo?.roomRate ? selectedRoom.guestInfo.roomRate / 100 : selectedRoom.price / 100} <span className="font-medium text-[9px] text-gray-500">/ night</span></span>
               </div>
               <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center text-center">
                 <UserCheck size={16} className="text-indigo-500 mb-2" />
@@ -266,14 +291,18 @@ export default function RoomsManagementPage() {
               <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">Guest Information</h3>
               
               {selectedRoom.guestInfo ? (
-                <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 flex items-center gap-4">
+                <div 
+                  className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 flex items-center gap-4 cursor-pointer hover:bg-indigo-100/50 transition-colors group"
+                  onClick={() => setIsGuestModalOpen(true)}
+                  title="Click to view complete guest and stay details"
+                >
                   <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md">
                     {selectedRoom.guestInfo.name.substring(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <div className="text-sm font-black text-indigo-900">{selectedRoom.guestInfo.name}</div>
+                    <div className="text-sm font-black text-indigo-900 group-hover:text-indigo-700 transition-colors">{selectedRoom.guestInfo.name}</div>
                     <div className="text-[11px] font-medium text-indigo-600 mt-0.5">{selectedRoom.guestInfo.phone || 'No phone'}</div>
-                    <div className="text-[10px] font-bold text-indigo-400 mt-1 uppercase tracking-widest">ID: {selectedRoom.guestInfo.id ? selectedRoom.guestInfo.id.substring(selectedRoom.guestInfo.id.length - 6).toUpperCase() : 'UNKNOWN'}</div>
+                    <div className="text-[10px] font-bold text-indigo-400 mt-1 uppercase tracking-widest">ID: {selectedRoom.guestInfo.idProof ? selectedRoom.guestInfo.idProof.substring(selectedRoom.guestInfo.idProof.length - 6).toUpperCase() : 'UNKNOWN'}</div>
                   </div>
                 </div>
               ) : (
@@ -328,26 +357,55 @@ export default function RoomsManagementPage() {
             {/* Actions Section */}
             <div className="mb-8">
               <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">Actions</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => router.push('/dashboard/book')} className="bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                  <UserCheck size={16} /> Check-in
-                </button>
-                <button className="bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                  <LogOut size={16} /> Check-out
-                </button>
-                <button className="bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                  <Sparkles size={16} /> Set Clean
-                </button>
-                <button className="bg-rose-50 text-rose-700 border border-rose-100 hover:bg-rose-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                  <Layers size={16} /> Set Dirty
-                </button>
-                <button className="bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                  <MoreVertical size={16} /> Block
-                </button>
-                <button onClick={() => router.push('/dashboard/book')} className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                  <CalendarDays size={16} /> Book
-                </button>
-              </div>
+              {selectedRoom.status === 'OCCUPIED' ? (
+                <div className="space-y-3">
+                  <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg text-[10px] text-emerald-800 font-medium">
+                    Manual status change is locked while a guest is staying. Please use the check-out process.
+                  </div>
+                  <button 
+                    onClick={() => router.push(`/dashboard/checkout?roomId=${selectedRoom.id}`)}
+                    className="w-full py-3 bg-emerald-600 text-white rounded-xl text-sm font-black hover:bg-emerald-700 shadow-md transition-colors flex items-center justify-center gap-2"
+                  >
+                    <LogOut size={16} /> Check-Out Guest
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => router.push(`/dashboard/book?rooms=${selectedRoom.id}`)} className="bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
+                    <UserCheck size={16} /> Check-in
+                  </button>
+                  <button onClick={() => router.push(`/dashboard/book?rooms=${selectedRoom.id}`)} className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
+                    <CalendarDays size={16} /> Book
+                  </button>
+                  {selectedRoom.status === 'DIRTY' ? (
+                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
+                      <Sparkles size={16} /> Set Clean
+                    </button>
+                  ) : (
+                    <button onClick={() => handleStatusChange(selectedRoom.id, 'DIRTY')} className="bg-rose-50 text-rose-700 border border-rose-100 hover:bg-rose-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
+                      <Layers size={16} /> Set Dirty
+                    </button>
+                  )}
+                  {selectedRoom.status === 'BLOCKED' ? (
+                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center col-span-2">
+                      <Sparkles size={16} /> Unblock
+                    </button>
+                  ) : selectedRoom.status === 'MAINTENANCE' ? (
+                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center col-span-2">
+                      <Sparkles size={16} /> Set Available
+                    </button>
+                  ) : (
+                    <>
+                      <button onClick={() => handleStatusChange(selectedRoom.id, 'BLOCKED')} className="bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
+                        <MoreVertical size={16} /> Block
+                      </button>
+                      <button onClick={() => handleStatusChange(selectedRoom.id, 'MAINTENANCE')} className="bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
+                        <Wrench size={16} /> Set Maintenance
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Recent Activity */}
@@ -428,6 +486,13 @@ export default function RoomsManagementPage() {
         </div>
       )}
 
+      {selectedRoom && (
+        <GuestDetailsModal 
+          isOpen={isGuestModalOpen} 
+          onClose={() => setIsGuestModalOpen(false)} 
+          room={selectedRoom} 
+        />
+      )}
     </div>
   );
 }

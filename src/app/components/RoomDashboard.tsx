@@ -4,6 +4,8 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from 'dayjs';
 import { Check, Sun, ArrowUp, ArrowDown, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight, Hotel, Users, IndianRupee, Snowflake, Wifi, Tv, Bath, Mountain, UserRound, ChevronDown, UserCheck, CalendarDays, UtensilsCrossed, MessageCircle, BarChart3, Wallet, Settings, MoreVertical } from "lucide-react";
+import { GuestDetailsModal } from "@/components/hotel/GuestDetailsModal";
+
 
 
 type RoomStatus = 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'DIRTY' | 'CLEANING' | 'INSPECTED' | 'MAINTENANCE' | 'BLOCKED';
@@ -17,6 +19,8 @@ interface GuestInfo {
   amountPaid: number;
   totalAmount: number;
   balance: number;
+  roomRate?: number;
+  guestsData?: any;
 }
 
 interface Room {
@@ -245,6 +249,7 @@ function DashboardContent() {
   const router = useRouter();
 
   const [focusedRoomId, setFocusedRoomId] = useState<string | null>(null);
+  const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   
   const handleRoomClick = (roomId: string) => {
     setFocusedRoomId(roomId);
@@ -876,10 +881,14 @@ function DashboardContent() {
                   {focusedRoom.guestInfo ? (
                     <div className="space-y-4">
                       <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Guest Details</h4>
-                      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 space-y-3">
+                      <div 
+                        className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 space-y-3 cursor-pointer hover:bg-indigo-100/50 transition-colors group"
+                        onClick={() => setIsGuestModalOpen(true)}
+                        title="Click to view complete guest and stay details"
+                      >
                         <div className="flex justify-between items-start border-b border-indigo-200/50 pb-3">
                           <div>
-                            <div className="text-indigo-900 font-bold">{focusedRoom.guestInfo.name}</div>
+                            <div className="text-indigo-900 font-bold group-hover:text-indigo-700 transition-colors">{focusedRoom.guestInfo.name}</div>
                             <div className="text-xs text-indigo-700/70 font-medium">{focusedRoom.guestInfo.phone}</div>
                           </div>
                           <div className="bg-white px-2 py-1 rounded text-[10px] font-bold text-indigo-700 border border-indigo-100">
@@ -907,7 +916,7 @@ function DashboardContent() {
                         <div className="bg-white/60 p-3 rounded-lg border border-indigo-100/50 mt-2 space-y-2">
                           <div className="flex justify-between items-center">
                             <span className="text-xs font-bold text-indigo-400">Room Rate</span>
-                            <span className="text-xs font-bold text-indigo-900">₹{(focusedRoom.price || 0) / 100}/night</span>
+                            <span className="text-xs font-bold text-indigo-900">₹{(focusedRoom.guestInfo.roomRate || focusedRoom.price || 0) / 100}/night</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-xs font-bold text-emerald-500">Amount Paid</span>
@@ -978,8 +987,13 @@ function DashboardContent() {
                        )}
                        {focusedRoom.status === 'BLOCKED' ? (
                          <button onClick={() => handleStatusChange(focusedRoom.id, 'AVAILABLE')} className="py-3 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 shadow-sm col-span-2">Unblock Room</button>
+                       ) : focusedRoom.status === 'MAINTENANCE' ? (
+                         <button onClick={() => handleStatusChange(focusedRoom.id, 'AVAILABLE')} className="py-3 bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold hover:bg-amber-200 shadow-sm col-span-2">Set Available</button>
                        ) : (
-                         <button onClick={() => handleStatusChange(focusedRoom.id, 'BLOCKED')} className="py-3 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 shadow-sm col-span-2">Block Room</button>
+                         <>
+                           <button onClick={() => handleStatusChange(focusedRoom.id, 'BLOCKED')} className="py-3 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 shadow-sm">Block Room</button>
+                           <button onClick={() => handleStatusChange(focusedRoom.id, 'MAINTENANCE')} className="py-3 bg-amber-50 text-amber-700 border border-amber-100 rounded-xl text-xs font-bold hover:bg-amber-100 shadow-sm">Set Maintenance</button>
+                         </>
                        )}
                        <button 
                          onClick={() => handleDeleteRoom(focusedRoom.id)} 
@@ -1378,6 +1392,14 @@ function DashboardContent() {
             
           </div>
         </div>
+      )}
+      
+      {focusedRoom && (
+        <GuestDetailsModal 
+          isOpen={isGuestModalOpen} 
+          onClose={() => setIsGuestModalOpen(false)} 
+          room={focusedRoom} 
+        />
       )}
 </div>
   );

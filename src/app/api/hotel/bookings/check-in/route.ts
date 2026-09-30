@@ -159,7 +159,8 @@ export async function POST(request: Request) {
                    checkInDate: new Date(checkInDate),
                    checkOutDate: new Date(checkOutDate),
                    baseRate: room?.roomType?.basePrice || 250000,
-                   appliedRate: Math.round((roomPricing?.[roomId]?.baseRate || 2500) * 100)
+                   appliedRate: roomPricing?.[roomId]?.baseRate || (room?.roomType?.basePrice ? room.roomType.basePrice * 100 : 250000),
+                   guestsData: roomGuests?.[roomId] ? roomGuests[roomId] : null
                 }
              });
           }
@@ -218,6 +219,7 @@ export async function POST(request: Request) {
         stayRoomData = {
            ...stayRoomData,
            baseRate: calcResult.baseRate,
+           appliedRate: calcResult.baseRate,
            discountType: calcResult.discountType,
            discountValue: calcResult.discountValue,
            discountAmount: calcResult.discountAmount,
@@ -229,7 +231,8 @@ export async function POST(request: Request) {
            taxAmount: calcResult.taxAmount,
            extraChargesAmount: calcResult.extraChargesAmount,
            grossAmount: calcResult.grossAmount,
-           finalAmount: calcResult.finalAmount
+           finalAmount: calcResult.finalAmount,
+           guestsData: roomGuests?.[roomId] ? roomGuests[roomId] : null
         };
 
         // Only attempt to write to DB if it's a real Room ObjectId (length 24)
