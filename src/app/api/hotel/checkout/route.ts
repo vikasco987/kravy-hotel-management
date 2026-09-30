@@ -84,6 +84,7 @@ export async function GET(req: Request) {
         checkInDate: sr.checkInDate,
         taxMode: sr.taxMode,
         taxRate: sr.taxRate,
+        guestsData: sr.guestsData,
       })),
       extraCharges: stayContext.roomCharges.map(charge => ({
         id: charge.id,
