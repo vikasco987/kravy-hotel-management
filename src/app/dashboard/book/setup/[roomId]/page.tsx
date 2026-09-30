@@ -12,7 +12,9 @@ export default function SetupRoomPage() {
   
   const roomId = params.roomId as string;
   const basePriceParam = searchParams.get('basePrice');
+  const roomNumberParam = searchParams.get('roomNumber');
   const defaultRent = basePriceParam ? (parseInt(basePriceParam) / 100).toString() : undefined;
+  const displayRoomNo = roomNumberParam || roomId;
 
   const { roomPricing, roomGuests, checkInDate, checkOutDate, setRoomPricing, setRoomGuests, setCheckInDate, setCheckOutDate } = useBookingStore();
 
@@ -29,7 +31,7 @@ export default function SetupRoomPage() {
 
   return (
     <RoomSetupModal
-      roomNo={roomId}
+      roomNo={displayRoomNo}
       checkInDate={checkInDate}
       checkOutDate={checkOutDate}
       initialData={roomPricing[roomId]}

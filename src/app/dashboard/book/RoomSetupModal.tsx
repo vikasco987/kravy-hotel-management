@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, X, Plus, Image as ImageIcon, Camera, Trash2, BedDouble, Info, Loader2, Upload, IndianRupee, Tag, FileText, CalendarDays, ReceiptText, Lightbulb, Users, CheckCircle2, Percent, Receipt, ChevronDown, Utensils, Droplets, Sparkles, Shirt, Save } from 'lucide-react';
+import { Settings, X, Plus, Image as ImageIcon, Camera, Trash2, BedDouble, Info, Loader2, Upload, IndianRupee, Tag, CalendarDays, ReceiptText, Lightbulb, Users, CheckCircle2, Percent, Receipt, ChevronDown, Utensils, Droplets, Sparkles, Shirt, Save } from 'lucide-react';
 import MediaUploadModal from '@/components/hotel/MediaUploadModal';
 import { extractIdDetails } from '@/lib/ocrService';
 
@@ -93,8 +93,7 @@ export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, init
   
   const [activeUpload, setActiveUpload] = useState<{ guestId: string, type: 'id' | 'photo' } | null>(null);
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
-  const [notes, setNotes] = useState("");
-  const [isNotesOpen, setIsNotesOpen] = useState(false);
+
   const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
 
 const handleMediaUpload = async (docs: any[]) => {
@@ -464,54 +463,7 @@ const handleMediaUpload = async (docs: any[]) => {
               </div>
             </div>
 
-            {/* PAYMENT */}
-            <div className="rounded-xl border border-orange-200/60 bg-orange-50/30 p-4 shadow-sm relative">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Receipt size={17} className="text-orange-600" />
-                  <h3 className="text-[12px] font-bold text-orange-900">Payment Options</h3>
-                </div>
-                <button 
-                  onClick={() => setIsNotesOpen(!isNotesOpen)}
-                  className="flex items-center gap-1.5 rounded-lg bg-orange-100/50 px-2 py-1 text-[10px] font-bold text-orange-700 hover:bg-orange-200"
-                >
-                  <FileText size={14} />
-                  Notes
-                </button>
-              </div>
-              
-              {isNotesOpen && (
-                <div className="mb-3 rounded-lg border border-orange-200 bg-white p-2 shadow-sm animate-in fade-in slide-in-from-top-2">
-                  <textarea 
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
-                    placeholder="Enter reason or remark (e.g. Early Check-in, Extra Bed)..."
-                    className="h-16 w-full resize-none text-[11px] outline-none placeholder:text-slate-400"
-                  />
-                </div>
-              )}
-              <div className="grid grid-cols-4 gap-2">
-                {["Cash", "UPI", "Card", "M-Pay"].map((method, i) => (
-                  <button
-                    key={method}
-                    className={`rounded-lg border py-2.5 text-[11px] font-semibold ${
-                        i === 0 ? "border-orange-500 bg-orange-500 text-white shadow-sm" : "border-orange-200 bg-white text-orange-800 hover:bg-orange-100"
-                    }`}
-                  >
-                    {method}
-                  </button>
-                ))}
-              </div>
-              <label className="mt-3 block text-[11px] font-semibold text-orange-800">Amount Received (₹)</label>
-              <input
-                defaultValue={snapshot ? (snapshot.finalAmount/100).toFixed(2) : "0.00"}
-                className="mt-1 h-9 w-full rounded-lg border border-orange-200 bg-white px-3 text-[12px] font-semibold outline-none focus:border-orange-500"
-              />
-              <div className="mt-3 flex justify-between text-[11px]">
-                <span className="text-orange-700">Change / Return to Guest</span>
-                <strong className="text-orange-600">₹0.00</strong>
-              </div>
-            </div>
+
           </aside>
         </div>
       </main>
