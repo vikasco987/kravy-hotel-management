@@ -315,6 +315,10 @@ function DashboardContent() {
   const [newRoomStaff, setNewRoomStaff] = useState("");
   const [newRoomAmenities, setNewRoomAmenities] = useState<string[]>([]);
   const [newRoomNotes, setNewRoomNotes] = useState("");
+  // Custom room types state
+  const [roomTypes, setRoomTypes] = useState<Array<{id: string, name: string}>>([]);
+  const [isAddRoomTypeOpen, setIsAddRoomTypeOpen] = useState(false);
+  const [newRoomTypeName, setNewRoomTypeName] = useState("");
 
   const resetRoomForm = () => {
     setNewRoomNumber("");
@@ -364,6 +368,19 @@ function DashboardContent() {
       .catch(err => {
         console.error("Failed to fetch dashboard:", err);
       });
+  }, []);
+
+  // Fetch custom room types on mount
+  useEffect(() => {
+    fetch('/api/hotel/room-types')
+      .then(async res => {
+        if (!res.ok) throw new Error('Failed to fetch room types');
+        return res.json();
+      })
+      .then((types: any[]) => {
+        setRoomTypes(types);
+      })
+      .catch(err => console.error(err));
   }, []);
 
   const handleAddFloor = async (e: React.FormEvent) => {
@@ -1183,14 +1200,25 @@ function DashboardContent() {
                         <div>
                           <label className="mb-2 block text-sm font-semibold text-slate-700">Room Type <span className="ml-1 text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
+                            <select
                               value={newRoomType}
-                              onChange={(e) => setNewRoomType(e.target.value)}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === "__add") {
+                                  setIsAddRoomTypeOpen(true);
+                                } else {
+                                  setNewRoomType(val);
+                                }
+                              }}
                               className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 appearance-none"
                             >
                               <option>Standard</option>
                               <option>Deluxe</option>
                               <option>Suite</option>
+                              {roomTypes.filter(rt => !['Standard','Deluxe','Suite'].includes(rt.name)).map(rt => (
+                                <option key={rt.id} value={rt.name}>{rt.name}</option>
+                              ))}
+                              <option value="__add">+ Add Room Type</option>
                             </select>
                             <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                           </div>
@@ -1198,6 +1226,62 @@ function DashboardContent() {
                       </div>
                     </div>
                   </section>
+                {/* Add Room Type Modal */}
+                {isAddRoomTypeOpen && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setIsAddRoomTypeOpen(false)}>
+                    <div className="bg-white rounded-xl p-6 w-80 shadow-lg" onClick={e => e.stopPropagation()}>
+                      <h2 className="text-lg font-bold mb-4">Add Room Type</h2>
+                      <input
+                        type="text"
+                        value={newRoomTypeName}
+                        onChange={e => setNewRoomTypeName(e.target.value)}
+                        placeholder="Enter room type name"
+                        className="w-full border border-gray-300 rounded p-2 mb-4"
+                      />
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          className="px-3 py-1 bg-gray-200 rounded"
+                          onClick={() => {
+                            setIsAddRoomTypeOpen(false);
+                            setNewRoomTypeName('');
+                          }}
+                        >Cancel</button>
+                        <button
+                          className="px-3 py-1 bg-blue-600 text-white rounded"
+                          onClick={async () => {
+                            const name = newRoomTypeName.trim();
+                            if (!name) { alert('Name is required'); return; }
+                            // Duplicate check (case‑insensitive)
+                            if (roomTypes.some(rt => rt.name.toLowerCase() === name.toLowerCase())) {
+                              alert('Room type already exists');
+                              return;
+                            }
+                            try {
+                              const res = await fetch('/api/hotel/room-types', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ name, basePrice: 1500 }) // default price
+                              });
+                              if (!res.ok) {
+                                const err = await res.json();
+                                alert(err.error || 'Failed to add room type');
+                                return;
+                              }
+                              const created = await res.json();
+                              setRoomTypes(prev => [...prev, created]);
+                              setNewRoomType(name);
+                              setIsAddRoomTypeOpen(false);
+                              setNewRoomTypeName('');
+                            } catch (e) {
+                              console.error(e);
+                              alert('Network error');
+                            }
+                          }}
+                        >Save</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                   {/* CAPACITY + PRICE */}
                   <section className="rounded-2xl border border-slate-200 bg-white p-5">
