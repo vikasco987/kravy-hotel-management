@@ -90,7 +90,7 @@ export async function GET() {
             idProof: guest.idProof || 'Not Provided',
             checkInDate: activeStayRoom.checkInDate,
             expectedCheckOutDate: reservationRoom ? reservationRoom.checkOutDate : undefined,
-            roomRate: activeStayRoom.appliedRate || (room.roomType?.basePrice ? room.roomType.basePrice * 100 : 0),
+            roomRate: activeStayRoom.appliedRate || room.roomType?.basePrice || 0,
             amountPaid: reservation.advancePaid || 0,
             totalAmount: reservation.totalAmount || 0,
             balance: (reservation.totalAmount || 0) - (reservation.advancePaid || 0),
@@ -106,7 +106,7 @@ export async function GET() {
           roomNumber: room.roomNumber,
           status: room.status,
           roomType: room.roomType?.name || 'Unknown',
-          price: room.roomType?.basePrice ? room.roomType.basePrice * 100 : 0,
+          price: room.roomType?.basePrice || 0,
           lastCleaned,
           guestInfo
         };
