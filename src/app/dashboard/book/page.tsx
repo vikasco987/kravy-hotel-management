@@ -404,6 +404,8 @@ function GuestCheckInSuite() {
                         
                         const guests = roomGuests[roomId] || [];
                         const leadGuest = guests.find(g => g.isLead) || guests[0];
+                        const actualAdults = guests.length > 0 ? guests.filter(g => !g.age || Number(g.age) >= 18).length : 1;
+                        const actualChildren = guests.length > 0 ? guests.filter(g => g.age && Number(g.age) < 18).length : 0;
                         const hasDocument = leadGuest && (leadGuest.idUrl || leadGuest.idNumber || (leadGuest.idDocuments && leadGuest.idDocuments.length > 0));
                         const isVerified = leadGuest && leadGuest.isVerified === true;
                         const documentType = leadGuest?.documentType || "Aadhaar Card";
@@ -445,8 +447,15 @@ function GuestCheckInSuite() {
                               {columnSettings.adults && (
                                 <td className="px-3 py-4 text-center">
                                    <div className="flex flex-col items-center border border-gray-200 rounded-md bg-white shadow-sm overflow-hidden w-24">
-                                      <div className="bg-blue-50 text-blue-700 text-[10px] font-bold py-1 w-full text-center flex items-center justify-center gap-1">
-                                         <UserRound size={10} /> {guests.length > 0 ? guests.length : 1} Adult
+                                      <div className="bg-blue-50 text-blue-700 text-[10px] font-bold py-1 w-full text-center flex flex-col items-center justify-center">
+                                         <div className="flex items-center gap-1">
+                                            <UserRound size={10} /> {actualAdults} Adult
+                                         </div>
+                                         {actualChildren > 0 && (
+                                            <div className="text-[9px] text-blue-500 opacity-90 -mt-0.5">
+                                               {actualChildren} Child
+                                            </div>
+                                         )}
                                       </div>
                                       <div className={`px-2 py-1 rounded-b-md flex items-center justify-center gap-1 border-t w-full text-[10px] font-bold ${isVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
                                          {isVerified ? <><BadgeCheck size={10} /> Verified</> : <><div className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-0.5"></div> Not Verified</>}
