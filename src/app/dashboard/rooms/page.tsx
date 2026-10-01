@@ -16,7 +16,8 @@ import {
   Layers,
   Sparkles,
   ClipboardList,
-  Wrench
+  Wrench,
+  ChevronRight
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
@@ -51,6 +52,13 @@ export default function RoomsManagementPage() {
   const [newFloorNumber, setNewFloorNumber] = useState("");
   const [newFloorName, setNewFloorName] = useState("");
   const router = useRouter();
+
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
+  const handleToggleRoomBooking = (roomId: string) => {
+    setSelectedRooms(prev => 
+      prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+    );
+  };
 
   useEffect(() => {
     fetch('/api/hotel/dashboard')
@@ -214,7 +222,7 @@ export default function RoomsManagementPage() {
                    key={floor.id} 
                    floor={filteredFloor} 
                    floorIndex={index} 
-                   selectedRooms={[]} 
+                   selectedRooms={selectedRooms} 
                    focusedRoomId={selectedRoom?.id}
                    highlightedRoomId={null}
                    onRoomClick={(roomId: string) => {
@@ -285,6 +293,22 @@ export default function RoomsManagementPage() {
                 <span className="text-xs font-black text-gray-900 mt-0.5">2 guests</span>
               </div>
             </div>
+
+            {/* Booking Selection Action */}
+            {!['OCCUPIED', 'MAINTENANCE', 'BLOCKED'].includes(selectedRoom.status) && (
+              <div className={`mb-8 border p-4 rounded-xl flex items-center justify-between shadow-sm transition-colors ${selectedRooms.includes(selectedRoom.id) ? 'bg-indigo-600 border-indigo-700' : 'bg-indigo-50 border-indigo-100'}`}>
+                <div>
+                  <div className={`text-sm font-bold ${selectedRooms.includes(selectedRoom.id) ? 'text-white' : 'text-indigo-900'}`}>Select for Booking</div>
+                  <div className={`text-[11px] font-medium mt-1 ${selectedRooms.includes(selectedRoom.id) ? 'text-indigo-100' : 'text-indigo-600/80'}`}>{selectedRooms.includes(selectedRoom.id) ? 'Room added to selection' : 'Add to current bulk selection'}</div>
+                </div>
+                <button 
+                  onClick={() => handleToggleRoomBooking(selectedRoom.id)}
+                  className={`w-12 h-7 rounded-full flex items-center p-1 transition-colors ${selectedRooms.includes(selectedRoom.id) ? 'bg-indigo-800' : 'bg-indigo-200'}`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${selectedRooms.includes(selectedRoom.id) ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                </button>
+              </div>
+            )}
 
             {/* Guest Info Section */}
             <div className="mb-8">
@@ -441,6 +465,21 @@ export default function RoomsManagementPage() {
       </div>
 
 
+
+      {/* Floating Book Action */}
+      <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-2 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 ease-out ${selectedRooms.length > 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
+        <div className="flex items-center gap-3 px-4">
+          <span className="bg-indigo-500 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">{selectedRooms.length}</span> 
+          <span className="text-sm font-bold">{selectedRooms.length === 1 ? 'Room Selected' : 'Rooms Selected'}</span>
+        </div>
+        <button onClick={() => setSelectedRooms([])} className="text-xs font-bold text-gray-400 hover:text-white px-3 transition-colors">Clear</button>
+        <button 
+          onClick={() => router.push('/dashboard/book?rooms=' + selectedRooms.join(','))}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black px-6 py-2.5 rounded-full transition-colors flex items-center gap-2 ml-1"
+        >
+          Book Rooms <ChevronRight size={16} />
+        </button>
+      </div>
 
       {/* Add Floor Modal */}
       {isAddFloorOpen && (
