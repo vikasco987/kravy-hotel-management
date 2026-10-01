@@ -9,20 +9,27 @@ export default function TopSearchBar() {
   const searchParams = useSearchParams();
   const [value, setValue] = useState(searchParams.get('search') || '');
 
+  const searchString = searchParams.toString();
+
   // Debounced search
   useEffect(() => {
     const timeout = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchString);
       if (value) {
         params.set('search', value);
       } else {
         params.delete('search');
       }
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+
+      const newQueryString = params.toString();
+
+      if (searchString !== newQueryString) {
+        router.replace(`${pathname}?${newQueryString}`, { scroll: false });
+      }
     }, 150);
 
     return () => clearTimeout(timeout);
-  }, [value, pathname, router, searchParams]);
+  }, [value, pathname, router, searchString]);
 
   return (
     <div className="relative group">

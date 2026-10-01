@@ -298,6 +298,8 @@ function DashboardContent() {
   const [isAddFloorOpen, setIsAddFloorOpen] = useState(false);
   const [isEditFloorOpen, setIsEditFloorOpen] = useState(false);
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [editingRoomHasGuest, setEditingRoomHasGuest] = useState(false);
 
   // Form States - Floor
   const [newFloorName, setNewFloorName] = useState("");
@@ -314,8 +316,37 @@ function DashboardContent() {
   const [newRoomAmenities, setNewRoomAmenities] = useState<string[]>([]);
   const [newRoomNotes, setNewRoomNotes] = useState("");
 
-  useEffect(() => {
-    fetch(`/api/hotel/dashboard?t=${Date.now()}`, { cache: 'no-store' })
+  const resetRoomForm = () => {
+    setNewRoomNumber("");
+    setNewRoomFloorId(data?.floors?.[0]?.id || "");
+    setNewRoomType("Standard");
+    setNewRoomCapacity(2);
+    setNewRoomPrice(1500);
+    setNewRoomStatus("AVAILABLE");
+    setNewRoomStaff("");
+    setNewRoomAmenities([]);
+    setNewRoomNotes("");
+    setEditingRoomId(null);
+    setEditingRoomHasGuest(false);
+  };
+
+  const openEditRoom = (room: any, floorId: string) => {
+    setEditingRoomId(room.id);
+    setEditingRoomHasGuest(!!room.guestInfo);
+    setNewRoomNumber(room.roomNumber || room.number || "");
+    setNewRoomFloorId(floorId);
+    setNewRoomType(room.roomType || room.type || "Standard");
+    setNewRoomCapacity(room.capacity || 2);
+    setNewRoomPrice((room.price || 150000) / 100);
+    setNewRoomStatus(room.status as RoomStatus);
+    setNewRoomStaff(room.staff || "");
+    setNewRoomAmenities(room.amenities || []);
+    setNewRoomNotes(room.notes || "");
+    setIsAddRoomOpen(true);
+    setFocusedRoomId(null);
+  };
+
+  useEffect(() => {    fetch(`/api/hotel/dashboard?t=${Date.now()}`, { cache: 'no-store' })
       .then(async res => {
         if (!res.ok) {
           const text = await res.text();
@@ -407,6 +438,7 @@ function DashboardContent() {
   };
 
   const handleDeleteFloor = async (floorId: string) => {
+    if (!data) return;
     try {
       const res = await fetch(`/api/hotel/floors/${floorId}`, {
         method: 'DELETE'
@@ -428,7 +460,11 @@ function DashboardContent() {
     }
   };
 
-  const handleDeleteRoom = async (roomId: string) => {
+  const handleDeleteRoom = async (roomId: string, status: string, hasGuest: boolean) => {
+    if (status === 'OCCUPIED' && hasGuest) {
+      alert("This room cannot be deleted while it has an active stay.");
+      return;
+    }
     if (!confirm('Are you sure you want to delete this room? This action cannot be undone.')) return;
     try {
       const res = await fetch(`/api/hotel/rooms/${roomId}`, {
@@ -441,8 +477,7 @@ function DashboardContent() {
         return;
       }
       
-      setData((prev: any) => {
-        if (!prev) return prev;
+      setData((prev: any) => {        if (!prev) return prev;
         
         const newFloors = prev.floors.map((f: any) => ({
           ...f,
@@ -512,70 +547,38 @@ function DashboardContent() {
     if (!data || !newRoomNumber.trim() || !newRoomFloorId) return;
 
     try {
-      const res = await fetch('/api/hotel/rooms', {
-        method: 'POST',
+      const method = editingRoomId ? 'PATCH' : 'POST';
+      const url = editingRoomId ? `/api/hotel/rooms/${editingRoomId}` : '/api/hotel/rooms';
+      
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           floorId: newRoomFloorId,
           roomTypeName: newRoomType,
           roomNumber: newRoomNumber,
-          status: newRoomStatus
+          status: newRoomStatus,
+          basePrice: newRoomPrice
         })
       });
       
       if (!res.ok) {
         const errData = await res.json();
-        alert(errData.error || 'Failed to create room');
+        alert(errData.error || `Failed to ${editingRoomId ? 'update' : 'create'} room`);
         return;
       }
       
-      const createdRoom = await res.json();
+      const refreshRes = await fetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' });
+      if (refreshRes.ok) {
+        const newData = await refreshRes.json();
+        setData(newData);
+      }
 
-      const newRoom: Room = {
-        id: createdRoom.id,
-        roomNumber: createdRoom.roomNumber,
-        number: createdRoom.roomNumber, // fallback
-        status: createdRoom.status,
-        roomType: createdRoom.roomType?.name || newRoomType,
-        type: createdRoom.roomType?.name || newRoomType,
-        capacity: newRoomCapacity,
-        price: createdRoom.roomType?.basePrice || newRoomPrice,
-        staff: newRoomStaff,
-        amenities: newRoomAmenities,
-        notes: newRoomNotes
-      };
-
-      const updatedFloors = data.floors.map(floor => {
-        if (floor.id === newRoomFloorId) {
-          return { ...floor, rooms: [...floor.rooms, newRoom].sort((a, b) => (a.roomNumber || a.number || "").localeCompare(b.roomNumber || b.number || "")) };
-        }
-        return floor;
-      });
-
-      const statusKey = newRoomStatus.toLowerCase();
-      
-      setData({
-        ...data,
-        rooms: {
-          ...data.rooms,
-          total: data.rooms.total + 1,
-          [statusKey]: (data.rooms[statusKey] || 0) + 1
-        },
-        floors: updatedFloors
-      });
-
-      setNewRoomNumber("");
-      setNewRoomType("Standard");
-      setNewRoomCapacity(2);
-      setNewRoomPrice(1500);
-      setNewRoomStatus("AVAILABLE");
-      setNewRoomStaff("");
-      setNewRoomAmenities([]);
-      setNewRoomNotes("");
       setIsAddRoomOpen(false);
+      resetRoomForm();
     } catch (error) {
       console.error(error);
-      alert('Network error while creating room');
+      alert(`Network error while ${editingRoomId ? 'updating' : 'creating'} room`);
     }
   };
 
@@ -700,7 +703,7 @@ function DashboardContent() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => { setNewRoomFloorId(data.floors[0]?.id || ""); setIsAddRoomOpen(true); }} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20">
+                  <button onClick={() => { resetRoomForm(); setIsAddRoomOpen(true); }} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20">
                     <Plus size={14} strokeWidth={3} /> Add Room
                   </button>
                   <button onClick={() => setIsAddFloorOpen(true)} className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-[11px] flex items-center gap-1.5 hover:bg-gray-50 transition-colors shadow-sm">
@@ -965,7 +968,7 @@ function DashboardContent() {
                  
                  <div>
                    <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Actions</h4>
-                   {focusedRoom.status === 'OCCUPIED' ? (
+                   {focusedRoom.status === 'OCCUPIED' && focusedRoom.guestInfo ? (
                      <div className="space-y-3">
                        <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg text-[10px] text-emerald-800 font-medium">
                          Manual status change is locked while a guest is staying. Please use the check-out process.
@@ -982,6 +985,8 @@ function DashboardContent() {
                        <button onClick={() => router.push(`/dashboard/book?rooms=${focusedRoom.id}`)} className="py-3 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-xs font-bold hover:bg-emerald-100 shadow-sm">Check-in</button>
                        {focusedRoom.status === 'DIRTY' ? (
                          <button onClick={() => handleStatusChange(focusedRoom.id, 'AVAILABLE')} className="py-3 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl text-xs font-bold hover:bg-blue-100 shadow-sm">Set Clean</button>
+                       ) : focusedRoom.status === 'OCCUPIED' ? (
+                         <button onClick={() => handleStatusChange(focusedRoom.id, 'AVAILABLE')} className="py-3 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl text-xs font-bold hover:bg-blue-100 shadow-sm">Set Available</button>
                        ) : (
                          <button onClick={() => handleStatusChange(focusedRoom.id, 'DIRTY')} className="py-3 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl text-xs font-bold hover:bg-rose-100 shadow-sm">Set Dirty</button>
                        )}
@@ -996,8 +1001,19 @@ function DashboardContent() {
                          </>
                        )}
                        <button 
-                         onClick={() => handleDeleteRoom(focusedRoom.id)} 
-                         className="py-3 bg-rose-600 text-white border border-rose-700 rounded-xl text-xs font-bold hover:bg-rose-700 shadow-sm col-span-2"
+                         onClick={() => {
+                           const floor = data.floors.find(f => f.rooms.some(r => r.id === focusedRoom.id));
+                           if (floor) {
+                             openEditRoom(focusedRoom, floor.id);
+                           }
+                         }} 
+                         className="py-3 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-xl text-xs font-bold hover:bg-indigo-100 shadow-sm"
+                       >
+                         Edit Room
+                       </button>
+                       <button 
+                         onClick={() => handleDeleteRoom(focusedRoom.id, focusedRoom.status, !!focusedRoom.guestInfo)} 
+                         className="py-3 bg-rose-600 text-white border border-rose-700 rounded-xl text-xs font-bold hover:bg-rose-700 shadow-sm"
                        >
                          Delete Room
                        </button>
@@ -1102,12 +1118,12 @@ function DashboardContent() {
                   <Hotel size={24} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight text-slate-900">Add New Room</h2>
-                  <p className="mt-0.5 text-sm text-slate-500">Create a room and configure its details</p>
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">{editingRoomId ? 'Edit Room' : 'Add New Room'}</h2>
+                  <p className="mt-0.5 text-sm text-slate-500">{editingRoomId ? 'Update room details and configuration' : 'Create a room and configure its details'}</p>
                 </div>
               </div>
               <button
-                onClick={() => setIsAddRoomOpen(false)}
+                onClick={() => { setIsAddRoomOpen(false); resetRoomForm(); }}
                 className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
                 <X size={21} />
@@ -1249,9 +1265,11 @@ function DashboardContent() {
                           <select 
                             value={newRoomStatus}
                             onChange={(e) => setNewRoomStatus(e.target.value as RoomStatus)}
-                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 appearance-none"
+                            disabled={editingRoomId !== null && editingRoomHasGuest}
+                            className={`h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition appearance-none ${editingRoomId && editingRoomHasGuest ? 'opacity-60 cursor-not-allowed' : 'hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10'}`}
                           >
                             <option value="AVAILABLE">Available</option>
+
                             <option value="OCCUPIED">Occupied</option>
                             <option value="DIRTY">Dirty</option>
                             <option value="MAINTENANCE">Maintenance</option>
@@ -1375,7 +1393,7 @@ function DashboardContent() {
               <div className="ml-auto flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsAddRoomOpen(false)}
+                  onClick={() => { setIsAddRoomOpen(false); resetRoomForm(); }}
                   className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
                 >
                   Cancel
@@ -1385,7 +1403,7 @@ function DashboardContent() {
                   className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-[0.98]"
                 >
                   <Check size={17} />
-                  Save Room
+                  {editingRoomId ? 'Update Room' : 'Save Room'}
                 </button>
               </div>
             </div>
