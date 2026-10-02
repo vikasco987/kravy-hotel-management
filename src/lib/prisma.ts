@@ -2,17 +2,17 @@
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
-  prisma_session_v1: PrismaClient | undefined;
+  prisma_session_v2: PrismaClient | undefined;
 };
 
 export const prisma =
-  globalForPrisma.prisma_session_v1 ??
+  globalForPrisma.prisma_session_v2 ??
   new PrismaClient({
     log: ["error", "warn"],
   });
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma_session_v1 = prisma;
+  globalForPrisma.prisma_session_v2 = prisma;
 }
 
 export default prisma;

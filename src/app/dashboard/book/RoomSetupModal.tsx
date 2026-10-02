@@ -17,6 +17,14 @@ export interface RoomPricingSnapshot {
   sgstAmount: number;
   taxAmount: number;
   extraChargesAmount: number;
+  extraChargesDetails?: Array<{
+    id?: string;
+    name: string;
+    price: number;
+    quantity: number;
+    chargeMode: string;
+    chargeType: string;
+  }>;
   finalAmount: number;
   
   // Frontend preservation fields
@@ -95,6 +103,99 @@ export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, init
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
 
   const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
+
+  const [selectedServices, setSelectedServices] = useState<Array<{ id: string, name: string, price: number, quantity: number }>>(() => {
+    if (initialData?.extraChargesDetails) {
+      return initialData.extraChargesDetails
+        .filter(c => c.chargeType === 'EXTRA_SERVICE')
+        .map(c => ({ id: c.id || '', name: c.name, price: c.price, quantity: c.quantity }));
+    }
+    return [];
+  });
+  const [availableServices, setAvailableServices] = useState<any[]>([]);
+  const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
+  const [isCreateServiceOpen, setIsCreateServiceOpen] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  
+  // Create/Edit form state
+  const [csName, setCsName] = useState('');
+  const [csPrice, setCsPrice] = useState('');
+  const [csDescription, setCsDescription] = useState('');
+  const [csIsActive, setCsIsActive] = useState(true);
+  const [isSavingService, setIsSavingService] = useState(false);
+  const [csError, setCsError] = useState('');
+
+  const fetchServices = async () => {
+    try {
+      const res = await fetch('/api/hotel/services', { cache: 'no-store' });
+      const data = await res.json();
+      if (Array.isArray(data)) setAvailableServices(data.filter(s => s.isActive));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  const handleCreateOrEditService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingService(true);
+    setCsError('');
+    try {
+      const payload = {
+        name: csName,
+        price: parseFloat(csPrice),
+        description: csDescription,
+        isActive: csIsActive
+      };
+      
+      const url = editingServiceId ? `/api/hotel/services/${editingServiceId}` : '/api/hotel/services';
+      const method = editingServiceId ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        await fetchServices();
+        setIsCreateServiceOpen(false);
+        setEditingServiceId(null);
+      } else {
+        const errorData = await res.json().catch(() => null);
+        console.error('Service save failed:', errorData);
+        setCsError(errorData?.error || 'Failed to save service. Please try again.');
+      }
+    } catch (err: any) {
+      console.error('Network or unexpected error:', err);
+      setCsError(err.message || 'Network error occurred');
+    } finally {
+      setIsSavingService(false);
+    }
+  };
+
+  const openCreateService = () => {
+    setCsName('');
+    setCsPrice('');
+    setCsDescription('');
+    setCsIsActive(true);
+    setEditingServiceId(null);
+    setCsError('');
+    setIsCreateServiceOpen(true);
+  };
+
+  const openEditService = (service: any) => {
+    setCsName(service.name);
+    setCsPrice((service.price / 100).toString());
+    setCsDescription(service.description || '');
+    setCsIsActive(service.isActive);
+    setEditingServiceId(service.id);
+    setCsError('');
+    setIsCreateServiceOpen(true);
+  };
 
 const handleMediaUpload = async (docs: any[]) => {
     if (!activeUpload) return;
@@ -216,7 +317,15 @@ const handleMediaUpload = async (docs: any[]) => {
             taxRate: taxRate * 100,
             extraCharges: [
               ...(parseFloat(bedCharge) > 0 ? [{ amount: Math.round((parseFloat(bedCharge) || 0) * 100), quantity: 1, chargeMode: bedMode }] : []),
-              ...(parseFloat(otherCharge) > 0 ? [{ amount: Math.round((parseFloat(otherCharge) || 0) * 100), quantity: 1, chargeMode: otherMode }] : [])
+              ...(parseFloat(otherCharge) > 0 ? [{ amount: Math.round((parseFloat(otherCharge) || 0) * 100), quantity: 1, chargeMode: otherMode }] : []),
+              ...selectedServices.map(s => ({
+                id: s.id,
+                name: s.name,
+                amount: s.price,
+                quantity: s.quantity,
+                chargeMode: 'FIXED',
+                chargeType: 'EXTRA_SERVICE'
+              }))
             ]
           })
         });
@@ -235,7 +344,7 @@ const handleMediaUpload = async (docs: any[]) => {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [rent, discount, discountType, taxMode, taxRate, bedCharge, bedMode, otherCharge, otherMode, checkInDate, checkOutDate]);
+  }, [rent, discount, discountType, taxMode, taxRate, bedCharge, bedMode, otherCharge, otherMode, checkInDate, checkOutDate, selectedServices]);
   
   return (
     <div className="fixed inset-0 z-[100] bg-slate-100 text-slate-800 flex flex-col overflow-hidden">
@@ -394,14 +503,57 @@ const handleMediaUpload = async (docs: any[]) => {
                   <Sparkles size={17} className="text-rose-500" />
                   <h3 className="text-[12px] font-bold text-rose-900">Extra Services</h3>
                 </div>
-                <button className="flex items-center gap-1 text-[10px] font-semibold text-rose-600 hover:text-rose-700">
+                <button 
+                  onClick={() => setIsServicesModalOpen(true)}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-100/50 px-2 py-1 rounded-md transition-colors"
+                >
                   <Plus size={14} /> Add Service
                 </button>
               </div>
-              <div className="rounded-lg border border-dashed border-rose-200 bg-white p-4">
-                <div className="flex h-16 items-center justify-center text-[11px] text-rose-400">
-                  No extra charges applied.
-                </div>
+              <div className="rounded-lg border border-rose-200 bg-white overflow-hidden shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
+                {selectedServices.length === 0 ? (
+                  <div className="flex h-16 items-center justify-center text-[11px] text-rose-400 border border-dashed border-transparent">
+                    No extra charges applied.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-rose-100">
+                    {selectedServices.map(service => (
+                      <div key={service.id} className="flex items-center justify-between p-3">
+                        <div>
+                           <div className="text-[13px] font-bold text-slate-800">{service.name}</div>
+                           <div className="text-[11px] text-slate-500">₹{(service.price / 100).toFixed(2)} / service</div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                           <div className="flex items-center gap-2 bg-slate-50 rounded-lg border border-slate-200 p-1">
+                              <button 
+                                onClick={() => setSelectedServices(prev => prev.map(s => s.id === service.id ? { ...s, quantity: Math.max(1, s.quantity - 1) } : s))}
+                                className="w-6 h-6 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">-</button>
+                              <span className="text-[12px] font-bold w-4 text-center">{service.quantity}</span>
+                              <button 
+                                onClick={() => setSelectedServices(prev => prev.map(s => s.id === service.id ? { ...s, quantity: s.quantity + 1 } : s))}
+                                className="w-6 h-6 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">+</button>
+                           </div>
+                           <div className="text-[13px] font-bold text-slate-800 w-20 text-right">
+                              ₹{((service.price * service.quantity) / 100).toFixed(2)}
+                           </div>
+                           <button 
+                             onClick={() => setSelectedServices(prev => prev.filter(s => s.id !== service.id))}
+                             className="text-rose-400 hover:text-rose-600 transition-colors p-1"
+                             title="Remove Service"
+                           >
+                             <Trash2 size={16} />
+                           </button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="bg-rose-50/50 p-3 flex justify-between items-center border-t border-rose-200">
+                       <span className="text-[12px] font-bold text-rose-800 uppercase tracking-wide">Extra Services Total:</span>
+                       <span className="text-[15px] font-black text-rose-700">
+                          ₹{(selectedServices.reduce((acc, s) => acc + (s.price * s.quantity), 0) / 100).toFixed(2)}
+                       </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </section>
@@ -533,6 +685,175 @@ const handleMediaUpload = async (docs: any[]) => {
           }}
         />
       )}
+      
+      {isServicesModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between bg-slate-50 px-4 py-3 border-b border-slate-100">
+               <h3 className="text-[14px] font-bold text-slate-800">Select Extra Service</h3>
+               <button onClick={() => setIsServicesModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition-colors">
+                  <X size={16} />
+               </button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto">
+               {availableServices.length === 0 ? (
+                  <div className="text-center text-[13px] text-slate-500 py-10 px-4">
+                     <Sparkles className="mx-auto mb-3 text-slate-300" size={32} />
+                     <p className="font-semibold text-slate-700">No extra services available yet.</p>
+                     <p className="mt-1 mb-5">Create your first service to add it to this check-in.</p>
+                     <button 
+                       onClick={openCreateService}
+                       className="inline-flex items-center gap-2 bg-teal-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-teal-700 shadow-md transition-colors"
+                     >
+                       <Plus size={16} /> Create Service
+                     </button>
+                  </div>
+               ) : (
+                  <div className="space-y-2">
+                     {availableServices.map((service: any) => {
+                        const isSelected = selectedServices.some(s => s.id === service.id);
+                        return (
+                           <div key={service.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50/30 transition-all group">
+                              <div className="flex-1 cursor-pointer" onClick={() => {
+                                 if (!isSelected) {
+                                    setSelectedServices(prev => [...prev, { id: service.id, name: service.name, price: service.price, quantity: 1 }]);
+                                    setIsServicesModalOpen(false);
+                                 }
+                              }}>
+                                 <div className="flex items-center gap-2">
+                                    <span className="text-[13px] font-bold text-slate-800 group-hover:text-teal-800">{service.name}</span>
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); openEditService(service); }}
+                                      className="text-blue-500 hover:text-blue-700 text-[10px] font-semibold bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
+                                    >
+                                      Edit
+                                    </button>
+                                 </div>
+                                 <div className="text-[11px] text-slate-500 font-medium">₹{(service.price / 100).toFixed(2)}</div>
+                                 {service.description && (
+                                    <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{service.description}</div>
+                                 )}
+                              </div>
+                              <button 
+                                disabled={isSelected}
+                                onClick={() => {
+                                   if (!isSelected) {
+                                      setSelectedServices(prev => [...prev, { id: service.id, name: service.name, price: service.price, quantity: 1 }]);
+                                      setIsServicesModalOpen(false);
+                                   }
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ml-3 shrink-0 ${isSelected ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-teal-100 text-teal-700 hover:bg-teal-600 hover:text-white'}`}
+                              >
+                                 {isSelected ? 'Added' : 'Add'}
+                              </button>
+                           </div>
+                        );
+                     })}
+                  </div>
+               )}
+            </div>
+            {availableServices.length > 0 && (
+               <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+                  <button onClick={openCreateService} className="text-[12px] font-bold text-teal-600 hover:text-teal-800 flex items-center justify-center gap-1 w-full p-2 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors">
+                     <Plus size={14} /> Create New Service
+                  </button>
+               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isCreateServiceOpen && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="text-[15px] font-bold text-slate-800">
+                {editingServiceId ? 'Edit Service' : 'Create New Service'}
+              </h2>
+              <button onClick={() => setIsCreateServiceOpen(false)} className="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateOrEditService} className="p-5 space-y-4">
+              {csError && (
+                <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs font-semibold border border-red-100">
+                  {csError}
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Service Name *</label>
+                <input 
+                  required
+                  value={csName}
+                  onChange={e => setCsName(e.target.value)}
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+                  placeholder="e.g. Breakfast, Laundry"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Price (₹) *</label>
+                <input 
+                  required
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={csPrice}
+                  onChange={e => setCsPrice(e.target.value)}
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+                  placeholder="e.g. 300"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Description (Optional)</label>
+                <textarea 
+                  value={csDescription}
+                  onChange={e => setCsDescription(e.target.value)}
+                  className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none resize-none h-20"
+                  placeholder="Brief description about the service"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox"
+                    id="csIsActive"
+                    checked={csIsActive}
+                    onChange={e => setCsIsActive(e.target.checked)}
+                    className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500"
+                  />
+                  <label htmlFor="csIsActive" className="text-[12px] font-bold text-slate-700 cursor-pointer">
+                    Service is Active
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button 
+                  type="button"
+                  onClick={() => setIsCreateServiceOpen(false)}
+                  className="px-4 py-2 rounded-xl text-[12px] font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSavingService}
+                  className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-xl text-[12px] font-bold shadow-md shadow-teal-600/20 disabled:opacity-50 transition-all"
+                >
+                  {isSavingService ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  {editingServiceId ? 'Save' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

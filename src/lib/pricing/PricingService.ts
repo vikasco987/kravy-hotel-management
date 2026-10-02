@@ -24,6 +24,14 @@ export interface RoomPricingSnapshot {
   netRoomAmount: number;
   
   extraChargesAmount: number;
+  extraChargesDetails?: Array<{
+    id?: string;
+    name: string;
+    price: number; // paise
+    quantity: number;
+    chargeMode: string;
+    chargeType: string;
+  }>;
   
   taxMode: PricingMode;
   taxRate: number;
@@ -102,6 +110,14 @@ export class PricingService {
       discountAmount,
       netRoomAmount,
       extraChargesAmount,
+      extraChargesDetails: (extraCharges as any[]).map(c => ({
+        id: c.id,
+        name: c.name || 'Extra Charge',
+        price: c.amount,
+        quantity: c.quantity,
+        chargeMode: c.chargeMode,
+        chargeType: c.chargeType || 'EXTRA_CHARGE'
+      })),
       taxMode,
       taxRate,
       taxableAmount,

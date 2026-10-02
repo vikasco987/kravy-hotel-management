@@ -127,6 +127,7 @@ model Hotel {
   settings   HotelSettings?
   taxProfiles TaxProfile[]
   ratePlans  RatePlan[]
+  extraServices ExtraService[]
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -643,4 +644,19 @@ model BusinessProfile {
   requireCustomerPhone   Boolean @default(false)
   collectCustomerAddress Boolean @default(false)
   requireCustomerAddress Boolean @default(false)
+}
+
+model ExtraService {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String   @db.ObjectId
+  name        String
+  price       Int      // Paise
+  description String?
+  isActive    Boolean  @default(true)
+  
+  hotel       Hotel    @relation(fields: [hotelId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
 }

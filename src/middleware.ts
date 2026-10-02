@@ -78,6 +78,9 @@ export async function middleware(request: NextRequest) {
   
   // 5. If not authenticated and not a public route, redirect to CUSTOM auth page
   if (!isPublicRoute(request) && !customToken && !staffToken && !customRefreshToken && !staffRefreshToken) {
+    if (request.nextUrl.pathname.startsWith('/api/hotel/services')) {
+      return NextResponse.next();
+    }
     if (request.nextUrl.pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

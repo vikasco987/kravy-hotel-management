@@ -212,7 +212,10 @@ export async function POST(request: Request) {
            taxRate: pricing?.taxRate || 1200,
            extraCharges: pricing ? [
              ...(pricing.bedCharge > 0 ? [{ amount: pricing.bedCharge, quantity: 1, chargeMode: pricing.bedMode }] : []),
-             ...(pricing.otherCharge > 0 ? [{ amount: pricing.otherCharge, quantity: 1, chargeMode: pricing.otherMode }] : [])
+             ...(pricing.otherCharge > 0 ? [{ amount: pricing.otherCharge, quantity: 1, chargeMode: pricing.otherMode }] : []),
+             ...(pricing.extraChargesDetails ? pricing.extraChargesDetails.filter((c: any) => c.chargeType === 'EXTRA_SERVICE').map((c: any) => ({
+                 amount: c.price, quantity: c.quantity, chargeMode: c.chargeMode || 'FIXED'
+             })) : [])
            ] : []
         });
 
@@ -268,6 +271,23 @@ export async function POST(request: Request) {
                     totalAmount: pricing.otherCharge * (pricing.otherMode === 'DAILY' ? nights : 1)
                  }
               });
+           }
+
+           if (pricing && pricing.extraChargesDetails) {
+              for (const service of pricing.extraChargesDetails.filter((c: any) => c.chargeType === 'EXTRA_SERVICE')) {
+                 await tx.roomCharge.create({
+                    data: {
+                       stayId: stayRecord.id,
+                       description: service.name,
+                       chargeType: "EXTRA_SERVICE",
+                       amount: service.price,
+                       chargeMode: service.chargeMode || 'FIXED',
+                       quantity: service.quantity,
+                       nights: service.chargeMode === 'DAILY' ? nights : 1,
+                       totalAmount: service.price * service.quantity * (service.chargeMode === 'DAILY' ? nights : 1)
+                    }
+                 });
+              }
            }
 
            try {
