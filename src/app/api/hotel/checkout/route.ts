@@ -78,12 +78,15 @@ export async function GET(req: Request) {
         roomType: sr.room.roomType.name,
         floor: sr.room.floor?.name || '',
         status: sr.room.status,
-        tariff: sr.finalAmount || (sr.baseRate * sr.nights),
+        tariff: sr.grossAmount - sr.discountAmount, // Net room rent
         baseRate: sr.baseRate,
         nights: sr.nights,
         checkInDate: sr.checkInDate,
         taxMode: sr.taxMode,
         taxRate: sr.taxRate,
+        taxAmount: sr.taxAmount,
+        extraChargesAmount: sr.extraChargesAmount,
+        finalAmount: sr.finalAmount,
         guestsData: sr.guestsData,
       })),
       extraCharges: stayContext.roomCharges.map(charge => ({
@@ -92,7 +95,8 @@ export async function GET(req: Request) {
         type: charge.chargeType,
         amount: charge.amount, // minor units (paise)
         quantity: charge.quantity,
-        total: charge.amount * charge.quantity
+        total: charge.totalAmount
+
       }))
     };
 

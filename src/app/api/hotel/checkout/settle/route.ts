@@ -57,20 +57,16 @@ export async function POST(req: Request) {
       let roomSubtotal = 0;
       let taxes = 0;
       let extras = 0;
+      let grandTotal = 0;
 
       for (const sr of stayRooms) {
-        roomSubtotal += sr.finalAmount || (sr.baseRate * sr.nights);
-        taxes += sr.taxAmount;
-      }
-
-      // For simplicity, sum all extra charges on the stay. 
-      // In a real robust system, charges should be linked to specific StayRooms.
-      for (const charge of stay.roomCharges) {
-        extras += (charge.amount * charge.quantity);
+        roomSubtotal += (sr.grossAmount || (sr.baseRate * sr.nights)) - (sr.discountAmount || 0);
+        taxes += sr.taxAmount || 0;
+        extras += sr.extraChargesAmount || 0;
+        grandTotal += sr.finalAmount || 0;
       }
 
       const combinedSubtotal = roomSubtotal + extras;
-      const grandTotal = combinedSubtotal + taxes;
 
       // Deduct advance paid
       // We apply whatever advance is available on the reservation

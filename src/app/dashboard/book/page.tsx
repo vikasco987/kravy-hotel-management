@@ -85,7 +85,7 @@ function GuestCheckInSuite() {
      const pricing = roomPricing[room.id];
      if (pricing) {
         totalRoomCharge += pricing.baseRate / 100 - pricing.discountAmount / 100; // Net rent
-        totalExtraCharges += ((pricing.bedCharge || 0) + (pricing.otherCharge || 0)) / 100;
+        totalExtraCharges += (pricing.extraChargesAmount || 0) / 100;
         totalGst += (pricing.cgstAmount + pricing.sgstAmount) / 100;
         totalAmount += pricing.finalAmount / 100;
      } else {
@@ -194,7 +194,7 @@ function GuestCheckInSuite() {
              rentVal = pricing.baseRate / 100;
              discountVal = pricing.discountAmount / 100;
              gstVal = (pricing.cgstAmount + pricing.sgstAmount) / 100;
-             extraVal = ((pricing.bedCharge || 0) + (pricing.otherCharge || 0)) / 100;
+             extraVal = (pricing.extraChargesAmount || 0) / 100;
              finalRent = rentVal - discountVal;
              netTotal = pricing.finalAmount / 100;
           }
@@ -389,7 +389,7 @@ function GuestCheckInSuite() {
                            rentVal = pricing.baseRate / 100;
                            discountVal = pricing.discountAmount / 100;
                            gstVal = (pricing.cgstAmount + pricing.sgstAmount) / 100;
-                           extraVal = ((pricing.bedCharge || 0) + (pricing.otherCharge || 0)) / 100;
+                           extraVal = (pricing.extraChargesAmount || 0) / 100;
                            finalRent = rentVal - discountVal;
                         }
 

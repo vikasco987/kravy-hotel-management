@@ -59,16 +59,13 @@ function CheckoutSuite() {
   const selectedRooms = data.linkedRooms.filter((r: any) => selectedStayRoomIds.includes(r.stayRoomId));
   
   const roomTariffSubtotal = selectedRooms.reduce((sum: number, r: any) => sum + r.tariff, 0);
-  const taxesSubtotal = selectedRooms.reduce((sum: number, r: any) => {
-    // Basic mock tax calc if not pre-calculated
-    return sum + (r.tariff * (r.taxRate / 10000)); // assuming taxRate is basis points
-  }, 0);
+  const taxesSubtotal = selectedRooms.reduce((sum: number, r: any) => sum + (r.taxAmount || 0), 0);
   
   // For simplicity, all extra charges are included. In reality, they should be filtered by room.
-  const extraServicesSubtotal = data.extraCharges.reduce((sum: number, c: any) => sum + c.total, 0);
+  const extraServicesSubtotal = selectedRooms.reduce((sum: number, r: any) => sum + (r.extraChargesAmount || 0), 0);
   
   const currentRoomsSubtotal = roomTariffSubtotal + extraServicesSubtotal;
-  const combinedGrandTotal = currentRoomsSubtotal + taxesSubtotal;
+  const combinedGrandTotal = selectedRooms.reduce((sum: number, r: any) => sum + (r.finalAmount || 0), 0);
   
   // Advance Paid
   const advancePaid = data.advancePaid || 0;

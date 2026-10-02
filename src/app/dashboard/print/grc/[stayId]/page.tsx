@@ -120,7 +120,7 @@ export default async function GRCPrintPage({ params }: { params: { stayId: strin
                  )}
                  {leadStayRoom.extraChargesAmount > 0 && (
                     <tr>
-                       <td className="border border-gray-300 p-2">Extra Charges (Bed/Other)</td>
+                       <td className="border border-gray-300 p-2">Extra Charges</td>
                        <td className="border border-gray-300 p-2 text-right">{(leadStayRoom.extraChargesAmount / 100).toFixed(2)}</td>
                     </tr>
                  )}
