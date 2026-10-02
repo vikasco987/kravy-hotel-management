@@ -94,22 +94,56 @@ export async function POST(req: Request) {
         data: { status: 'DIRTY' }
       });
 
-      // 6. Generate Invoice
-      const invoiceNumber = `INV-${randomBytes(4).toString('hex').toUpperCase()}`;
-      const invoice = await tx.invoice.create({
-        data: {
-          invoiceNumber,
-          stayId: stay.id,
-          guestId: stay.reservation.guestId,
-          subtotal: combinedSubtotal,
-          taxAmount: taxes,
-          totalAmount: grandTotal,
-          paidAmount: payment.amountReceived,
-          balanceAmount: 0,
-          status: 'PAID',
-          issuedAt: now
+      // 6. Generate or Update Invoice (Handle DRAFT and PAID for partial checkouts)
+      const existingInvoice = await tx.invoice.findUnique({ where: { stayId: stay.id } });
+      let invoice;
+      
+      if (existingInvoice) {
+        if (existingInvoice.status === 'DRAFT') {
+          // Overwrite draft invoice with actual checkout values
+          invoice = await tx.invoice.update({
+            where: { stayId: stay.id },
+            data: {
+              subtotal: combinedSubtotal,
+              taxAmount: taxes,
+              totalAmount: grandTotal,
+              paidAmount: payment.amountReceived,
+              balanceAmount: 0,
+              status: 'PAID',
+              issuedAt: now
+            }
+          });
+        } else {
+          // Increment existing PAID invoice for subsequent partial checkouts
+          invoice = await tx.invoice.update({
+            where: { stayId: stay.id },
+            data: {
+              subtotal: { increment: combinedSubtotal },
+              taxAmount: { increment: taxes },
+              totalAmount: { increment: grandTotal },
+              paidAmount: { increment: payment.amountReceived },
+              issuedAt: now
+            }
+          });
         }
-      });
+      } else {
+        // Create new invoice
+        const invoiceNumber = `INV-${randomBytes(4).toString('hex').toUpperCase()}`;
+        invoice = await tx.invoice.create({
+          data: {
+            invoiceNumber,
+            stayId: stay.id,
+            guestId: stay.reservation.guestId,
+            subtotal: combinedSubtotal,
+            taxAmount: taxes,
+            totalAmount: grandTotal,
+            paidAmount: payment.amountReceived,
+            balanceAmount: 0,
+            status: 'PAID',
+            issuedAt: now
+          }
+        });
+      }
 
       // 7. Check if this completes the entire reservation
       // A stay is complete if all of its StayRooms have a checkOutDate
