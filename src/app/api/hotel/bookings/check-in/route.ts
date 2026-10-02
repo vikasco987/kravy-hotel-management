@@ -26,6 +26,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const hotelId = authContext.hotel.id;
+
+
     const payload = await request.json();
     console.log("Check-in Payload:", JSON.stringify(payload, null, 2));
     const { roomIds, roomPricing, roomGuests, totalAmount, advancePaid, paymentMode, checkInDate, checkOutDate } = payload;
@@ -138,7 +141,7 @@ export async function POST(request: Request) {
       // 2. Create Reservation
       const reservation = await tx.reservation.create({
         data: {
-          hotelId: authContext.hotel.id,
+          hotelId: hotelId,
           guestId: guest.id,
           status: 'CHECKED_IN',
           totalAmount: Math.round(totalAmount * 100),
