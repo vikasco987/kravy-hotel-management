@@ -250,157 +250,263 @@ export default function RoomsManagementPage() {
         className={`fixed top-[72px] right-0 bottom-0 w-[380px] bg-white shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-gray-200 transform transition-transform duration-300 z-40 overflow-y-auto ${selectedRoom ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {selectedRoom && (
-          <div className="p-6">
-            {/* Header */}
-            <div className="flex items-start justify-between mb-8">
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h2 className="text-2xl font-black text-gray-900 tracking-tight">Room {selectedRoom.roomNumber}</h2>
-                  <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${(STATUS_COLORS[selectedRoom.status] || STATUS_COLORS.AVAILABLE).bg} ${(STATUS_COLORS[selectedRoom.status] || STATUS_COLORS.AVAILABLE).text}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${(STATUS_COLORS[selectedRoom.status] || STATUS_COLORS.AVAILABLE).dot}`}></span>
-                    {selectedRoom.status.replace('_', ' ')}
-                  </span>
-                </div>
-              </div>
-              <button onClick={() => setSelectedRoom(null)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition">
-                <X size={20} />
+          <div className="flex flex-col h-full bg-white w-full p-4 overflow-y-auto space-y-4 pb-20">
+            
+            {/* Header Card */}
+            <div 
+              className="relative rounded-3xl overflow-hidden shadow-sm"
+              style={{
+                backgroundImage: 'url("https://images.unsplash.com/photo-1611892440504-42a792e24d32?q=80&w=600&auto=format&fit=crop")',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                minHeight: '130px'
+              }}
+            >
+              <div className="absolute inset-0 bg-black/40 bg-gradient-to-t from-black/80 to-transparent"></div>
+              
+              <button 
+                onClick={() => setSelectedRoom(null)} 
+                className="absolute top-3 right-3 p-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white transition-all z-10"
+              >
+                <X size={16} />
               </button>
-            </div>
 
-            {/* Room Info Cards */}
-            <div className="grid grid-cols-3 gap-3 mb-8">
-              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center text-center">
-                <Hotel size={16} className="text-indigo-500 mb-2" />
-                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Type</span>
-                <span className="text-xs font-black text-gray-900 mt-0.5">{selectedRoom.roomType}</span>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center text-center">
-                <div className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[8px] mb-2">₹</div>
-                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Price</span>
-                <span className="text-xs font-black text-gray-900 mt-0.5">₹ {selectedRoom.guestInfo?.roomRate ? selectedRoom.guestInfo.roomRate / 100 : selectedRoom.price / 100} <span className="font-medium text-[9px] text-gray-500">/ night</span></span>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center text-center">
-                <UserCheck size={16} className="text-indigo-500 mb-2" />
-                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Capacity</span>
-                <span className="text-xs font-black text-gray-900 mt-0.5">2 guests</span>
-              </div>
-            </div>
-
-            {/* Guest Info Section */}
-            <div className="mb-8">
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">Guest Information</h3>
-
-              {selectedRoom.guestInfo ? (
-                <div
-                  className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 flex items-center gap-4 cursor-pointer hover:bg-indigo-100/50 transition-colors group"
-                  onClick={() => setIsGuestModalOpen(true)}
-                  title="Click to view complete guest and stay details"
-                >
-                  <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md">
-                    {selectedRoom.guestInfo.name.substring(0, 2).toUpperCase()}
+              <div className="absolute bottom-0 left-0 right-0 p-4 flex flex-col gap-3">
+                <div className="flex gap-3 items-center">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shrink-0">
+                    <Hotel size={24} />
                   </div>
                   <div>
-                    <div className="text-sm font-black text-indigo-900 group-hover:text-indigo-700 transition-colors">{selectedRoom.guestInfo.name}</div>
-                    <div className="text-[11px] font-medium text-indigo-600 mt-0.5">{selectedRoom.guestInfo.phone || 'No phone'}</div>
-                    <div className="text-[10px] font-bold text-indigo-400 mt-1 uppercase tracking-widest">ID: {selectedRoom.guestInfo.idProof ? selectedRoom.guestInfo.idProof.substring(selectedRoom.guestInfo.idProof.length - 6).toUpperCase() : 'UNKNOWN'}</div>
+                    <h2 className="text-xl font-black text-white tracking-tight drop-shadow-md">
+                      Room {selectedRoom.roomNumber}
+                    </h2>
+                    <div className="mt-1">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm ${
+                        selectedRoom.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-700' :
+                        selectedRoom.status === 'OCCUPIED' ? 'bg-indigo-100 text-indigo-700' :
+                        selectedRoom.status === 'DIRTY' ? 'bg-rose-100 text-rose-700' :
+                        selectedRoom.status === 'MAINTENANCE' ? 'bg-amber-100 text-amber-700' :
+                        'bg-slate-100 text-slate-700'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          selectedRoom.status === 'AVAILABLE' ? 'bg-emerald-500' :
+                          selectedRoom.status === 'OCCUPIED' ? 'bg-indigo-500' :
+                          selectedRoom.status === 'DIRTY' ? 'bg-rose-500' :
+                          selectedRoom.status === 'MAINTENANCE' ? 'bg-amber-500' :
+                          'bg-slate-500'
+                        }`}></span>
+                        {selectedRoom.status.replace('_', ' ')}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              ) : (
-                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center">
-                    <UserCheck size={20} />
+                
+                <div className="flex gap-2">
+                  <div className="bg-white/20 backdrop-blur-md border border-white/10 px-2 py-1 rounded-lg text-[9px] font-bold text-white flex items-center gap-1 shadow-sm">
+                    <Layers size={10} /> Floor 01
                   </div>
-                  <div>
-                    <div className="text-sm font-black text-gray-600">No guest</div>
-                    <div className="text-[11px] font-medium text-gray-400 mt-0.5">Room is currently unoccupied</div>
+                  <div className="bg-white/20 backdrop-blur-md border border-white/10 px-2 py-1 rounded-lg text-[9px] font-bold text-white flex items-center gap-1 shadow-sm">
+                    <UserCheck size={10} /> {selectedRoom.roomType}
                   </div>
                 </div>
-              )}
+              </div>
+            </div>
+
+            {/* Top Cards Grid */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-[#f4f7fe] rounded-2xl p-3 flex flex-col items-start gap-1">
+                <div className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center text-indigo-500 mb-1">
+                  <Building2 size={12} />
+                </div>
+                <div className="text-[10px] font-bold text-slate-500">Room Type</div>
+                <div className="text-xs font-black text-slate-900">{selectedRoom.roomType}</div>
+              </div>
+              <div className="bg-[#fff0f4] rounded-2xl p-3 flex flex-col items-start gap-1">
+                <div className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center text-rose-500 mb-1 font-bold text-xs">
+                  ₹
+                </div>
+                <div className="text-[10px] font-bold text-slate-500">Price</div>
+                <div className="text-xs font-black text-slate-900 flex items-baseline gap-1">
+                  ₹{selectedRoom.guestInfo?.roomRate ? selectedRoom.guestInfo.roomRate / 100 : selectedRoom.price / 100} 
+                  <span className="text-[8px] text-slate-400 font-bold">/ night</span>
+                </div>
+              </div>
+              <div className="bg-[#eaf9f2] rounded-2xl p-3 flex flex-col items-start gap-1">
+                <div className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center text-emerald-500 mb-1">
+                  <UserCheck size={12} />
+                </div>
+                <div className="text-[10px] font-bold text-slate-500">Capacity</div>
+                <div className="text-xs font-black text-slate-900">2 guests</div>
+              </div>
+            </div>
+
+            {/* Guest Information */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <UserCheck size={14} className="text-blue-600" />
+                  <h3 className="text-[11px] font-black text-slate-900">Guest Information</h3>
+                </div>
+                <div className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1">
+                  <div className={`w-1.5 h-1.5 rounded-full ${selectedRoom.guestInfo ? 'bg-indigo-500' : 'bg-slate-400'}`}></div>
+                  {selectedRoom.guestInfo ? 'Occupied' : 'Unoccupied'}
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
+                {selectedRoom.guestInfo ? (
+                  <div 
+                    className="p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                    onClick={() => setIsGuestModalOpen(true)}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm border border-indigo-100">
+                      {selectedRoom.guestInfo.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-sm font-black text-slate-900">{selectedRoom.guestInfo.name}</div>
+                      <div className="text-[11px] font-medium text-slate-500 mt-0.5">{selectedRoom.guestInfo.phone || 'No phone'}</div>
+                      <div className="text-[9px] font-bold text-indigo-500 mt-1 uppercase tracking-widest">
+                        ID: {selectedRoom.guestInfo.idProof ? selectedRoom.guestInfo.idProof.substring(selectedRoom.guestInfo.idProof.length - 6).toUpperCase() : 'UNKNOWN'}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center border border-slate-100">
+                      <UserCheck size={18} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-black text-slate-900">No guest</div>
+                      <div className="text-[11px] font-medium text-slate-400 mt-0.5">Room is currently unoccupied</div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Room Details Section */}
-            <div className="mb-8">
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">Room Details</h3>
-
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <Clock size={16} className="text-indigo-400 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Last Cleaned</div>
-                    <div className="text-xs font-medium text-gray-700 mt-0.5">Not recorded</div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5">
+                <ClipboardList size={14} className="text-blue-600" />
+                <h3 className="text-[11px] font-black text-slate-900">Room Details</h3>
+              </div>
+              
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] p-4">
+                <div className="flex divide-x divide-slate-100">
+                  <div className="flex-1 flex flex-col px-2">
+                    <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 mb-1">
+                      <Clock size={10} className="text-blue-500" /> Last Cleaned
+                    </div>
+                    <div className="text-[10px] font-black text-slate-900">Not recorded</div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Layers size={16} className="text-indigo-400 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Floor</div>
-                    <div className="text-xs font-black text-gray-900 mt-0.5">Floor 01</div>
+                  <div className="flex-1 flex flex-col px-2">
+                    <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 mb-1">
+                      <Layers size={10} className="text-indigo-500" /> Floor
+                    </div>
+                    <div className="text-[10px] font-black text-slate-900">Floor 01</div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Sparkles size={16} className="text-indigo-400 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amenities</div>
-                    <div className="text-xs font-medium text-gray-700 mt-0.5">Not specified</div>
+                  <div className="flex-1 flex flex-col px-2">
+                    <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 mb-1">
+                      <Sparkles size={10} className="text-emerald-500" /> Amenities
+                    </div>
+                    <div className="text-[10px] font-black text-slate-900">Not specified</div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <ClipboardList size={16} className="text-indigo-400 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Notes</div>
-                    <div className="text-xs font-medium text-gray-700 mt-0.5">—</div>
+                  <div className="flex-1 flex flex-col px-2">
+                    <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 mb-1">
+                      <ClipboardList size={10} className="text-purple-500" /> Notes
+                    </div>
+                    <div className="text-[10px] font-black text-slate-900">—</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Actions Section */}
-            <div className="mb-8">
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">Actions</h3>
+            {/* Room Actions */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5">
+                <Wrench size={14} className="text-blue-600" />
+                <h3 className="text-[11px] font-black text-slate-900">Room Actions</h3>
+              </div>
+              
               {selectedRoom.status === 'OCCUPIED' ? (
-                <div className="space-y-3">
-                  <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg text-[10px] text-emerald-800 font-medium">
+                <div className="space-y-2">
+                  <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl text-[10px] text-emerald-800 font-medium">
                     Manual status change is locked while a guest is staying. Please use the check-out process.
                   </div>
                   <button
                     onClick={() => router.push(`/dashboard/checkout?roomId=${selectedRoom.id}`)}
-                    className="w-full py-3 bg-emerald-600 text-white rounded-xl text-sm font-black hover:bg-emerald-700 shadow-md transition-colors flex items-center justify-center gap-2"
+                    className="w-full p-3.5 bg-emerald-50 text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between"
                   >
-                    <LogOut size={16} /> Check-Out Guest
+                    <div className="flex items-center gap-2">
+                      <LogOut size={14} /> Check-Out Guest
+                    </div>
+                    <span>&gt;</span>
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => router.push(`/dashboard/book?rooms=${selectedRoom.id}`)} className="bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                    <UserCheck size={16} /> Check-in
+                <div className="grid grid-cols-2 gap-2">
+                  <button 
+                    onClick={() => router.push(`/dashboard/book?rooms=${selectedRoom.id}`)} 
+                    className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full"
+                  >
+                    <div className="flex items-center gap-2">
+                      <UserCheck size={14} /> Check-in Guest
+                    </div>
+                    <span className="text-[10px]">&gt;</span>
                   </button>
-                  <button onClick={() => router.push(`/dashboard/book?rooms=${selectedRoom.id}`)} className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                    <CalendarDays size={16} /> Book
+                  <button 
+                    onClick={() => router.push(`/dashboard/book?rooms=${selectedRoom.id}`)} 
+                    className="p-3.5 bg-[#f4f7fe] text-blue-600 rounded-[14px] text-[11px] font-bold hover:bg-blue-100 transition-all flex items-center justify-between w-full"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarDays size={14} /> Book
+                    </div>
+                    <span className="text-[10px]">&gt;</span>
                   </button>
+                  
                   {selectedRoom.status === 'DIRTY' ? (
-                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                      <Sparkles size={16} /> Set Clean
+                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} /> Set Clean
+                      </div>
+                      <span className="text-[10px]">&gt;</span>
                     </button>
                   ) : (
-                    <button onClick={() => handleStatusChange(selectedRoom.id, 'DIRTY')} className="bg-rose-50 text-rose-700 border border-rose-100 hover:bg-rose-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                      <Layers size={16} /> Set Dirty
+                    <button onClick={() => handleStatusChange(selectedRoom.id, 'DIRTY')} className="p-3.5 bg-[#fff0f4] text-rose-600 rounded-[14px] text-[11px] font-bold hover:bg-rose-100 transition-all flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        <Layers size={14} /> Set Dirty
+                      </div>
+                      <span className="text-[10px]">&gt;</span>
                     </button>
                   )}
+                  
                   {selectedRoom.status === 'BLOCKED' ? (
-                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center col-span-2">
-                      <Sparkles size={16} /> Unblock
+                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full col-span-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} /> Unblock
+                      </div>
+                      <span className="text-[10px]">&gt;</span>
                     </button>
                   ) : selectedRoom.status === 'MAINTENANCE' ? (
-                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center col-span-2">
-                      <Sparkles size={16} /> Set Available
+                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full col-span-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} /> Set Available
+                      </div>
+                      <span className="text-[10px]">&gt;</span>
                     </button>
                   ) : (
                     <>
-                      <button onClick={() => handleStatusChange(selectedRoom.id, 'BLOCKED')} className="bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                        <MoreVertical size={16} /> Block
+                      <button onClick={() => handleStatusChange(selectedRoom.id, 'BLOCKED')} className="p-3.5 bg-[#f4f7fe] text-blue-600 rounded-[14px] text-[11px] font-bold hover:bg-blue-100 transition-all flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <MoreVertical size={14} /> Block Room
+                        </div>
+                        <span className="text-[10px]">&gt;</span>
                       </button>
-                      <button onClick={() => handleStatusChange(selectedRoom.id, 'MAINTENANCE')} className="bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 p-3 rounded-xl flex items-center gap-2 transition font-bold text-xs justify-center">
-                        <Wrench size={16} /> Set Maintenance
+                      <button onClick={() => handleStatusChange(selectedRoom.id, 'MAINTENANCE')} className="p-3.5 bg-[#fff7e6] text-amber-600 rounded-[14px] text-[11px] font-bold hover:bg-amber-100 transition-all flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <Wrench size={14} /> Set Maintenance
+                        </div>
+                        <span className="text-[10px]">&gt;</span>
                       </button>
                     </>
                   )}
@@ -409,30 +515,37 @@ export default function RoomsManagementPage() {
             </div>
 
             {/* Recent Activity */}
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Recent Activity</h3>
-                <span className="text-[10px] font-bold text-indigo-600 cursor-pointer hover:underline">View All</span>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Clock size={14} className="text-blue-600" />
+                  <h3 className="text-[11px] font-black text-slate-900">Recent Activity</h3>
+                </div>
+                <span className="text-[10px] font-bold text-blue-600 cursor-pointer hover:underline flex items-center gap-0.5">
+                  View All <span className="text-[10px]">-&gt;</span>
+                </span>
               </div>
 
-              <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[5px] before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent pl-4">
+              <div className="bg-white">
+                <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[5px] before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-100 pl-4 py-2">
 
-                <div className="relative flex items-start gap-4">
-                  <div className="absolute -left-4 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm top-1"></div>
-                  <div>
-                    <div className="text-[11px] font-bold text-gray-900">Room status changed to Available</div>
-                    <div className="text-[9px] font-medium text-gray-500 mt-0.5">19 Sep 2026 • 08:42 AM</div>
+                  <div className="relative flex items-start gap-3">
+                    <div className="absolute -left-4 w-2 h-2 rounded-full bg-emerald-500 top-1.5"></div>
+                    <div>
+                      <div className="text-[11px] font-bold text-slate-900">Room status changed to Available</div>
+                      <div className="text-[9px] font-medium text-slate-400 mt-0.5">19 Sep 2026 • 08:42 AM</div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="relative flex items-start gap-4">
-                  <div className="absolute -left-4 w-3 h-3 rounded-full bg-indigo-500 border-2 border-white shadow-sm top-1"></div>
-                  <div>
-                    <div className="text-[11px] font-bold text-gray-900">Room created</div>
-                    <div className="text-[9px] font-medium text-gray-500 mt-0.5">10 Sep 2026 • 11:20 AM</div>
+                  <div className="relative flex items-start gap-3">
+                    <div className="absolute -left-4 w-2 h-2 rounded-full bg-indigo-500 top-1.5"></div>
+                    <div>
+                      <div className="text-[11px] font-bold text-slate-900">Room created</div>
+                      <div className="text-[9px] font-medium text-slate-400 mt-0.5">10 Sep 2026 • 11:20 AM</div>
+                    </div>
                   </div>
-                </div>
 
+                </div>
               </div>
             </div>
 

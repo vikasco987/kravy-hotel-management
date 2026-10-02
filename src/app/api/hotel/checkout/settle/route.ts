@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       });
 
       if (stayRooms.length !== stayRoomIds.length) {
-         throw new Error('One or more selected rooms were not found in this stay.');
+        throw new Error('One or more selected rooms were not found in this stay.');
       }
 
       for (const sr of stayRooms) {
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
       // A stay is complete if all of its StayRooms have a checkOutDate
       const allStayRooms = await tx.stayRoom.findMany({ where: { stayId: stay.id } });
       const activeRooms = allStayRooms.filter(sr => sr.checkOutDate === null);
-      
+
       if (activeRooms.length === 0) {
         // Complete the reservation
         await tx.reservation.update({
@@ -126,10 +126,10 @@ export async function POST(req: Request) {
         // Since we consumed the advance payment for this partial checkout invoice, 
         // we should deduct it from the reservation to prevent double-applying it.
         if (advanceAvailable > 0) {
-           await tx.reservation.update({
-             where: { id: stay.reservation.id },
-             data: { advancePaid: Math.max(0, advanceAvailable - grandTotal) }
-           });
+          await tx.reservation.update({
+            where: { id: stay.reservation.id },
+            data: { advancePaid: Math.max(0, advanceAvailable - grandTotal) }
+          });
         }
       }
 
