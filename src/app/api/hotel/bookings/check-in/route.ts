@@ -49,7 +49,6 @@ export async function POST(request: Request) {
     // We will use a database transaction to ensure overlap protection
     console.log("Starting check-in transaction for rooms:", roomIds);
     const stay = await prisma.$transaction(async (tx) => {
-      
       // Extract first lead guest
       let leadGuestData = null;
       let allGuests: any[] = [];
@@ -151,7 +150,7 @@ export async function POST(request: Request) {
       const nights = calculateNights(checkInDate, checkOutDate);
       for (const roomId of roomIds) {
           if (roomId.length === 24) {
-             const room = await tx.room.findFirst({ where: { id: roomId }, include: { roomType: true } });
+             const room = dbRooms.find(r => r.id === roomId);
              await tx.reservationRoom.create({
                 data: {
                    reservationId: reservation.id,
@@ -316,12 +315,24 @@ export async function POST(request: Request) {
       }
       
       return stayRecord;
+    }, {
+      maxWait: 5000, // 5 seconds max wait to acquire transaction lock
+      timeout: 20000 // 20 seconds for the transaction to complete
     });
-
     console.log("=== Check-in Success ===", stay.id);
     return NextResponse.json({ success: true, stayId: stay.id });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Check-in Error:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Check-in failed' }, { status: 500 });
+    let errorMessage = 'An unexpected error occurred during check-in. Please try again.';
+    
+    if (error?.message) {
+      if (error.message.includes('Transaction already closed') || error.message.includes('expired transaction')) {
+        errorMessage = 'The check-in process took too long and timed out. Please try again.';
+      } else if (error.message.includes('already occupied') || error.message.includes('not available')) {
+        errorMessage = error.message; // Keep our custom validation errors
+      }
+    }
+    
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
