@@ -557,7 +557,7 @@ function CheckoutSuite() {
                              type="number" 
                              value={amountReceived} 
                              onChange={(e) => setAmountReceived(e.target.value)}
-                             className="w-32 bg-white border border-gray-300 rounded text-right px-2 py-1.5 font-bold text-sm outline-none focus:border-blue-500"
+                             className="w-32 bg-white border border-gray-300 rounded text-gray-900 text-right px-2 py-1.5 font-bold text-sm outline-none focus:border-blue-500"
                            />
                         </div>
                         <div className="flex justify-between items-center px-1">

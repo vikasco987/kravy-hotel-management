@@ -590,7 +590,7 @@ function GuestCheckInSuite() {
                            type="number" 
                            value={advancePaid}
                            onChange={(e) => setAdvancePaid(e.target.value)}
-                           className="border border-gray-300 rounded text-right text-xs font-bold px-2 py-1.5 flex-1 outline-none focus:ring-1 focus:ring-blue-500" 
+                           className="border border-gray-300 rounded text-gray-900 text-right text-xs font-bold px-2 py-1.5 flex-1 outline-none focus:ring-1 focus:ring-blue-500" 
                         />
                      </div>
                   </div>
