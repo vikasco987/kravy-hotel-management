@@ -29,7 +29,15 @@ export async function GET() {
               take: 1
             },
             stays: {
-              where: { checkOutDate: null },
+              where: { 
+                checkOutDate: null,
+                stay: {
+                  reservation: {
+                    status: 'CHECKED_IN'
+                  }
+                }
+              },
+              orderBy: { checkInDate: 'desc' },
               include: {
                 stay: {
                   include: {
@@ -75,8 +83,11 @@ export async function GET() {
         }
 
         let guestInfo = undefined;
-        // Strictly use active stay where checkOutDate is null
-        const activeStayRoom = room.stays?.find(s => s.checkOutDate === null);
+        // Strictly use active stay where checkOutDate is null and reservation is active
+        const activeStayRoom = room.stays?.find(s => 
+          s.checkOutDate === null && 
+          s.stay?.reservation?.status === 'CHECKED_IN'
+        );
         
         if (room.status === 'OCCUPIED' && activeStayRoom && activeStayRoom.stay && activeStayRoom.stay.reservation) {
           const reservation = activeStayRoom.stay.reservation;

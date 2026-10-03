@@ -22,8 +22,14 @@ export async function GET(req: Request) {
     const activeStayRoom = await prisma.stayRoom.findFirst({
       where: { 
         roomId, 
-        checkOutDate: null // null means currently checked in
+        checkOutDate: null, // null means currently checked in
+        stay: {
+          reservation: {
+            status: 'CHECKED_IN'
+          }
+        }
       },
+      orderBy: { checkInDate: 'desc' }
     });
 
     if (!activeStayRoom) {
