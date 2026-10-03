@@ -182,14 +182,34 @@ export async function POST(request: Request) {
         
         // OVERLAP PROTECTION: Check if room is already occupied or booked in this date range
         if (roomId.length === 24) {
-           const existing = await tx.stayRoom.findFirst({
+           console.log("OVERLAP CHECK START:");
+           console.log("Room:", room?.roomNumber, "ID:", roomId);
+           console.log("checkInParsed:", checkInParsed);
+           console.log("checkOutParsed:", checkOutParsed);
+           
+           const existing = await tx.reservationRoom.findFirst({
               where: {
                  roomId: roomId,
-                 checkOutDate: null
+                 reservationId: {
+                    not: reservation.id
+                 },
+                 reservation: {
+                    status: {
+                       in: ['RESERVED', 'CONFIRMED', 'CHECKED_IN']
+                    }
+                 },
+                 checkInDate: {
+                    lt: checkOutParsed
+                 },
+                 checkOutDate: {
+                    gt: checkInParsed
+                 }
               }
            });
+           
            if (existing) {
-               console.log("Overlap check failed for room:", roomId);
+               console.log("Overlap check failed for room:", roomId, "Conflict with reservation:", existing.reservationId);
+               console.log("Existing checkIn:", existing.checkInDate, "Existing checkOut:", existing.checkOutDate);
                throw new Error(`Room ${room?.roomNumber || roomId} is already occupied or booked for these dates.`);
             }
          }

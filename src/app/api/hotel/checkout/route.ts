@@ -91,6 +91,7 @@ export async function GET(req: Request) {
       })),
       extraCharges: stayContext.roomCharges.map(charge => ({
         id: charge.id,
+        stayRoomId: charge.stayRoomId,
         description: charge.description,
         type: charge.chargeType,
         amount: charge.amount, // minor units (paise)

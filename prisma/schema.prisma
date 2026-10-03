@@ -389,6 +389,7 @@ model StayRoom {
   
   stay          Stay     @relation(fields: [stayId], references: [id])
   room          Room     @relation(fields: [roomId], references: [id])
+  roomCharges   RoomCharge[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -410,6 +411,8 @@ model RoomCharge {
   totalAmount  Int     @default(0)
   
   stay        Stay     @relation(fields: [stayId], references: [id])
+  stayRoomId  String?  @db.ObjectId
+  stayRoom    StayRoom? @relation(fields: [stayRoomId], references: [id])
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
