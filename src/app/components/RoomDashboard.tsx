@@ -28,6 +28,7 @@ interface Room {
   roomNumber: string;
   number?: string; // fallback
   status: RoomStatus;
+  housekeepingStatus?: string;
   roomType: string;
   type?: string; // fallback
   price?: number;
@@ -1039,7 +1040,7 @@ function DashboardContent() {
                       </button>
                     )}
 
-                    {focusedRoom.status === 'DIRTY' ? (
+                    {focusedRoom.housekeepingStatus === 'DIRTY' || focusedRoom.status === 'DIRTY' ? (
                       <button 
                         onClick={() => handleStatusChange(focusedRoom.id, 'AVAILABLE')} 
                         className="p-3.5 bg-emerald-50/80 text-emerald-600 rounded-[14px] flex items-center gap-2.5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all font-black text-[12px] shadow-sm"

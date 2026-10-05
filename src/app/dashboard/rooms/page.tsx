@@ -27,6 +27,7 @@ interface Room {
   id: string;
   roomNumber: string;
   status: string;
+  housekeepingStatus?: string;
   roomType: string;
   price: number;
   guestInfo?: any;
@@ -296,6 +297,7 @@ export default function RoomsManagementPage() {
                           'bg-slate-500'
                         }`}></span>
                         {selectedRoom.status.replace('_', ' ')}
+                        {selectedRoom.status === 'OCCUPIED' && selectedRoom.housekeepingStatus === 'DIRTY' ? ' + DIRTY' : ''}
                       </span>
                     </div>
                   </div>
@@ -431,7 +433,7 @@ export default function RoomsManagementPage() {
               {selectedRoom.status === 'OCCUPIED' ? (
                 <div className="space-y-2">
                   <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl text-[10px] text-emerald-800 font-medium">
-                    Manual status change is locked while a guest is staying. Please use the check-out process.
+                    Manual availability change is locked while a guest is staying. Please use the check-out process.
                   </div>
                   <button
                     onClick={() => router.push(`/dashboard/checkout?roomId=${selectedRoom.id}`)}
@@ -442,6 +444,22 @@ export default function RoomsManagementPage() {
                     </div>
                     <span>&gt;</span>
                   </button>
+
+                  {selectedRoom.housekeepingStatus === 'DIRTY' ? (
+                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} /> Set Clean
+                      </div>
+                      <span className="text-[10px]">&gt;</span>
+                    </button>
+                  ) : (
+                    <button onClick={() => handleStatusChange(selectedRoom.id, 'DIRTY')} className="p-3.5 bg-[#fff0f4] text-rose-600 rounded-[14px] text-[11px] font-bold hover:bg-rose-100 transition-all flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        <Layers size={14} /> Set Dirty
+                      </div>
+                      <span className="text-[10px]">&gt;</span>
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
@@ -464,7 +482,7 @@ export default function RoomsManagementPage() {
                     <span className="text-[10px]">&gt;</span>
                   </button>
                   
-                  {selectedRoom.status === 'DIRTY' ? (
+                  {selectedRoom.housekeepingStatus === 'DIRTY' || selectedRoom.status === 'DIRTY' ? (
                     <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full">
                       <div className="flex items-center gap-2">
                         <Sparkles size={14} /> Set Clean

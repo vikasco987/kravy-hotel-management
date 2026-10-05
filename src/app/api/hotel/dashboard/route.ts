@@ -71,17 +71,6 @@ export async function GET() {
     const formattedFloors = floors.map((floor) => {
       const formattedRooms = floor.rooms.map((room) => {
         totalRooms++;
-        
-        switch (room.status) {
-          case 'AVAILABLE': available++; break;
-          case 'RESERVED': reserved++; break;
-          case 'OCCUPIED': occupied++; break;
-          case 'DIRTY': dirty++; break;
-          case 'CLEANING': cleaning++; break;
-          case 'MAINTENANCE': maintenance++; break;
-          case 'BLOCKED': blocked++; break;
-        }
-
         let guestInfo = undefined;
         // Strictly use active stay where checkOutDate is null and reservation is active
         const activeStayRoom = room.stays?.find(s => 
@@ -89,7 +78,10 @@ export async function GET() {
           s.stay?.reservation?.status === 'CHECKED_IN'
         );
         
-        if (room.status === 'OCCUPIED' && activeStayRoom && activeStayRoom.stay && activeStayRoom.stay.reservation) {
+        let derivedStatus = room.status;
+
+        if (activeStayRoom && activeStayRoom.stay && activeStayRoom.stay.reservation) {
+          derivedStatus = 'OCCUPIED';
           const reservation = activeStayRoom.stay.reservation;
           const guest = reservation.guest;
           // Match the exact reservation room
@@ -109,13 +101,24 @@ export async function GET() {
           };
         }
 
+        switch (derivedStatus) {
+          case 'AVAILABLE': available++; break;
+          case 'RESERVED': reserved++; break;
+          case 'OCCUPIED': occupied++; break;
+          case 'DIRTY': dirty++; break;
+          case 'CLEANING': cleaning++; break;
+          case 'MAINTENANCE': maintenance++; break;
+          case 'BLOCKED': blocked++; break;
+        }
+
         // Get last cleaned timestamp if available
         const lastCleaned = (room.tasks && room.tasks.length > 0) ? room.tasks[0].updatedAt : null;
 
         return {
           id: room.id,
           roomNumber: room.roomNumber,
-          status: room.status,
+          status: derivedStatus,
+          housekeepingStatus: room.status,
           roomType: room.roomType?.name || 'Unknown',
           price: room.roomType?.basePrice || 0,
           lastCleaned,
