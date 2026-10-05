@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from 'dayjs';
 import { Check, Sun, ArrowUp, ArrowDown, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight, Hotel, Users, IndianRupee, Snowflake, Wifi, Tv, Bath, Mountain, UserRound, ChevronDown, UserCheck, CalendarDays, UtensilsCrossed, MessageCircle, BarChart3, Wallet, Settings, MoreVertical, Layers, FileText, LogOut, Lock, Edit, Trash2 } from "lucide-react";
 import { GuestDetailsModal } from "@/components/hotel/GuestDetailsModal";
-
+import { AddRoomModal } from "@/components/hotel/AddRoomModal";
 
 
 type RoomStatus = 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'DIRTY' | 'CLEANING' | 'INSPECTED' | 'MAINTENANCE' | 'BLOCKED';
@@ -832,7 +832,7 @@ function DashboardContent() {
 
                   {/* Subtle footer */}
                   <div className="pt-6 text-[10px] text-gray-400 font-medium text-center italic flex items-center justify-center gap-1">
-                    <span className="text-amber-500">✦</span> "Great hospitality creates lasting memories."
+                    <span className="text-amber-500">âœ¦</span> "Great hospitality creates lasting memories."
                   </div>
                 </div>
               </div>
@@ -957,11 +957,11 @@ function DashboardContent() {
                       <div className="flex justify-between items-center px-1 border-t border-dashed border-slate-200 pt-3">
                         <div>
                           <div className="text-[9px] font-bold text-slate-400 uppercase">Room Rate</div>
-                          <div className="text-[13px] font-black text-slate-800">₹{(focusedRoom.guestInfo.roomRate || focusedRoom.price || 0) / 100}</div>
+                          <div className="text-[13px] font-black text-slate-800">â‚¹{(focusedRoom.guestInfo.roomRate || focusedRoom.price || 0) / 100}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-[9px] font-bold text-slate-400 uppercase">Balance</div>
-                          <div className={`text-[13px] font-black ${focusedRoom.guestInfo.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>₹{focusedRoom.guestInfo.balance / 100}</div>
+                          <div className={`text-[13px] font-black ${focusedRoom.guestInfo.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>â‚¹{focusedRoom.guestInfo.balance / 100}</div>
                         </div>
                       </div>
                     </div>
@@ -997,7 +997,7 @@ function DashboardContent() {
                         <IndianRupee size={14} className="text-rose-500" />
                         <span className="text-[10px] font-bold text-slate-500">Price</span>
                       </div>
-                      <div className="text-[13px] font-black text-slate-800 ml-5.5">₹{(focusedRoom.price || 0) / 100} <span className="text-[8px] font-bold text-slate-400 uppercase">/ night</span></div>
+                      <div className="text-[13px] font-black text-slate-800 ml-5.5">â‚¹{(focusedRoom.price || 0) / 100} <span className="text-[8px] font-bold text-slate-400 uppercase">/ night</span></div>
                     </div>
                     <div className="bg-emerald-50/40 p-4 rounded-2xl flex flex-col justify-center border border-emerald-50">
                       <div className="flex items-center gap-2 mb-1.5">
@@ -1196,308 +1196,19 @@ function DashboardContent() {
       )}
 
       {/* Add Room Modal */}
-      {isAddRoomOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-
-            {/* HEADER */}
-            <div className="flex items-center justify-between border-b border-slate-200 px-7 py-5 shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-                  <Hotel size={24} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight text-slate-900">{editingRoomId ? 'Edit Room' : 'Add New Room'}</h2>
-                  <p className="mt-0.5 text-sm text-slate-500">{editingRoomId ? 'Update room details and configuration' : 'Create a room and configure its details'}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => { setIsAddRoomOpen(false); resetRoomForm(); }}
-                className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-              >
-                <X size={21} />
-              </button>
-            </div>
-
-            {/* BODY */}
-            <div className="overflow-y-auto p-7">
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-
-                {/* LEFT */}
-                <div className="space-y-6">
-
-                  {/* ROOM DETAILS */}
-                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                        <Hotel size={18} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">Room Details</h3>
-                        <p className="mt-0.5 text-xs text-slate-500">Basic information about the room</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 space-y-5">
-                      <div>
-                        <label className="mb-2 block text-sm font-semibold text-slate-700">Select Floor <span className="ml-1 text-red-500">*</span></label>
-                        <div className="relative">
-                          <select
-                            value={newRoomFloorId}
-                            onChange={(e) => setNewRoomFloorId(e.target.value)}
-                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 appearance-none"
-                            required
-                          >
-                            <option value="" disabled>Choose a floor</option>
-                            {data.floors.map(f => (
-                              <option key={f.id} value={f.id}>{f.name}</option>
-                            ))}
-                          </select>
-                          <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="mb-2 block text-sm font-semibold text-slate-700">Room Number <span className="ml-1 text-red-500">*</span></label>
-                          <input
-                            type="text"
-                            value={newRoomNumber}
-                            onChange={(e) => setNewRoomNumber(e.target.value)}
-                            placeholder="e.g. 301"
-                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-2 block text-sm font-semibold text-slate-700">Room Type <span className="ml-1 text-red-500">*</span></label>
-                          <div className="relative">
-                            <select
-                              value={newRoomType}
-                              onChange={(e) => setNewRoomType(e.target.value)}
-                              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 appearance-none"
-                            >
-                              <option>Standard</option>
-                              <option>Deluxe</option>
-                              <option>Suite</option>
-                            </select>
-                            <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* CAPACITY + PRICE */}
-                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                        <Users size={18} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">Capacity & Pricing</h3>
-                        <p className="mt-0.5 text-xs text-slate-500">Set occupancy and room rate</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="mb-2 block text-sm font-semibold text-slate-700">Capacity</label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            min="1"
-                            value={newRoomCapacity}
-                            onChange={(e) => setNewRoomCapacity(parseInt(e.target.value) || 1)}
-                            placeholder="2"
-                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-3.5 pr-16 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
-                            required
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">Guests</span>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-2 block text-sm font-semibold text-slate-700">Base Price</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">₹</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={newRoomPrice}
-                            onChange={(e) => setNewRoomPrice(parseInt(e.target.value) || 0)}
-                            placeholder="1500"
-                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-16 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
-                            required
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">/ night</span>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* STATUS */}
-                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                        <UserRound size={18} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">Status & Management</h3>
-                        <p className="mt-0.5 text-xs text-slate-500">Room availability and assignment</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="mb-2 block text-sm font-semibold text-slate-700">Initial Status</label>
-                        <div className="relative">
-                          <select
-                            value={newRoomStatus}
-                            onChange={(e) => setNewRoomStatus(e.target.value as RoomStatus)}
-                            disabled={editingRoomId !== null && editingRoomHasGuest}
-                            className={`h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition appearance-none ${editingRoomId && editingRoomHasGuest ? 'opacity-60 cursor-not-allowed' : 'hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10'}`}
-                          >
-                            <option value="AVAILABLE">Available</option>
-
-                            <option value="OCCUPIED">Occupied</option>
-                            <option value="DIRTY">Dirty</option>
-                            <option value="MAINTENANCE">Maintenance</option>
-                            <option value="BLOCKED">Blocked</option>
-                          </select>
-                          <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-2 block text-sm font-semibold text-slate-700">Assigned Cleaner</label>
-                        <div className="relative">
-                          <select
-                            value={newRoomStaff}
-                            onChange={(e) => setNewRoomStaff(e.target.value)}
-                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 appearance-none text-slate-500"
-                          >
-                            <option value="">Unassigned</option>
-                            <option value="Ramesh">Ramesh (HK)</option>
-                            <option value="Sita">Sita (HK)</option>
-                          </select>
-                          <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                </div>
-
-                {/* RIGHT */}
-                <div className="space-y-6">
-
-                  {/* AMENITIES */}
-                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                        <Snowflake size={18} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">Amenities & Features</h3>
-                        <p className="mt-0.5 text-xs text-slate-500">Select everything included</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 grid gap-2">
-                      {[
-                        { id: 'AC / Heater', icon: <Snowflake size={18} /> },
-                        { id: 'Wi-Fi', icon: <Wifi size={18} /> },
-                        { id: 'TV', icon: <Tv size={18} /> },
-                        { id: 'Attached Bathroom / Geyser', icon: <Bath size={18} /> },
-                        { id: 'Balcony View', icon: <Mountain size={18} /> },
-                      ].map((amenity) => {
-                        const selected = newRoomAmenities.includes(amenity.id);
-                        return (
-                          <button
-                            type="button"
-                            key={amenity.id}
-                            onClick={() => toggleAmenity(amenity.id)}
-                            className={`group flex w-full items-center justify-between rounded-xl border p-3.5 text-left transition-all ${selected
-                                ? "border-indigo-200 bg-indigo-50"
-                                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                              }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={`flex h-9 w-9 items-center justify-center rounded-lg ${selected ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-500"
-                                  }`}
-                              >
-                                {amenity.icon}
-                              </div>
-                              <span className={`text-sm font-medium ${selected ? "text-indigo-900" : "text-slate-700"}`}>
-                                {amenity.id}
-                              </span>
-                            </div>
-                            <div
-                              className={`flex h-5 w-5 items-center justify-center rounded-md border transition ${selected ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300 bg-white"
-                                }`}
-                            >
-                              {selected && <Check size={13} strokeWidth={3} />}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </section>
-
-                  {/* DESCRIPTION */}
-                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                        <Hotel size={18} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">Additional Details</h3>
-                        <p className="mt-0.5 text-xs text-slate-500">Optional notes about this room</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5">
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">Description / Notes</label>
-                      <textarea
-                        rows={6}
-                        value={newRoomNotes}
-                        onChange={(e) => setNewRoomNotes(e.target.value)}
-                        placeholder="e.g. Corner room with a great view..."
-                        className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
-                      />
-                    </div>
-                  </section>
-
-                </div>
-              </div>
-            </div>
-
-            {/* FOOTER */}
-            <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/80 px-7 py-4 shrink-0">
-              <p className="hidden text-xs text-slate-400 sm:block">
-                Fields marked with <span className="text-red-500">*</span> are required
-              </p>
-              <div className="ml-auto flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => { setIsAddRoomOpen(false); resetRoomForm(); }}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddRoom}
-                  className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-[0.98]"
-                >
-                  <Check size={17} />
-                  {editingRoomId ? 'Update Room' : 'Save Room'}
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
+      <AddRoomModal
+        isOpen={isAddRoomOpen}
+        onClose={() => setIsAddRoomOpen(false)}
+        floors={data?.floors || []}
+        onSuccess={() => {
+          fetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' })
+            .then(res => res.json())
+            .then(newData => setData(newData));
+        }}
+        editingRoomId={editingRoomId}
+        editingRoomHasGuest={editingRoomHasGuest}
+        initialData={focusedRoom}
+      />
       {focusedRoom && (
         <GuestDetailsModal
           isOpen={isGuestModalOpen}

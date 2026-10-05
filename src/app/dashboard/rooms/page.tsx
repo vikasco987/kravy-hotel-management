@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 import { STATUS_COLORS, FilterBadge, FloorRow } from "@/components/hotel/RoomComponents";
 import { GuestDetailsModal } from "@/components/hotel/GuestDetailsModal";
+import { AddRoomModal } from "@/components/hotel/AddRoomModal";
 
 interface Room {
   id: string;
@@ -173,7 +174,7 @@ export default function RoomsManagementPage() {
                 placeholder="Search rooms..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium"
+                className="w-full pl-10 pr-4 py-2.5 rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-medium text-gray-900"
               />
             </div>
 
@@ -599,23 +600,17 @@ export default function RoomsManagementPage() {
         </div>
       )}
 
-      {/* Add Room Modal (Simplified placeholder for demo) */}
-      {isAddRoomOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">Add New Room</h2>
-              <button onClick={() => setIsAddRoomOpen(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X size={20} /></button>
-            </div>
-            <div className="text-center py-8">
-              <p className="text-gray-500 font-medium text-sm">Room creation form will be integrated here.</p>
-            </div>
-            <div className="pt-4 flex gap-3">
-              <button type="button" onClick={() => setIsAddRoomOpen(false)} className="flex-1 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors">Close</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add Room Modal */}
+      <AddRoomModal
+        isOpen={isAddRoomOpen}
+        onClose={() => setIsAddRoomOpen(false)}
+        floors={data?.floors || []}
+        onSuccess={() => {
+          fetch('/api/hotel/dashboard')
+            .then(res => res.json())
+            .then(newData => setData(newData));
+        }}
+      />
 
       {selectedRoom && (
         <GuestDetailsModal

@@ -335,7 +335,7 @@ function GuestCheckInSuite() {
                  <input 
                    type="text" 
                    placeholder="Search Mobile No. / Guest Name..." 
-                   className="pl-9 pr-4 py-1.5 border border-gray-300 rounded-md text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   className="pl-9 pr-4 py-1.5 border border-gray-300 rounded-md text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                  />
               </div>
               <button className="bg-[#00875a] text-white px-4 py-1.5 rounded-md text-sm font-bold shadow-sm hover:bg-[#006f4a] flex items-center gap-2">
