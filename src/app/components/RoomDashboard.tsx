@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { Check, Sun, ArrowUp, ArrowDown, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight, Hotel, Users, IndianRupee, Snowflake, Wifi, Tv, Bath, Mountain, UserRound, ChevronDown, UserCheck, CalendarDays, UtensilsCrossed, MessageCircle, BarChart3, Wallet, Settings, MoreVertical, Layers, FileText, LogOut, Lock, Edit, Trash2 } from "lucide-react";
 import { GuestDetailsModal } from "@/components/hotel/GuestDetailsModal";
 import { AddRoomModal } from "@/components/hotel/AddRoomModal";
+import { EditFloorModal } from "@/components/hotel/EditFloorModal";
 
 
 type RoomStatus = 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'DIRTY' | 'CLEANING' | 'INSPECTED' | 'MAINTENANCE' | 'BLOCKED';
@@ -406,39 +407,7 @@ function DashboardContent() {
     }
   };
 
-  const handleEditFloor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!data || !editingFloor || !newFloorName.trim()) return;
-
-    try {
-      const res = await fetch(`/api/hotel/floors/${editingFloor.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newFloorName })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        alert(errData.error || 'Failed to update floor');
-        return;
-      }
-
-      const updatedFloor = await res.json();
-
-      setData({
-        ...data,
-        floors: data.floors.map(f => f.id === updatedFloor.id ? { ...f, name: updatedFloor.name } : f)
-      });
-
-      setNewFloorName("");
-      setEditingFloor(null);
-      setIsEditFloorOpen(false);
-    } catch (error) {
-      console.error(error);
-      alert('Network error while updating floor');
-    }
-  };
-
+  
   const handleDeleteFloor = async (floorId: string) => {
     if (!data) return;
     try {
@@ -1167,33 +1136,17 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Edit Floor Modal */}
-      {isEditFloorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
-            <form onSubmit={handleEditFloor} className="p-6">
-              <h2 className="text-lg font-bold mb-4">Edit Floor</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Floor Name</label>
-                  <input
-                    type="text"
-                    value={newFloorName}
-                    onChange={(e) => setNewFloorName(e.target.value)}
-                    placeholder="e.g., 3rd Floor"
-                    className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button type="button" onClick={() => { setIsEditFloorOpen(false); setEditingFloor(null); setNewFloorName(""); }} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800">Save Changes</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            {/* Edit Floor Modal */}
+      <EditFloorModal
+        isOpen={isEditFloorOpen}
+        onClose={() => { setIsEditFloorOpen(false); setEditingFloor(null); }}
+        floor={editingFloor}
+        onSuccess={() => {
+          fetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' })
+            .then(res => res.json())
+            .then(newData => setData(newData));
+        }}
+      />
 
       {/* Add Room Modal */}
       <AddRoomModal

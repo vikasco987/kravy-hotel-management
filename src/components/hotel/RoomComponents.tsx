@@ -37,7 +37,7 @@ export function FloorRow({ floor, floorIndex, selectedRooms = [], focusedRoomId,
   
   const floorNum = floorIndex + 1;
   const badgeText = `F${floorNum}`;
-  const floorName = `Floor ${floorNum.toString().padStart(2, '0')}`;
+  const floorName = floor.name || `Floor ${floorNum.toString().padStart(2, '0')}`;
 
   const handleDeleteClick = () => {
     if (floor.rooms.length > 0) {

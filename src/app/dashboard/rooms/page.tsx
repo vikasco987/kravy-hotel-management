@@ -23,6 +23,7 @@ import dayjs from 'dayjs';
 import { STATUS_COLORS, FilterBadge, FloorRow } from "@/components/hotel/RoomComponents";
 import { GuestDetailsModal } from "@/components/hotel/GuestDetailsModal";
 import { AddRoomModal } from "@/components/hotel/AddRoomModal";
+import { EditFloorModal } from "@/components/hotel/EditFloorModal";
 
 interface Room {
   id: string;
@@ -49,6 +50,8 @@ export default function RoomsManagementPage() {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   const [isAddFloorOpen, setIsAddFloorOpen] = useState(false);
+  const [isEditFloorOpen, setIsEditFloorOpen] = useState(false);
+  const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
   const [newFloorNumber, setNewFloorNumber] = useState("");
   const [newFloorName, setNewFloorName] = useState("");
@@ -222,6 +225,10 @@ export default function RoomsManagementPage() {
                   onRoomClick={(roomId: string) => {
                     const room = floor.rooms.find((r: any) => r.id === roomId);
                     if (room) setSelectedRoom(room);
+                  }}
+                  onEditFloor={(f: any) => {
+                    setEditingFloor(f);
+                    setIsEditFloorOpen(true);
                   }}
                 />
               );
@@ -609,6 +616,19 @@ export default function RoomsManagementPage() {
           fetch('/api/hotel/dashboard')
             .then(res => res.json())
             .then(newData => setData(newData));
+        }}
+      />
+
+      
+      {/* Edit Floor Modal */}
+      <EditFloorModal
+        isOpen={isEditFloorOpen}
+        onClose={() => { setIsEditFloorOpen(false); setEditingFloor(null); }}
+        floor={editingFloor}
+        onSuccess={() => {
+          fetch('/api/hotel/dashboard')
+            .then(res => res.json())
+            .then(d => setData(d));
         }}
       />
 
