@@ -283,6 +283,7 @@ function GuestCheckInSuite() {
         const balDue = totalAmount - amtPaid;
 
         setReceiptData({
+          stayId: data.stayId,
           receiptNumber: `BK-${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 900) + 100)}-${String(Math.floor(Math.random() * 900000) + 100000)}`,
           date: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
           checkInDate: checkInDate.split('T')[0],

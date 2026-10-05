@@ -57,13 +57,21 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
   const leadGuest = d.rooms[0] || {} as ReceiptRoomData;
 
   const handlePrint = (mode: '80mm' | '58mm' | 'A4') => {
-    console.log(`[CheckInReceipt] Preparing to print in ${mode} format...`);
-    setPrintMode(mode);
-    setTimeout(() => {
-      window.print();
-      console.log(`[CheckInReceipt] Successfully triggered print window for ${mode}.`);
-      setPrintMode(null);
-    }, 500); // Give React time to render the style block
+    if (mode === 'A4') {
+      console.log(`[CheckInReceipt] Preparing to print in ${mode} format...`);
+      setPrintMode(mode);
+      setTimeout(() => {
+        window.print();
+        console.log(`[CheckInReceipt] Successfully triggered print window for ${mode}.`);
+        setPrintMode(null);
+      }, 500); // Give React time to render the style block
+    } else {
+      if ((bookingData as any).stayId) {
+        window.open(`/dashboard/print/grc/${(bookingData as any).stayId}?format=${mode.toUpperCase()}`, "_blank");
+      } else {
+        alert("Unable to open thermal print. Please try again from the reservation list.");
+      }
+    }
   };
 
   const getDynamicCss = () => {

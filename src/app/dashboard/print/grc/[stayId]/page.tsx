@@ -4,9 +4,11 @@ import { notFound } from 'next/navigation';
 
 const prisma = new PrismaClient();
 
-export default async function GRCPrintPage({ params }: { params: { stayId: string } }) {
+export default async function GRCPrintPage({ params, searchParams }: { params: Promise<{ stayId: string }>, searchParams?: Promise<{ format?: string }> }) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
   const stay = await prisma.stay.findUnique({
-    where: { id: params.stayId },
+    where: { id: resolvedParams.stayId },
     include: {
       reservation: {
         include: {
@@ -35,13 +37,20 @@ export default async function GRCPrintPage({ params }: { params: { stayId: strin
   expectedOut.setDate(expectedOut.getDate() + leadStayRoom.nights);
   const displayCheckOutDate = leadStayRoom.checkOutDate ? new Date(leadStayRoom.checkOutDate) : expectedOut;
 
+  const initialFormat = (resolvedSearchParams.format?.toUpperCase() as 'A4' | '80MM' | '58MM') || 'A4';
+  
+  const totalPaid = stay.payments.reduce((sum, p) => sum + p.amount, 0);
+
   return (
-    <div className="bg-white text-black min-h-screen p-8 font-sans print:p-0">
-      <div className="max-w-4xl mx-auto border border-gray-300 p-8 print:border-none print:p-4">
+    <div className="bg-gray-100 min-h-screen p-8 print:p-0 print:bg-white flex flex-col items-center">
+      
+      {/* -------------------- A4 FORMAT -------------------- */}
+      {initialFormat === 'A4' && (
+      <div className="bg-white text-black max-w-4xl w-full mx-auto border border-gray-300 p-8 shadow-xl print:shadow-none print:w-full print:max-w-none print:border-none print:p-4">
         
         {/* Print Button (Hidden in Print) */}
         <div className="mb-4 text-right print:hidden">
-           <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded font-bold">
+           <button onClick={() => { window.print(); }} className="bg-blue-600 text-white px-4 py-2 rounded font-bold">
               Print GRC
            </button>
         </div>
@@ -155,6 +164,87 @@ export default async function GRCPrintPage({ params }: { params: { stayId: strin
         </div>
 
       </div>
+      )}
+
+      {/* -------------------- 80MM / 58MM THERMAL FORMAT -------------------- */}
+      {(initialFormat === '80MM' || initialFormat === '58MM') && (
+        <>
+        <style dangerouslySetInnerHTML={{__html: `
+          @media print {
+            @page { size: ${initialFormat === '58MM' ? '58mm auto' : '80mm auto'}; margin: 0; }
+            body { padding: 0; margin: 0; }
+          }
+        `}} />
+        <div className="bg-white p-4 shadow-xl font-mono text-sm leading-tight text-black print:shadow-none" style={{ width: initialFormat === '58MM' ? '58mm' : '80mm', minHeight: '100mm', margin: '0 auto' }}>
+           
+           <div className="text-center border-b border-dashed border-gray-400 pb-3 mb-3">
+              <h1 className="text-lg font-black uppercase">{hotel.name}</h1>
+              <p className="text-[10px] uppercase mt-1">GUEST REGISTRATION (GRC)</p>
+              <p className="text-[10px]">#BK-{stay.reservationId.slice(-6).toUpperCase()}</p>
+           </div>
+
+           <div className="mb-3 text-[11px] border-b border-dashed border-gray-400 pb-3">
+              <p>Guest: <span className="font-bold">{guest.name}</span></p>
+              <p>Mobile: <span className="font-bold">{guest.phone}</span></p>
+              <p>Room: <span className="font-bold">{leadStayRoom.room.roomNumber}</span></p>
+              <p>Date: {new Date(leadStayRoom.checkInDate).toLocaleDateString()} to {displayCheckOutDate.toLocaleDateString()}</p>
+              <p>ID: {guest.documents.length > 0 ? guest.documents[0].documentType : 'None'}</p>
+           </div>
+
+           <table className="w-full text-[11px] mb-3">
+              <tbody>
+                 <tr>
+                    <td>Room x{leadStayRoom.nights}</td>
+                    <td className="text-right">{(leadStayRoom.grossAmount / 100).toFixed(2)}</td>
+                 </tr>
+                 {leadStayRoom.discountAmount > 0 && (
+                 <tr>
+                    <td>Discount</td>
+                    <td className="text-right">-{(leadStayRoom.discountAmount / 100).toFixed(2)}</td>
+                 </tr>
+                 )}
+                 {leadStayRoom.extraChargesAmount > 0 && (
+                 <tr>
+                    <td>Extra</td>
+                    <td className="text-right">{(leadStayRoom.extraChargesAmount / 100).toFixed(2)}</td>
+                 </tr>
+                 )}
+              </tbody>
+           </table>
+
+           <div className="border-t border-dashed border-gray-400 pt-2 mb-3 text-[11px]">
+              <div className="flex justify-between">
+                 <span>Taxable</span>
+                 <span>{(leadStayRoom.taxableAmount / 100).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                 <span>Tax ({leadStayRoom.taxMode})</span>
+                 <span>{(leadStayRoom.taxAmount / 100).toFixed(2)}</span>
+              </div>
+           </div>
+
+           <div className="border-t-2 border-black pt-2 mb-2 flex justify-between font-black text-sm">
+              <span>TOTAL</span>
+              <span>₹{(leadStayRoom.finalAmount / 100).toFixed(2)}</span>
+           </div>
+           
+           <div className="flex justify-between text-[11px] font-bold">
+              <span>Advance Paid</span>
+              <span>₹{(totalPaid / 100).toFixed(2)}</span>
+           </div>
+           <div className="flex justify-between text-[11px] font-bold mb-6">
+              <span>Balance Due</span>
+              <span>₹{Math.max(0, (leadStayRoom.finalAmount - totalPaid) / 100).toFixed(2)}</span>
+           </div>
+
+           <div className="text-center text-[10px] mt-6 border-t border-dashed border-gray-400 pt-3">
+              <p>I agree to hotel rules.</p>
+              <p className="mt-6 border-t border-black inline-block px-4">Guest Signature</p>
+           </div>
+        </div>
+        </>
+      )}
+
     </div>
   );
 }
