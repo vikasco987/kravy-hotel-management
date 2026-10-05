@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
     const payload = await request.json();
     console.log("Check-in Payload:", JSON.stringify(payload, null, 2));
-    const { roomIds, roomPricing, roomGuests, totalAmount, advancePaid, paymentMode, checkInDate, checkOutDate } = payload;
+    const { reservationId, roomIds, roomPricing, roomGuests, totalAmount, advancePaid, paymentMode, checkInDate, checkOutDate } = payload;
 
     if (!roomIds || !Array.isArray(roomIds) || roomIds.length === 0) {
       console.log("Error: No rooms selected");
@@ -137,17 +137,31 @@ export async function POST(request: Request) {
          }
       }
 
-      console.log("Creating Reservation record");
-      // 2. Create Reservation
-      const reservation = await tx.reservation.create({
-        data: {
-          hotelId: hotelId,
-          guestId: guest.id,
-          status: 'CHECKED_IN',
-          totalAmount: Math.round(totalAmount * 100),
-          advancePaid: Math.round(advancePaid * 100),
-        }
-      });
+      console.log("Handling Reservation record");
+      let reservationIdToUse = reservationId;
+      if (reservationId) {
+         await tx.reservation.update({
+           where: { id: reservationId },
+           data: {
+             guestId: guest.id,
+             status: 'CHECKED_IN',
+             totalAmount: Math.round(totalAmount * 100),
+             advancePaid: Math.round(advancePaid * 100)
+           }
+         });
+         await tx.reservationRoom.deleteMany({ where: { reservationId: reservationId } });
+      } else {
+         const newRes = await tx.reservation.create({
+           data: {
+             hotelId: hotelId,
+             guestId: guest.id,
+             status: 'CHECKED_IN',
+             totalAmount: Math.round(totalAmount * 100),
+             advancePaid: Math.round(advancePaid * 100),
+           }
+         });
+         reservationIdToUse = newRes.id;
+      }
 
       console.log("Creating ReservationRoom records to persist check-in/out dates");
       const nights = calculateNights(checkInDate, checkOutDate);
@@ -156,7 +170,7 @@ export async function POST(request: Request) {
              const room = dbRooms.find(r => r.id === roomId);
              await tx.reservationRoom.create({
                 data: {
-                   reservationId: reservation.id,
+                   reservationId: reservationIdToUse,
                    roomId: roomId,
                    checkInDate: new Date(checkInDate),
                    checkOutDate: new Date(checkOutDate),
@@ -172,7 +186,7 @@ export async function POST(request: Request) {
       // 3. Create Stay
       const stayRecord = await tx.stay.create({
         data: {
-          reservationId: reservation.id
+          reservationId: reservationIdToUse
         }
       });
 
@@ -191,7 +205,7 @@ export async function POST(request: Request) {
               where: {
                  roomId: roomId,
                  reservationId: {
-                    not: reservation.id
+                    not: reservationIdToUse
                  },
                  reservation: {
                     status: {

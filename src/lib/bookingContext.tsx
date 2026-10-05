@@ -14,6 +14,8 @@ export interface GuestData {
   idNumber?: string;
   photoUrl?: string;
   idDocuments?: { url: string; number?: string }[];
+  isVerified?: boolean;
+  documentType?: string;
 }
 
 interface BookingContextType {

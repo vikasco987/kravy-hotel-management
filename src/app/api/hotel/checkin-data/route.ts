@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 export async function GET(req: Request) {
   try {
     const authContext = await getAuthContext();
-    if (!authContext || !authContext.user) {
+    if (!authContext || !authContext.user || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
           include: { documents: true }
         },
         rooms: true,
-        stay: { include: { rooms: true } }
+        stay: { include: { stayRooms: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -57,7 +57,7 @@ export async function GET(req: Request) {
       let totalNights = 0;
       let roomNames: string[] = [];
 
-      const roomsToMap = res.rooms && res.rooms.length > 0 ? res.rooms : (res.stay?.rooms || []);
+      const roomsToMap = res.rooms && res.rooms.length > 0 ? res.rooms : (res.stay?.stayRooms || []);
       
       for (const rr of roomsToMap) {
          if (rr.checkInDate && (!minCheckIn || new Date(rr.checkInDate) < minCheckIn)) minCheckIn = new Date(rr.checkInDate);

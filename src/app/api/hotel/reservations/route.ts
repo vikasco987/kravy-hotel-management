@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 export async function GET(req: Request) {
   try {
     const authContext = await getAuthContext();
-    if (!authContext || !authContext.user) {
+    if (!authContext || !authContext.user || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -24,7 +24,9 @@ export async function GET(req: Request) {
             // Let's check prisma schema. Wait, we'll just return what's available
           }
         },
-        stay: true
+        stay: {
+          include: { stayRooms: true }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -53,6 +55,7 @@ export async function GET(req: Request) {
       let totalNights = 0;
       let roomNames = [];
 
+      let totalGuests = 0;
       for (const rr of res.rooms) {
          if (!minCheckIn || new Date(rr.checkInDate) < minCheckIn) minCheckIn = new Date(rr.checkInDate);
          if (!maxCheckOut || new Date(rr.checkOutDate) > maxCheckOut) maxCheckOut = new Date(rr.checkOutDate);
@@ -64,6 +67,12 @@ export async function GET(req: Request) {
          } else {
            roomNames.push(`Unassigned`);
          }
+         
+         if (rr.guestsData && Array.isArray(rr.guestsData)) {
+            totalGuests += rr.guestsData.length;
+         } else {
+            totalGuests += 1;
+         }
       }
 
       if (res.status === 'RESERVED' || res.status === 'CONFIRMED') {
@@ -73,7 +82,16 @@ export async function GET(req: Request) {
          if (maxCheckOut && maxCheckOut >= todayStart) upcomingCheckOuts++;
       }
 
+      let firstActiveRoomId = null;
+      if (res.stay && res.stay.stayRooms) {
+         firstActiveRoomId = res.stay.stayRooms.find((sr: any) => !sr.checkOutDate)?.roomId;
+      }
+      if (!firstActiveRoomId && res.rooms && res.rooms.length > 0) {
+         firstActiveRoomId = res.rooms[0].roomId;
+      }
+
       return {
+        firstActiveRoomId,
         id: res.id,
         shortId: res.id.substring(res.id.length - 4).toUpperCase(),
         guestName: res.guest.name,
@@ -82,8 +100,11 @@ export async function GET(req: Request) {
         checkInDate: minCheckIn,
         checkOutDate: maxCheckOut,
         nights: totalNights || 1,
+        guests: totalGuests || 1,
         totalAmount: res.totalAmount,
         status: res.status,
+        source: 'Direct',
+        createdAt: res.createdAt
       };
     });
 
@@ -101,5 +122,90 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error('Failed to fetch reservations:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+
+export async function POST(req: Request) {
+  try {
+    const authContext = await getAuthContext();
+    if (!authContext || !authContext.user || !authContext.hotel) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const hotelId = authContext.hotel.id;
+    const body = await req.json();
+    const { 
+      guestName, guestPhone, guestEmail, guestAddress,
+      checkInDate, checkOutDate, nights,
+      rooms, // Array of { roomId, baseRate, guestsData }
+      totalAmount, advanceAmount, paymentMode,
+      source
+    } = body;
+
+    if (!rooms || rooms.length === 0) {
+      return NextResponse.json({ error: 'At least one room must be selected' }, { status: 400 });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create Guest
+      const guest = await tx.guest.create({
+         data: {
+            businessId: authContext.business.id,
+            name: guestName,
+            phone: guestPhone,
+            email: guestEmail
+         }
+      });
+
+      // 2. Create Reservation
+      const reservation = await tx.reservation.create({
+         data: {
+            hotelId,
+            guestId: guest.id,
+            status: 'RESERVED',
+            totalAmount: Math.round(totalAmount * 100),
+            advancePaid: advanceAmount ? Math.round(advanceAmount * 100) : 0,
+         }
+      });
+
+      // 3. Create Reservation Rooms
+      for (const room of rooms) {
+         // Overlap protection
+         const existing = await tx.reservationRoom.findFirst({
+            where: {
+               roomId: room.roomId,
+               reservation: { status: { in: ['RESERVED', 'CONFIRMED', 'CHECKED_IN'] } },
+               OR: [
+                  { checkInDate: { lt: new Date(checkOutDate) }, checkOutDate: { gt: new Date(checkInDate) } }
+               ]
+            }
+         });
+         
+         if (existing) {
+             throw new Error(`Room ${room.roomId} is already booked for these dates.`);
+         }
+
+         await tx.reservationRoom.create({
+            data: {
+               reservationId: reservation.id,
+               roomId: room.roomId,
+               checkInDate: new Date(checkInDate),
+               checkOutDate: new Date(checkOutDate),
+               baseRate: room.baseRate ? Math.round(room.baseRate * 100) : 0,
+               appliedRate: room.baseRate ? Math.round(room.baseRate * 100) : 0,
+               guestsData: room.guestsData || null
+            }
+         });
+      }
+
+      return reservation;
+    });
+
+    return NextResponse.json({ success: true, reservation: result }, { status: 201 });
+
+  } catch (error: any) {
+    console.error('Error creating reservation:', error);
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }

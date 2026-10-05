@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useRouter } from 'next/navigation';
+import { useRef } from 'react';
 
 interface Reservation {
   id: string;
@@ -24,16 +25,27 @@ interface Reservation {
   guestName: string;
   guestPhone: string;
   rooms: string[];
+  firstActiveRoomId?: string;
   checkInDate: string;
   checkOutDate: string;
   nights: number;
+  guests: number;
   totalAmount: number;
   status: string;
+  source: string;
+  createdAt: string;
 }
 
 export default function ReservationsPage() {
   const [data, setData] = useState<{stats: any, reservations: Reservation[]} | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [checkInDateFilter, setCheckInDateFilter] = useState("");
+  const [checkOutDateFilter, setCheckOutDateFilter] = useState("");
+  const [actionMenuOpenId, setActionMenuOpenId] = useState<string | null>(null);
+  const [deleteModalRes, setDeleteModalRes] = useState<Reservation | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -59,8 +71,10 @@ export default function ReservationsPage() {
         return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Checked Out</span>;
       case 'CONFIRMED':
         return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span> Confirmed</span>;
-      default:
-        return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Pending</span>;
+      case 'RESERVED':
+          return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Reserved</span>;
+        default:
+          return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-50 text-gray-700 border border-gray-100"><span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span> {status}</span>;
     }
   };
 
@@ -79,7 +93,35 @@ export default function ReservationsPage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500 bg-[#F4F6F9]">Loading Reservations...</div>;
 
   const stats = data?.stats || { total: 0, checkedIn: 0, checkedOut: 0, upcomingCheckIns: 0, upcomingCheckOuts: 0 };
-  const reservations = data?.reservations || [];
+  const allReservations = data?.reservations || [];
+  
+  const filteredReservations = allReservations.filter((res: Reservation) => {
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || 
+      res.guestName.toLowerCase().includes(searchLower) || 
+      res.guestPhone.includes(searchLower) ||
+      res.shortId.toLowerCase().includes(searchLower) ||
+      res.rooms.some(r => r.toLowerCase().includes(searchLower));
+
+    let matchesStatus = true;
+    const today = dayjs().startOf('day');
+    const resCheckIn = res.checkInDate ? dayjs(res.checkInDate).startOf('day') : null;
+    
+    if (statusFilter === 'Upcoming') {
+      matchesStatus = Boolean((res.status === 'RESERVED' || res.status === 'CONFIRMED') && resCheckIn && resCheckIn.isAfter(today));
+    } else if (statusFilter === 'Today') {
+      matchesStatus = Boolean(resCheckIn && resCheckIn.isSame(today));
+    } else if (statusFilter !== 'All') {
+      matchesStatus = res.status === statusFilter;
+    }
+
+    const matchesCheckIn = !checkInDateFilter || (resCheckIn && resCheckIn.isSame(dayjs(checkInDateFilter).startOf('day')));
+    const matchesCheckOut = !checkOutDateFilter || (res.checkOutDate && dayjs(res.checkOutDate).startOf('day').isSame(dayjs(checkOutDateFilter).startOf('day')));
+    
+    return matchesSearch && matchesStatus && matchesCheckIn && matchesCheckOut;
+  });
+  
+  const reservations = filteredReservations;
 
   return (
     <div className="min-h-screen bg-[#F4F6F9] font-sans">
@@ -176,36 +218,44 @@ export default function ReservationsPage() {
            <div className="flex-1 flex gap-4 w-full">
               <div className="relative flex-1 max-w-[400px]">
                  <Search size={16} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                 <input type="text" placeholder="Search by guest name, room, or reservation ID..." className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium" />
+                 <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by guest name, room, or reservation ID..." className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-gray-900" />
               </div>
               
-              <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2 cursor-pointer hover:bg-gray-50">
+              <div className="relative flex items-center bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2 cursor-pointer hover:bg-gray-50">
                  <Calendar size={16} className="text-gray-400 mr-2" />
                  <div className="flex flex-col">
                    <span className="text-[10px] font-bold text-gray-400 uppercase">Check-in</span>
-                   <span className="text-xs font-bold text-gray-700">Any date</span>
+                   <input type="date" value={checkInDateFilter} onChange={(e) => setCheckInDateFilter(e.target.value)} className="text-xs font-bold text-gray-700 outline-none bg-transparent" />
                  </div>
-                 <ChevronDown size={14} className="text-gray-400 ml-4" />
               </div>
               
-              <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2 cursor-pointer hover:bg-gray-50">
+              <div className="relative flex items-center bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2 cursor-pointer hover:bg-gray-50">
                  <Calendar size={16} className="text-gray-400 mr-2" />
                  <div className="flex flex-col">
                    <span className="text-[10px] font-bold text-gray-400 uppercase">Check-out</span>
-                   <span className="text-xs font-bold text-gray-700">Any date</span>
+                   <input type="date" value={checkOutDateFilter} onChange={(e) => setCheckOutDateFilter(e.target.value)} className="text-xs font-bold text-gray-700 outline-none bg-transparent" />
                  </div>
-                 <ChevronDown size={14} className="text-gray-400 ml-4" />
               </div>
               
-              <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2 min-w-[140px] cursor-pointer hover:bg-gray-50">
-                 <span className="text-xs font-bold text-gray-700">All Status</span>
-                 <ChevronDown size={14} className="text-gray-400" />
-              </div>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-3 min-w-[140px] cursor-pointer hover:bg-gray-50 outline-none text-xs font-bold text-gray-700 appearance-none">
+                  <option value="All">All Status</option>
+                  <option value="Today">Today's Check-ins</option>
+                  <option value="Upcoming">Upcoming</option>
+                  <option value="RESERVED">Reserved</option>
+                  <option value="CONFIRMED">Confirmed</option>
+                  <option value="CHECKED_IN">Checked In</option>
+                  <option value="CHECKED_OUT">Checked Out</option>
+                  <option value="CANCELLED">Cancelled</option>
+              </select>
            </div>
-           
-           <button onClick={() => router.push('/dashboard/book')} className="bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md hover:bg-indigo-700 transition whitespace-nowrap">
-             <Plus size={16} strokeWidth={3} /> New Reservation
-           </button>
+           <div className="flex gap-2">
+             <button onClick={() => router.push('/dashboard/reservations/calendar')} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm transition whitespace-nowrap">
+               <CalendarDays size={16} strokeWidth={2.5} /> Calendar
+             </button>
+             <button onClick={() => router.push('/dashboard/reservations/wizard')} className="bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md hover:bg-indigo-700 transition whitespace-nowrap">
+               <Plus size={16} strokeWidth={3} /> New Reservation
+             </button>
+           </div>
         </div>
 
         {/* DATA TABLE */}
@@ -220,15 +270,18 @@ export default function ReservationsPage() {
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Check-in</th>
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Check-out</th>
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Nights</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Guests</th>
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total Amount</th>
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Source</th>
+                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Created At</th>
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider text-center">Actions</th>
                  </tr>
                </thead>
                <tbody className="divide-y divide-gray-50">
                  {reservations.length === 0 ? (
                    <tr>
-                     <td colSpan={9} className="px-6 py-12 text-center text-gray-400 font-medium">No reservations found.</td>
+                     <td colSpan={12} className="px-6 py-12 text-center text-gray-400 font-medium">No reservations found.</td>
                    </tr>
                  ) : reservations.map((res) => (
                    <tr key={res.id} className="hover:bg-gray-50/50 transition-colors">
@@ -245,11 +298,17 @@ export default function ReservationsPage() {
                        </div>
                      </td>
                      <td className="px-6 py-4">
-                       <div className="flex flex-col">
-                         <span className="text-sm font-bold text-gray-800">{res.rooms.length > 0 ? res.rooms[0].split('(')[0].trim() : 'Unassigned'}</span>
-                         {res.rooms.length > 0 && <span className="text-[11px] text-gray-500 font-medium">({res.rooms[0].split('(')[1] || 'Standard)'}</span>}
-                       </div>
-                     </td>
+    <div className="flex flex-col">
+      {res.rooms.length > 0 ? (
+         <>
+           <span className="text-sm font-bold text-gray-800">{res.rooms.length > 1 ? `${res.rooms[0].split('(')[0].trim()} +${res.rooms.length - 1}` : res.rooms[0].split('(')[0].trim()}</span>
+           <span className="text-[11px] text-gray-500 font-medium">{res.rooms.length > 1 ? 'Multi-room' : `(${res.rooms[0].split('(')[1] || 'Standard)'}`}</span>
+         </>
+      ) : (
+         <span className="text-sm font-bold text-gray-800">Unassigned</span>
+      )}
+    </div>
+  </td>
                      <td className="px-6 py-4">
                        <div className="flex flex-col">
                          <span className="text-xs font-bold text-gray-800">{res.checkInDate ? dayjs(res.checkInDate).format('DD MMM YYYY') : '-'}</span>
@@ -266,15 +325,66 @@ export default function ReservationsPage() {
                        {res.nights}
                      </td>
                      <td className="px-6 py-4 text-sm font-bold text-gray-800">
-                       ₹ {res.totalAmount ? (res.totalAmount/100).toLocaleString() : '0'}
-                     </td>
+    {res.guests}
+  </td>
+  <td className="px-6 py-4 text-sm font-bold text-gray-800">
+    ₹ {res.totalAmount ? (res.totalAmount/100).toLocaleString() : '0'}
+  </td>
                      <td className="px-6 py-4">
                        {getStatusBadge(res.status)}
                      </td>
-                     <td className="px-6 py-4 text-center">
-                       <button className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
+                     <td className="px-6 py-4">
+    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600">{res.source || 'Direct'}</span>
+  </td>
+  <td className="px-6 py-4">
+    <div className="flex flex-col">
+      <span className="text-xs font-bold text-gray-800">{res.createdAt ? dayjs(res.createdAt).format('DD MMM YYYY') : '-'}</span>
+      <span className="text-[10px] text-gray-500">{res.createdAt ? dayjs(res.createdAt).format('hh:mm A') : '-'}</span>
+    </div>
+  </td>
+  <td className="px-6 py-4 text-center relative">
+                       <button onClick={() => setActionMenuOpenId(actionMenuOpenId === res.id ? null : res.id)} className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
                          <MoreHorizontal size={16} />
                        </button>
+                       {actionMenuOpenId === res.id && (
+    <div className="absolute right-8 top-10 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden text-left">
+      <button onClick={() => router.push(`/dashboard/reservations/${res.id}`)} className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">View Details</button>
+      {(res.status === "RESERVED" || res.status === "CONFIRMED") && (
+         <>
+           <button onClick={() => router.push(`/dashboard/reservations/wizard?editId=${res.id}`)} className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Edit Reservation</button>
+           <button onClick={() => router.push(`/dashboard/book?resId=${res.id}`)} className="w-full text-left px-4 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Check-in</button>
+           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Add Payment</button>
+           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Change Room</button>
+           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Add Extra Service</button>
+           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Cancel Reservation</button>
+         </>
+      )}
+      {res.status === "CHECKED_IN" && (
+         <>
+           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Add Payment</button>
+           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Add Extra Service</button>
+           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Change Room</button>
+           <button onClick={() => {
+             if (!res.firstActiveRoomId) {
+               alert('No active room assigned for checkout.');
+               return;
+             }
+             router.push(`/dashboard/checkout?roomId=${res.firstActiveRoomId}`);
+           }} className="w-full text-left px-4 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Check-out</button>
+           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Print Invoice</button>
+         </>
+      )}
+      {res.status === "CHECKED_OUT" && (
+         <>
+           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Print Invoice</button>
+           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Payment/History</button>
+         </>
+      )}
+      {(res.status !== "CHECKED_IN" && res.status !== "CHECKED_OUT") && (
+         <button onClick={() => setDeleteModalRes(res)} className="w-full text-left px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 border-t border-gray-100 mt-1">Delete Reservation</button>
+      )}
+    </div>
+  )}
                      </td>
                    </tr>
                  ))}
@@ -304,7 +414,52 @@ export default function ReservationsPage() {
            )}
         </div>
 
-      </div>
+      </div>      {deleteModalRes && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-6">
+              <h3 className="text-xl font-black text-gray-900 mb-2">Delete Reservation?</h3>
+              <p className="text-sm font-medium text-gray-500 mb-6">
+                Are you sure you want to delete reservation <strong>#RES-{deleteModalRes.shortId}</strong> for guest <strong>{deleteModalRes.guestName}</strong>? This action cannot be undone.
+              </p>
+              
+              <div className="flex gap-3 justify-end">
+                <button 
+                  disabled={isDeleting}
+                  onClick={() => setDeleteModalRes(null)} 
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  disabled={isDeleting}
+                  onClick={async () => {
+                    setIsDeleting(true);
+                    try {
+                      const res = await fetch(`/api/hotel/reservations/${deleteModalRes.id}`, { method: 'DELETE' });
+                      const json = await res.json();
+                      if (res.ok) {
+                        window.location.reload();
+                      } else {
+                        alert(json.error || 'Failed to delete');
+                      }
+                    } catch(err) {
+                       console.error(err);
+                       alert('Error deleting');
+                    }
+                    setIsDeleting(false);
+                    setDeleteModalRes(null);
+                  }} 
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition"
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

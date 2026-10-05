@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useRef } from "react";
 import { Search, Settings, X, Trash2, Camera, User, Download, FileText, CheckCircle, Smartphone, Printer, Settings2, ShieldCheck, Banknote, BedDouble, UserRound, CalendarDays, BadgeCheck, TriangleAlert, ArrowLeftRight, Plus, CheckCircle2 } from "lucide-react";
 import { useBookingStore } from '@/lib/bookingContext';
 import RoomSetupModal, { RoomPricingSnapshot, GuestData } from "./RoomSetupModal";
@@ -35,45 +35,101 @@ function GuestCheckInSuite() {
   const [receiptData, setReceiptData] = useState<any>(null);
   
   const { roomPricing, roomGuests, setRoomPricing, setRoomGuests, checkInDate, checkOutDate } = useBookingStore();
+  const roomPricingRef = useRef(roomPricing);
+  useEffect(() => { roomPricingRef.current = roomPricing; }, [roomPricing]);
+
+  const resIdParam = searchParams.get("resId");
 
   useEffect(() => {
-    if (roomsParam) {
+    if (resIdParam) {
+      setIsFetching(true);
+      setFetchError(null);
+      fetch(`/api/hotel/reservations/${resIdParam}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.reservation) {
+             const resRecord = data.reservation;
+             const roomRecords = data.roomDetails || [];
+             setRooms(roomRecords.map((r: any) => r.id));
+             setFetchedRooms(roomRecords);
+             
+             const pricing: any = {};
+             const guestsInfo: any = {};
+             
+             resRecord.rooms.forEach((rr: any) => {
+                const discount = rr.baseRate - (rr.appliedRate || rr.baseRate);
+                pricing[rr.roomId] = {
+                     baseRate: rr.baseRate,
+                     discountAmount: discount > 0 ? discount : 0,
+                     extraChargesAmount: 0,
+                     cgstAmount: 0,
+                     sgstAmount: 0,
+                     taxAmount: 0,
+                     taxableAmount: (rr.appliedRate || rr.baseRate),
+                     taxMode: 'INCLUSIVE',
+                     taxRate: 1200,
+                     finalAmount: (rr.appliedRate || rr.baseRate),
+                     nights: rr.nights || Math.max(1, (new Date(rr.checkOutDate).getTime() - new Date(rr.checkInDate).getTime()) / (1000 * 3600 * 24))
+                  };
+                
+                if (rr.guestsData && Array.isArray(rr.guestsData) && rr.guestsData.length > 0) {
+                   guestsInfo[rr.roomId] = rr.guestsData;
+                } else {
+                   guestsInfo[rr.roomId] = [{
+                      name: resRecord.guest?.name || "",
+                      phone: resRecord.guest?.phone || "",
+                      documentType: "",
+                      documentNumber: "",
+                      documentUrl: null,
+                      isLead: true
+                   }];
+                }
+             });
+             if (Object.keys(roomPricing).length === 0) {
+               setRoomPricing(pricing);
+               setRoomGuests(guestsInfo);
+               setAdvancePaid((resRecord.advancePaid / 100).toString());
+             }
+          } else {
+             setFetchError("Reservation not found");
+          }
+        })
+        .catch(err => setFetchError(err.message))
+        .finally(() => setIsFetching(false));
+    } else if (roomsParam) {
       const roomIds = roomsParam.split(",");
       setRooms(roomIds);
       
       setIsFetching(true);
       setFetchError(null);
       
-      // Fetch actual room data
       fetch(`/api/hotel/rooms/bulk?ids=${roomsParam}`)
         .then(res => res.json())
         .then(data => {
           if (data.rooms && data.rooms.length > 0) {
             setFetchedRooms(data.rooms);
           } else {
-            // Fallback to dummy data for mock rooms from dashboard
             const fallbackRooms = roomIds.map(id => ({
               id: id,
               roomNumber: id.startsWith('room-') ? id.replace('room-', '') : id,
-              roomType: { basePrice: 300000 } // 3000.00 in paise
+              roomType: { basePrice: 300000 }
             }));
             setFetchedRooms(fallbackRooms);
             if (data.error) setFetchError(data.error);
           }
         })
         .catch(err => {
-            // Fallback on fetch error
             const fallbackRooms = roomIds.map(id => ({
               id: id,
               roomNumber: id.startsWith('room-') ? id.replace('room-', '') : id,
-              roomType: { basePrice: 250000 } // 2500.00 in paise
+              roomType: { basePrice: 250000 }
             }));
             setFetchedRooms(fallbackRooms);
             setFetchError(err.message);
         })
         .finally(() => setIsFetching(false));
     }
-  }, [roomsParam]);
+  }, [roomsParam, resIdParam]);
 
   // Calculations for mock UI using fetched data
   let totalRoomCharge = 0;
@@ -163,6 +219,7 @@ function GuestCheckInSuite() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          reservationId: resIdParam || undefined,
           roomIds: rooms,
           roomPricing: roomPricing,
           roomGuests: roomGuests,
@@ -234,7 +291,7 @@ function GuestCheckInSuite() {
           totalRoomRent: totalRoomCharge,
           totalExtraCharges: totalExtraCharges,
           totalGst: totalGst,
-          subtotal: totalRoomCharge + totalExtraCharges + totalGst,
+          subtotal: totalRoomCharge + totalExtraCharges,
           grandTotal: totalAmount,
           amountPaid: amtPaid,
           balanceDue: balDue > 0 ? balDue : 0,

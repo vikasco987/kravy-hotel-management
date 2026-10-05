@@ -482,13 +482,14 @@ const handleMediaUpload = async (docs: any[]) => {
                   <tbody className="bg-white">
                      {guests.map((g, idx) => (
                         <GuestRow 
-                           key={g.id} 
+                           key={g.id || `guest-${roomNo}-${idx}`} 
                            guest={g} 
                            index={idx}
                            updateGuest={updateGuest}
                            removeGuest={removeGuest}
                            guestsLength={guests.length}
                            onEditGuest={setEditingGuestId}
+                           roomNo={roomNo}
                         />
                      ))}
                   </tbody>
@@ -1051,7 +1052,7 @@ function ChargeCard({ title, value, icon, onChange, mode, onModeChange }: any) {
   );
 }
 
-function GuestRow({ guest, index, updateGuest, removeGuest, guestsLength, onEditGuest }: any) {
+function GuestRow({ guest, index, updateGuest, removeGuest, guestsLength, onEditGuest, roomNo }: any) {
   const hasDocument = (guest.idUrls && guest.idUrls.length > 0) || guest.idUrl || guest.idNumber || (guest.idDocuments && guest.idDocuments.length > 0);
   return (
     <tr className="border-b last:border-0 hover:bg-slate-50 transition-colors">
@@ -1071,7 +1072,7 @@ function GuestRow({ guest, index, updateGuest, removeGuest, guestsLength, onEdit
       </td>
       <td className="px-2 py-1.5">
         <input
-          value={guest.name}
+          value={guest.name || ''}
           onChange={(e) => updateGuest(guest.id, 'name', e.target.value)}
           placeholder="Full name"
           className="h-7 w-full rounded-lg border border-slate-200 px-2.5 text-[8px] font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -1079,7 +1080,7 @@ function GuestRow({ guest, index, updateGuest, removeGuest, guestsLength, onEdit
       </td>
       <td className="px-2 py-1.5">
         <input
-          value={guest.phone}
+          value={guest.phone || ''}
           onChange={(e) => updateGuest(guest.id, 'phone', e.target.value)}
           placeholder="Mobile number"
           className="h-7 w-full rounded-lg border border-slate-200 px-2.5 text-[8px] font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -1088,14 +1089,14 @@ function GuestRow({ guest, index, updateGuest, removeGuest, guestsLength, onEdit
       <td className="px-2 py-1.5">
         <input
           type="number"
-          value={guest.age}
+          value={guest.age || ''}
           onChange={(e) => updateGuest(guest.id, 'age', e.target.value)}
           placeholder="Age"
           className="h-7 w-14 rounded-lg border border-slate-200 px-2 text-center text-[8px] font-medium outline-none focus:border-blue-500"
         />
       </td>
       <td className="px-2 py-1.5">
-        <select value={guest.gender} onChange={(e) => updateGuest(guest.id, 'gender', e.target.value)} className="h-7 w-full rounded-lg border border-slate-200 px-2 text-[8px] font-medium outline-none focus:border-blue-500 appearance-none">
+        <select value={guest.gender || 'Male'} onChange={(e) => updateGuest(guest.id, 'gender', e.target.value)} className="h-7 w-full rounded-lg border border-slate-200 px-2 text-[8px] font-medium outline-none focus:border-blue-500 appearance-none">
           <option value="Male">Male</option>
           <option value="Female">Female</option>
           <option value="Other">Other</option>

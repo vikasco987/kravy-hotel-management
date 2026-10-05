@@ -673,7 +673,7 @@ function DashboardContent() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <QuickActionCard title="Guest Check-in" subtitle="New arrivals" icon={UserRound} onClick={() => router.push('/dashboard/book')} colorTheme={{ bg: 'bg-blue-50', text: 'text-blue-600' }} />
             <QuickActionCard title="Guest Check-out" subtitle="Departures today" icon={UserCheck} onClick={() => { }} colorTheme={{ bg: 'bg-purple-50', text: 'text-purple-600' }} />
-            <QuickActionCard title="Reservations" subtitle="Manage bookings" icon={CalendarDays} onClick={() => { }} colorTheme={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }} />
+            <QuickActionCard title="Reservations" subtitle="Manage bookings" icon={CalendarDays} onClick={() => router.push('/dashboard/reservations')} colorTheme={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }} />
             <QuickActionCard title="Housekeeping" subtitle="Room cleaning" icon={Sparkles} onClick={() => { }} colorTheme={{ bg: 'bg-amber-50', text: 'text-amber-600' }} />
             <QuickActionCard title="Restaurant" subtitle="View orders" icon={UtensilsCrossed} onClick={() => { }} colorTheme={{ bg: 'bg-rose-50', text: 'text-rose-600' }} />
             <QuickActionCard title="WhatsApp" subtitle="Guest messaging" icon={MessageCircle} onClick={() => { }} colorTheme={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }} />
