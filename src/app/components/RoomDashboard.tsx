@@ -957,11 +957,11 @@ function DashboardContent() {
                       <div className="flex justify-between items-center px-1 border-t border-dashed border-slate-200 pt-3">
                         <div>
                           <div className="text-[9px] font-bold text-slate-400 uppercase">Room Rate</div>
-                          <div className="text-[13px] font-black text-slate-800">â‚¹{(focusedRoom.guestInfo.roomRate || focusedRoom.price || 0) / 100}</div>
+                          <div className="text-[13px] font-black text-slate-800">₹{((focusedRoom.guestInfo.roomRate || focusedRoom.price || 0) / 100).toLocaleString('en-IN')}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-[9px] font-bold text-slate-400 uppercase">Balance</div>
-                          <div className={`text-[13px] font-black ${focusedRoom.guestInfo.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>â‚¹{focusedRoom.guestInfo.balance / 100}</div>
+                          <div className={`text-[13px] font-black ${focusedRoom.guestInfo.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>₹{(focusedRoom.guestInfo.balance / 100).toLocaleString('en-IN')}</div>
                         </div>
                       </div>
                     </div>
@@ -997,7 +997,7 @@ function DashboardContent() {
                         <IndianRupee size={14} className="text-rose-500" />
                         <span className="text-[10px] font-bold text-slate-500">Price</span>
                       </div>
-                      <div className="text-[13px] font-black text-slate-800 ml-5.5">â‚¹{(focusedRoom.price || 0) / 100} <span className="text-[8px] font-bold text-slate-400 uppercase">/ night</span></div>
+                      <div className="text-[13px] font-black text-slate-800 ml-5.5">₹{((focusedRoom.price || 0) / 100).toLocaleString('en-IN')} <span className="text-[8px] font-bold text-slate-400 uppercase">/ night</span></div>
                     </div>
                     <div className="bg-emerald-50/40 p-4 rounded-2xl flex flex-col justify-center border border-emerald-50">
                       <div className="flex items-center gap-2 mb-1.5">
