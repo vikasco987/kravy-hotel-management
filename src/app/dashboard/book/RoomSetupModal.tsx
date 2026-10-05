@@ -999,7 +999,7 @@ const handleMediaUpload = async (docs: any[]) => {
                      id: initialData?.id || ('g' + Date.now()), 
                      name, phone, age, gender, isLead, 
                      idUrls, idNumber, photoUrl,
-                     isVerified: initialData?.isVerified || false,
+                     isVerified: (idUrls && idUrls.length > 0) ? true : (initialData?.isVerified || false),
                      documentType: initialData?.documentType || (idUrls.length > 0 ? "ID Document" : undefined)
                   });
                }} 

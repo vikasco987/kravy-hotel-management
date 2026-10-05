@@ -85,7 +85,8 @@ export async function POST(request: Request) {
                   guestId: guest.id,
                   documentType: 'ID',
                   documentNumber: leadGuestData.idNumber || null,
-                  fileReference: url
+                  fileReference: url,
+                  verificationStatus: 'VERIFIED'
                }
             });
          }
@@ -96,7 +97,8 @@ export async function POST(request: Request) {
                   guestId: guest.id,
                   documentType: 'ID',
                   documentNumber: doc.number || null,
-                  fileReference: doc.url
+                  fileReference: doc.url,
+                  verificationStatus: 'VERIFIED'
                }
             });
          }
@@ -107,7 +109,8 @@ export async function POST(request: Request) {
                guestId: guest.id,
                documentType: 'ID',
                documentNumber: leadGuestData.idNumber || null,
-               fileReference: leadGuestData.idUrl
+               fileReference: leadGuestData.idUrl,
+               verificationStatus: 'VERIFIED'
             }
          });
       }
@@ -126,12 +129,12 @@ export async function POST(request: Request) {
              if (g.idUrls && g.idUrls.length > 0) {
                  for (const url of g.idUrls) {
                     await tx.guestDocument.create({
-                       data: { guestId: secondaryGuest.id, documentType: 'ID', documentNumber: g.idNumber || null, fileReference: url }
+                       data: { guestId: secondaryGuest.id, documentType: 'ID', documentNumber: g.idNumber || null, fileReference: url, verificationStatus: 'VERIFIED' }
                     });
                  }
              } else if (g.idUrl) {
                 await tx.guestDocument.create({
-                   data: { guestId: secondaryGuest.id, documentType: 'ID', documentNumber: g.idNumber || null, fileReference: g.idUrl }
+                   data: { guestId: secondaryGuest.id, documentType: 'ID', documentNumber: g.idNumber || null, fileReference: g.idUrl, verificationStatus: 'VERIFIED' }
                 });
              }
          }
