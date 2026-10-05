@@ -218,7 +218,7 @@ export default function ReservationCalendarPage() {
              
              <div className="relative">
                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-               <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} type="text" placeholder="Search..." className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-xs font-medium w-40 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+               <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} type="text" placeholder="Search..." className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-900 w-40 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
              </div>
              
              <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="border border-gray-200 rounded-lg text-xs font-bold text-gray-700 px-3 py-2 outline-none appearance-none bg-white min-w-[110px]">

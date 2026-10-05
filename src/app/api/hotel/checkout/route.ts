@@ -55,10 +55,10 @@ export async function GET(req: Request) {
                 roomType: true,
                 floor: true
               }
-            },
-            roomCharges: true
+            }
           }
-        }
+        },
+        roomCharges: true
       }
     });
 
@@ -95,16 +95,15 @@ export async function GET(req: Request) {
         finalAmount: sr.finalAmount,
         guestsData: sr.guestsData,
       })),
-      extraCharges: stayContext.stayRooms.flatMap(sr => sr.roomCharges.map(charge => ({
+      extraCharges: stayContext.roomCharges.map(charge => ({
         id: charge.id,
-        stayRoomId: sr.id,
+        stayRoomId: (charge as any).stayRoomId,
         description: charge.description,
         type: charge.chargeType,
         amount: charge.amount, // minor units (paise)
         quantity: charge.quantity,
         total: charge.totalAmount
-
-      })))
+      }))
     };
 
     return NextResponse.json(payload, { status: 200 });
