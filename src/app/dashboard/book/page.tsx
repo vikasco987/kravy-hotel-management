@@ -8,6 +8,7 @@ import RoomSetupModal, { RoomPricingSnapshot, GuestData } from "./RoomSetupModal
 import CheckInReceiptModal from "@/components/hotel/CheckInReceiptModal";
 import ChangeRoomModal from "@/components/hotel/ChangeRoomModal";
 import ColumnSettingsModal from "./ColumnSettingsModal";
+import AvailableRoomSelection from "./AvailableRoomSelection";
 
 function GuestCheckInSuite() {
   const searchParams = useSearchParams();
@@ -318,6 +319,12 @@ function GuestCheckInSuite() {
     }
   };
 
+  const showSelection = !resIdParam && !roomsParam && !isFetching;
+
+  if (showSelection) {
+     return <AvailableRoomSelection initialRooms={rooms} onComplete={(ids) => { setRooms(ids); router.push('/dashboard/book?rooms=' + ids.join(',')); }} />;
+  }
+
   return (
     <div className="bg-[#f0f4f8] min-h-screen flex flex-col font-sans overflow-hidden h-screen">
       
@@ -346,7 +353,7 @@ function GuestCheckInSuite() {
 
         <div className="flex items-center gap-2">
            <button 
-             onClick={() => router.push('/dashboard')}
+             onClick={() => router.push('/dashboard/book')}
              className="bg-[#0e2a6d] text-white px-4 py-1.5 rounded-md text-sm font-bold shadow-sm flex items-center gap-2 hover:bg-[#091a42]"
            >
               <CheckCircle size={14} /> Choose / Add Rooms
