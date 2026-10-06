@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useRouter } from 'next/navigation';
+import { ReservationDetailsDrawer } from './ReservationDetailsDrawer';
 import { useRef } from 'react';
 
 interface Reservation {
@@ -44,6 +45,7 @@ export default function ReservationsPage() {
   const [checkInDateFilter, setCheckInDateFilter] = useState("");
   const [checkOutDateFilter, setCheckOutDateFilter] = useState("");
   const [actionMenuOpenId, setActionMenuOpenId] = useState<string | null>(null);
+  const [detailsReservationId, setDetailsReservationId] = useState<string | null>(null);
   const [deleteModalRes, setDeleteModalRes] = useState<Reservation | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
@@ -348,7 +350,7 @@ export default function ReservationsPage() {
                        </button>
                        {actionMenuOpenId === res.id && (
     <div className="absolute right-8 top-10 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden text-left">
-      <button onClick={() => router.push(`/dashboard/reservations/${res.id}`)} className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">View Details</button>
+      <button onClick={() => { setActionMenuOpenId(null); setDetailsReservationId(res.id); }} className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">View Details</button>
       {(res.status === "RESERVED" || res.status === "CONFIRMED") && (
          <>
            <button onClick={() => router.push(`/dashboard/reservations/wizard?editId=${res.id}`)} className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Edit Reservation</button>
@@ -458,6 +460,13 @@ export default function ReservationsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {detailsReservationId && (
+        <ReservationDetailsDrawer
+          reservationId={detailsReservationId}
+          onClose={() => setDetailsReservationId(null)}
+        />
       )}
 
     </div>
