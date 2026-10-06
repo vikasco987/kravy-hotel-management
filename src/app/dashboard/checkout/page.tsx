@@ -7,11 +7,13 @@ import {
   MapPin, Link2, Download, Settings, Trash2, Plus, BedDouble, FileText
 } from 'lucide-react';
 import dayjs from 'dayjs';
+import OccupiedRoomSelection from "./OccupiedRoomSelection";
 
 function CheckoutSuite() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const roomId = searchParams.get('roomId');
+  const selectedRoomsParam = searchParams.get('selectedRooms');
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,11 +53,10 @@ function CheckoutSuite() {
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!roomId) {
-      setError('No room ID provided');
-      setIsLoading(false);
-      return;
-    }
+    if (!roomId) { return; }
+
+    setIsLoading(true);
+    setError('');
 
     const fetchContext = async () => {
       try {
@@ -63,8 +64,14 @@ function CheckoutSuite() {
         const json = await res.json();
         if (res.ok) {
           setData(json);
-          // By default, select all linked rooms
-          setSelectedStayRoomIds(json.linkedRooms.map((r: any) => r.stayRoomId));
+          // By default, select all linked rooms or use selectedRooms param
+          if (selectedRoomsParam) {
+            const selectedRoomIds = selectedRoomsParam.split(',');
+            const stayRoomIds = json.linkedRooms.filter((r: any) => selectedRoomIds.includes(r.roomId)).map((r: any) => r.stayRoomId);
+            setSelectedStayRoomIds(stayRoomIds.length > 0 ? stayRoomIds : json.linkedRooms.map((r: any) => r.stayRoomId));
+          } else {
+            setSelectedStayRoomIds(json.linkedRooms.map((r: any) => r.stayRoomId));
+          }
         } else {
           setError(json.error || 'Failed to load checkout data');
         }
@@ -76,6 +83,10 @@ function CheckoutSuite() {
     };
     fetchContext();
   }, [roomId]);
+
+  if (!roomId) {
+     return <OccupiedRoomSelection onComplete={(ids) => router.push(`/dashboard/checkout?roomId=${ids[0]}&selectedRooms=${ids.join(',')}`)} />;
+  }
 
   if (isLoading) return <div className="h-screen w-screen flex items-center justify-center bg-[#fdfaf5]"><div className="animate-spin text-teal-700">Loading Checkout Suite...</div></div>;
   if (error || !data) return <div className="p-8 text-center text-red-500 font-bold">{error}</div>;
