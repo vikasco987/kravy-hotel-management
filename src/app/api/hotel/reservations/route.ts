@@ -211,7 +211,8 @@ export async function GET(req: Request) {
         page: safePage,
         limit,
         totalPages
-      }
+      },
+      isAdmin: authContext.user.type === 'ADMIN' || authContext.user.type === 'OWNER' || authContext.business?.createdBy === authContext.user.id
     });
   } catch (error: any) {
     console.error('Failed to fetch reservations:', error);
