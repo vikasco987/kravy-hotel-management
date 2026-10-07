@@ -50,12 +50,37 @@ export default function ReservationsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
 
+  const [page, setPage] = useState(1);
+  const [paginationData, setPaginationData] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
   useEffect(() => {
-    fetch('/api/hotel/reservations')
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter, checkInDateFilter, checkOutDateFilter]);
+
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: '10',
+      search: debouncedSearch,
+      status: statusFilter,
+      checkInDate: checkInDateFilter,
+      checkOutDate: checkOutDateFilter
+    });
+    fetch(`/api/hotel/reservations?${params.toString()}`)
       .then(res => res.json())
       .then(d => {
         if (d.success) {
           setData({ stats: d.stats, reservations: d.reservations });
+          if (d.pagination) setPaginationData(d.pagination);
         }
         setLoading(false);
       })
@@ -63,7 +88,7 @@ export default function ReservationsPage() {
         console.error(e);
         setLoading(false);
       });
-  }, []);
+  }, [page, debouncedSearch, statusFilter, checkInDateFilter, checkOutDateFilter]);
 
   const getStatusBadge = (status: string) => {
     switch(status) {
@@ -97,33 +122,7 @@ export default function ReservationsPage() {
   const stats = data?.stats || { total: 0, checkedIn: 0, checkedOut: 0, upcomingCheckIns: 0, upcomingCheckOuts: 0 };
   const allReservations = data?.reservations || [];
   
-  const filteredReservations = allReservations.filter((res: Reservation) => {
-    const searchLower = searchQuery.toLowerCase();
-    const matchesSearch = !searchQuery || 
-      res.guestName.toLowerCase().includes(searchLower) || 
-      res.guestPhone.includes(searchLower) ||
-      res.shortId.toLowerCase().includes(searchLower) ||
-      res.rooms.some(r => r.toLowerCase().includes(searchLower));
-
-    let matchesStatus = true;
-    const today = dayjs().startOf('day');
-    const resCheckIn = res.checkInDate ? dayjs(res.checkInDate).startOf('day') : null;
-    
-    if (statusFilter === 'Upcoming') {
-      matchesStatus = Boolean((res.status === 'RESERVED' || res.status === 'CONFIRMED') && resCheckIn && resCheckIn.isAfter(today));
-    } else if (statusFilter === 'Today') {
-      matchesStatus = Boolean(resCheckIn && resCheckIn.isSame(today));
-    } else if (statusFilter !== 'All') {
-      matchesStatus = res.status === statusFilter;
-    }
-
-    const matchesCheckIn = !checkInDateFilter || (resCheckIn && resCheckIn.isSame(dayjs(checkInDateFilter).startOf('day')));
-    const matchesCheckOut = !checkOutDateFilter || (res.checkOutDate && dayjs(res.checkOutDate).startOf('day').isSame(dayjs(checkOutDateFilter).startOf('day')));
-    
-    return matchesSearch && matchesStatus && matchesCheckIn && matchesCheckOut;
-  });
-  
-  const reservations = filteredReservations;
+  const reservations = allReservations;
 
   return (
     <div className="min-h-screen bg-[#F4F6F9] font-sans">
@@ -275,7 +274,6 @@ export default function ReservationsPage() {
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Guests</th>
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total Amount</th>
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                   <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Source</th>
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Created At</th>
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider text-center">Actions</th>
                  </tr>
@@ -283,7 +281,7 @@ export default function ReservationsPage() {
                <tbody className="divide-y divide-gray-50">
                  {reservations.length === 0 ? (
                    <tr>
-                     <td colSpan={12} className="px-6 py-12 text-center text-gray-400 font-medium">No reservations found.</td>
+                     <td colSpan={11} className="px-6 py-12 text-center text-gray-400 font-medium">No reservations found.</td>
                    </tr>
                  ) : reservations.map((res) => (
                    <tr key={res.id} className="hover:bg-gray-50/50 transition-colors">
@@ -335,9 +333,6 @@ export default function ReservationsPage() {
                      <td className="px-6 py-4">
                        {getStatusBadge(res.status)}
                      </td>
-                     <td className="px-6 py-4">
-    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600">{res.source || 'Direct'}</span>
-  </td>
   <td className="px-6 py-4">
     <div className="flex flex-col">
       <span className="text-xs font-bold text-gray-800">{res.createdAt ? dayjs(res.createdAt).format('DD MMM YYYY') : '-'}</span>
@@ -397,21 +392,47 @@ export default function ReservationsPage() {
            {/* PAGINATION FOOTER */}
            {reservations.length > 0 && (
              <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-               <span className="text-xs font-medium text-gray-500">Showing {reservations.length} of {stats.total} reservations</span>
-               <div className="flex items-center gap-2">
-                 <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition">
-                   <ChevronLeft size={14} />
-                 </button>
-                 <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-xs shadow-sm">
-                   1
-                 </button>
-                 <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 font-bold text-xs hover:bg-gray-50 transition">
-                   2
-                 </button>
-                 <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition">
-                   <ChevronRight size={14} />
-                 </button>
-               </div>
+               <span className="text-xs font-medium text-gray-500">
+                 Showing {reservations.length} of {paginationData.total} reservations
+               </span>
+               {paginationData.totalPages > 1 && (
+                 <div className="flex items-center gap-2">
+                   <button 
+                     onClick={() => setPage(p => Math.max(1, p - 1))}
+                     disabled={page === 1}
+                     className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                     <ChevronLeft size={14} />
+                   </button>
+                   
+                   {Array.from({ length: paginationData.totalPages }).map((_, i) => {
+                     const p = i + 1;
+                     if (p === 1 || p === paginationData.totalPages || (p >= page - 1 && p <= page + 1)) {
+                       return (
+                         <button 
+                           key={p}
+                           onClick={() => setPage(p)}
+                           className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs transition ${
+                             page === p 
+                               ? 'bg-indigo-600 text-white shadow-sm' 
+                               : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                           }`}>
+                           {p}
+                         </button>
+                       );
+                     } else if (p === page - 2 || p === page + 2) {
+                       return <span key={p} className="text-gray-400 text-xs">...</span>;
+                     }
+                     return null;
+                   })}
+                   
+                   <button 
+                     onClick={() => setPage(p => Math.min(paginationData.totalPages, p + 1))}
+                     disabled={page === paginationData.totalPages}
+                     className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                     <ChevronRight size={14} />
+                   </button>
+                 </div>
+               )}
              </div>
            )}
         </div>

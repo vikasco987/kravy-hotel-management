@@ -1,10 +1,12 @@
-import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { getAuthContext } from '@/lib/authContext';
+const fs = require('fs');
 
-const prisma = new PrismaClient();
+const routeFile = 'C:/studio/kravy-hotel-management/src/app/api/hotel/reservations/route.ts';
+let routeCode = fs.readFileSync(routeFile, 'utf8');
 
-export async function GET(req: Request) {
+// Replace the GET method
+const oldGetRegex = /export async function GET\(req: Request\) \{[\s\S]*?catch \(error: any\) \{[\s\S]*?return NextResponse.json\(\{ error: error.message \}, \{ status: 500 \}\);\s*\}\s*\}/;
+
+const newGet = `export async function GET(req: Request) {
   try {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.user || !authContext.hotel) {
@@ -48,18 +50,18 @@ export async function GET(req: Request) {
       if (res.status === 'CHECKED_IN') checkedIn++;
       if (res.status === 'CHECKED_OUT') checkedOut++;
       
-      let minCI: Date | null = null;
-      let maxCO: Date | null = null;
+      let minCI = null;
+      let maxCO = null;
       res.rooms.forEach(r => {
         if (!minCI || new Date(r.checkInDate) < minCI) minCI = new Date(r.checkInDate);
         if (!maxCO || new Date(r.checkOutDate) > maxCO) maxCO = new Date(r.checkOutDate);
       });
 
       if (res.status === 'RESERVED' || res.status === 'CONFIRMED') {
-         if (minCI && (minCI as Date).getTime() >= todayStart.getTime()) upcomingCheckIns++;
+         if (minCI && minCI >= todayStart) upcomingCheckIns++;
       }
       if (res.status === 'CHECKED_IN') {
-         if (maxCO && (maxCO as Date).getTime() >= todayStart.getTime()) upcomingCheckOuts++;
+         if (maxCO && maxCO >= todayStart) upcomingCheckOuts++;
       }
     });
 
@@ -152,9 +154,9 @@ export async function GET(req: Request) {
          
          if (rr.roomId && roomMap.has(rr.roomId)) {
            const rObj = roomMap.get(rr.roomId);
-           roomNames.push(`Room ${rObj.roomNumber} (${rObj.roomType.name})`);
+           roomNames.push(\`Room \${rObj.roomNumber} (\${rObj.roomType.name})\`);
          } else {
-           roomNames.push(`Unassigned`);
+           roomNames.push(\`Unassigned\`);
          }
          
          if (rr.guestsData && Array.isArray(rr.guestsData)) {
@@ -191,7 +193,7 @@ export async function GET(req: Request) {
         guests: totalGuests || 1,
         totalAmount: res.totalAmount,
         status: res.status,
-        source: res.source || 'Direct', // Actually, res.source is not fetched, wait! The user said "Source is not in the schema". Wait, we just removed it from UI, but kept it in View Details. If we need to send it, Prisma might not have `source` if it's not in schema. It wasn't failing before, so it's fine.
+        source: res.source || 'Direct', // Actually, res.source is not fetched, wait! The user said "Source is not in the schema". Wait, we just removed it from UI, but kept it in View Details. If we need to send it, Prisma might not have \`source\` if it's not in schema. It wasn't failing before, so it's fine.
         createdAt: res.createdAt
       };
     });
@@ -217,89 +219,8 @@ export async function GET(req: Request) {
     console.error('Failed to fetch reservations:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
+}`;
 
-
-export async function POST(req: Request) {
-  try {
-    const authContext = await getAuthContext();
-    if (!authContext || !authContext.user || !authContext.hotel) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const hotelId = authContext.hotel.id;
-    const body = await req.json();
-    const { 
-      guestName, guestPhone, guestEmail, guestAddress,
-      checkInDate, checkOutDate, nights,
-      rooms, // Array of { roomId, baseRate, guestsData }
-      totalAmount, advanceAmount, paymentMode,
-      source
-    } = body;
-
-    if (!rooms || rooms.length === 0) {
-      return NextResponse.json({ error: 'At least one room must be selected' }, { status: 400 });
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Create Guest
-      const guest = await tx.guest.create({
-         data: {
-            businessId: authContext.business.id,
-            name: guestName,
-            phone: guestPhone,
-            email: guestEmail
-         }
-      });
-
-      // 2. Create Reservation
-      const reservation = await tx.reservation.create({
-         data: {
-            hotelId,
-            guestId: guest.id,
-            status: 'RESERVED',
-            totalAmount: Math.round(totalAmount * 100),
-            advancePaid: advanceAmount ? Math.round(advanceAmount * 100) : 0,
-         }
-      });
-
-      // 3. Create Reservation Rooms
-      for (const room of rooms) {
-         // Overlap protection
-         const existing = await tx.reservationRoom.findFirst({
-            where: {
-               roomId: room.roomId,
-               reservation: { status: { in: ['RESERVED', 'CONFIRMED', 'CHECKED_IN'] } },
-               OR: [
-                  { checkInDate: { lt: new Date(checkOutDate) }, checkOutDate: { gt: new Date(checkInDate) } }
-               ]
-            }
-         });
-         
-         if (existing) {
-             throw new Error(`Room ${room.roomId} is already booked for these dates.`);
-         }
-
-         await tx.reservationRoom.create({
-            data: {
-               reservationId: reservation.id,
-               roomId: room.roomId,
-               checkInDate: new Date(checkInDate),
-               checkOutDate: new Date(checkOutDate),
-               baseRate: room.baseRate ? Math.round(room.baseRate * 100) : 0,
-               appliedRate: room.baseRate ? Math.round(room.baseRate * 100) : 0,
-               guestsData: room.guestsData || null
-            }
-         });
-      }
-
-      return reservation;
-    });
-
-    return NextResponse.json({ success: true, reservation: result }, { status: 201 });
-
-  } catch (error: any) {
-    console.error('Error creating reservation:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
-  }
-}
+routeCode = routeCode.replace(oldGetRegex, newGet);
+fs.writeFileSync(routeFile, routeCode);
+console.log('Fixed API Route');
