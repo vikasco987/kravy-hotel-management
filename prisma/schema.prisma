@@ -12,12 +12,12 @@ datasource db {
 // ==========================================
 
 model Business {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  
-  users     User[]   @relation("BusinessUsers")
-  hotels    Hotel[]
-  guests    Guest[]
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  name String
+
+  users  User[]  @relation("BusinessUsers")
+  hotels Hotel[]
+  guests Guest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -25,62 +25,62 @@ model Business {
 }
 
 model Guest {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  businessId String   @db.ObjectId
-  name       String
-  phone      String
-  email      String?
-  idProof    String?
+  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  businessId    String  @db.ObjectId
+  name          String
+  phone         String
+  email         String?
+  idProof       String?
   guestPhotoUrl String? // Secure reference, NOT base64
 
-  business   Business @relation(fields: [businessId], references: [id])
+  business     Business        @relation(fields: [businessId], references: [id])
   reservations Reservation[]
-  documents  GuestDocument[]
-  invoices   Invoice[]
+  documents    GuestDocument[]
+  invoices     Invoice[]
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  createdBy  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
 }
 
 model GuestDocument {
-  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
-  guestId            String   @db.ObjectId
-  documentType       String   // e.g., AADHAAR, PASSPORT, DRIVING_LICENSE
-  documentNumber     String?  // Masked or partial if required
-  fileReference      String   // Path/URL to the actual file in /uploads/private/
-  verificationStatus String   @default("PENDING") // PENDING, VERIFIED, REJECTED
-  
-  guest              Guest    @relation(fields: [guestId], references: [id])
+  id                 String  @id @default(auto()) @map("_id") @db.ObjectId
+  guestId            String  @db.ObjectId
+  documentType       String // e.g., AADHAAR, PASSPORT, DRIVING_LICENSE
+  documentNumber     String? // Masked or partial if required
+  fileReference      String // Path/URL to the actual file in /uploads/private/
+  verificationStatus String  @default("PENDING") // PENDING, VERIFIED, REJECTED
 
-  uploadedAt         DateTime @default(now())
-  uploadedBy         String?  @db.ObjectId // User/Staff ID
+  guest Guest @relation(fields: [guestId], references: [id])
+
+  uploadedAt DateTime @default(now())
+  uploadedBy String?  @db.ObjectId // User/Staff ID
 }
 
 model Staff {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId    String   @db.ObjectId
-  name       String
-  role       Role     @default(STAFF)
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId String @db.ObjectId
+  name    String
+  role    Role   @default(STAFF)
 
-  hotel      Hotel    @relation(fields: [hotelId], references: [id])
-  tasks      HousekeepingTask[]
+  hotel Hotel              @relation(fields: [hotelId], references: [id])
+  tasks HousekeepingTask[]
 
-  email       String?   @unique
+  email       String?  @unique
   phone       String?
   password    String?
   accessType  String?
   permissions String[]
-  businessId  String?   @db.ObjectId
-  status      String    @default("active")
-  
+  businessId  String?  @db.ObjectId
+  status      String   @default("active")
+
   publicMetadata  Json? @default("{}")
   privateMetadata Json? @default("{}")
 
   activityLog ActivityLog[]
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ActivityLog {
@@ -92,8 +92,8 @@ model ActivityLog {
   staffId   String?  @db.ObjectId
   createdAt DateTime @default(now())
 
-  user      User?    @relation(fields: [userId], references: [id])
-  staff     Staff?   @relation(fields: [staffId], references: [id])
+  user  User?  @relation(fields: [userId], references: [id])
+  staff Staff? @relation(fields: [staffId], references: [id])
 }
 
 enum Role {
@@ -112,120 +112,120 @@ enum Role {
 // ==========================================
 
 model Hotel {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  businessId String   @db.ObjectId
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  businessId String @db.ObjectId
   name       String
-  
-  business   Business @relation(fields: [businessId], references: [id])
-  
-  floors     Floor[]
-  roomTypes  RoomType[]
-  rooms      Room[]
-  reservations Reservation[]
-  staff      Staff[]
-  expenses   Expense[]
-  settings   HotelSettings?
-  taxProfiles TaxProfile[]
-  ratePlans  RatePlan[]
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  floors        Floor[]
+  roomTypes     RoomType[]
+  rooms         Room[]
+  reservations  Reservation[]
+  staff         Staff[]
+  expenses      Expense[]
+  settings      HotelSettings?
+  taxProfiles   TaxProfile[]
+  ratePlans     RatePlan[]
   extraServices ExtraService[]
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  createdBy  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
 
   @@index([businessId])
 }
 
 model HotelSettings {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId    String   @unique @db.ObjectId
-  taxRate    Int      @default(0) // Stored in paise / basis points
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId      String @unique @db.ObjectId
+  taxRate      Int    @default(0) // Stored in paise / basis points
   checkoutTime String @default("11:00 AM")
-  
+
   // Discount rules
   maxDiscountPercent Int @default(10)
   maxFixedDiscount   Int @default(100000) // Paise
-  
-  hotel      Hotel    @relation(fields: [hotelId], references: [id])
+
+  hotel Hotel @relation(fields: [hotelId], references: [id])
 }
 
 model TaxProfile {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId    String   @db.ObjectId
-  name       String   // e.g. "GST 12%"
-  rate       Int      // e.g. 1200 for 12%
-  cgstRate   Int?
-  sgstRate   Int?
-  mode       PricingMode @default(INCLUSIVE)
-  isActive   Boolean  @default(true)
-  
-  hotel      Hotel    @relation(fields: [hotelId], references: [id])
-  roomTypes  RoomType[]
+  id       String      @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId  String      @db.ObjectId
+  name     String // e.g. "GST 12%"
+  rate     Int // e.g. 1200 for 12%
+  cgstRate Int?
+  sgstRate Int?
+  mode     PricingMode @default(INCLUSIVE)
+  isActive Boolean     @default(true)
+
+  hotel     Hotel      @relation(fields: [hotelId], references: [id])
+  roomTypes RoomType[]
 }
 
 model ChargeTemplate {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId     String   @db.ObjectId
-  name        String
-  defaultRate Int      // Paise
-  mode        ChargeMode @default(FIXED)
-  taxProfileId String? @db.ObjectId
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId      String     @db.ObjectId
+  name         String
+  defaultRate  Int // Paise
+  mode         ChargeMode @default(FIXED)
+  taxProfileId String?    @db.ObjectId
 }
 
 model Floor {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId     String   @db.ObjectId
-  name        String   // e.g., 1st Floor, 2nd Floor
-  floorNumber Int      // e.g., 1, 2
-  isActive    Boolean  @default(true)
-  
-  hotel       Hotel    @relation(fields: [hotelId], references: [id])
-  rooms       Room[]
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String  @db.ObjectId
+  name        String // e.g., 1st Floor, 2nd Floor
+  floorNumber Int // e.g., 1, 2
+  isActive    Boolean @default(true)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  hotel Hotel  @relation(fields: [hotelId], references: [id])
+  rooms Room[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([hotelId, floorNumber])
 }
 
 model RoomType {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId     String   @db.ObjectId
-  name        String   // e.g., Deluxe, Suite
-  basePrice   Int      // Stored in minor units (paise)
-  isActive    Boolean  @default(true)
-  
-  taxProfileId String? @db.ObjectId
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId   String  @db.ObjectId
+  name      String // e.g., Deluxe, Suite
+  basePrice Int // Stored in minor units (paise)
+  isActive  Boolean @default(true)
+
+  taxProfileId String?     @db.ObjectId
   taxProfile   TaxProfile? @relation(fields: [taxProfileId], references: [id])
-  
-  hotel       Hotel    @relation(fields: [hotelId], references: [id])
-  rooms       Room[]
+
+  hotel        Hotel         @relation(fields: [hotelId], references: [id])
+  rooms        Room[]
   pricingRules PricingRule[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
 }
 
 model Room {
-  id          String     @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId     String     @db.ObjectId
-  floorId     String     @db.ObjectId
-  roomTypeId  String     @db.ObjectId
-  roomNumber  String
-  status      RoomStatus @default(AVAILABLE)
-  isActive    Boolean    @default(true)
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId    String     @db.ObjectId
+  floorId    String     @db.ObjectId
+  roomTypeId String     @db.ObjectId
+  roomNumber String
+  status     RoomStatus @default(AVAILABLE)
+  isActive   Boolean    @default(true)
 
-  hotel       Hotel      @relation(fields: [hotelId], references: [id])
-  floor       Floor      @relation(fields: [floorId], references: [id])
-  roomType    RoomType   @relation(fields: [roomTypeId], references: [id])
-  
-  stays       StayRoom[]
-  tasks       HousekeepingTask[]
+  hotel    Hotel    @relation(fields: [hotelId], references: [id])
+  floor    Floor    @relation(fields: [floorId], references: [id])
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
 
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  createdBy   String?
+  stays StayRoom[]
+  tasks HousekeepingTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
 
   @@unique([hotelId, roomNumber])
   @@index([hotelId, floorId])
@@ -233,229 +233,239 @@ model Room {
 }
 
 model Reservation {
-  id            String        @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId       String        @db.ObjectId
-  guestId       String        @db.ObjectId
-  
-  status        BookingStatus @default(RESERVED)
-  
-  advancePaid   Int           @default(0) // Paise
-  totalAmount   Int           @default(0) // Paise
-  
-  hotel         Hotel         @relation(fields: [hotelId], references: [id])
-  guest         Guest         @relation(fields: [guestId], references: [id])
-  
-  rooms         ReservationRoom[]
-  stay          Stay?
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId String @db.ObjectId
+  guestId String @db.ObjectId
 
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  createdBy     String?
+  status BookingStatus @default(RESERVED)
+
+  advancePaid Int @default(0) // Paise
+  totalAmount Int @default(0) // Paise
+
+  hotel Hotel @relation(fields: [hotelId], references: [id])
+  guest Guest @relation(fields: [guestId], references: [id])
+
+  rooms ReservationRoom[]
+  stay  Stay?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@index([hotelId])
 }
 
 model ReservationRoom {
-  id            String      @id @default(auto()) @map("_id") @db.ObjectId
-  reservationId String      @db.ObjectId
-  roomId        String?     @db.ObjectId // Can be null if room isn't assigned yet
+  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  reservationId String  @db.ObjectId
+  roomId        String? @db.ObjectId // Can be null if room isn't assigned yet
 
-  checkInDate   DateTime
-  checkOutDate  DateTime
+  checkInDate  DateTime
+  checkOutDate DateTime
 
   // Price Snapshot
-  baseRate          Int       @default(0)
-  appliedRate       Int       @default(0)
-  ratePlanId        String?   @db.ObjectId
-  pricingRuleId     String?   @db.ObjectId
-  pricingReason     String?
-  nights            Int       @default(1)
-  
-  grossAmount       Int       @default(0)
-  
-  discountType      DiscountType?
-  discountValue     Int?
-  discountAmount    Int       @default(0)
-  discountReason    String?
-  
-  requiresApproval  Boolean   @default(false)
-  discountStatus    DiscountStatus @default(APPROVED)
-  approvedBy        String?   @db.ObjectId
-  approvedAt        DateTime?
-  approvalRemark    String?
-  
-  taxProfileId      String?   @db.ObjectId
-  taxMode           PricingMode @default(INCLUSIVE)
-  taxRate           Int       @default(0)
-  cgstRate          Int       @default(0)
-  sgstRate          Int       @default(0)
-  
-  taxableAmount     Int       @default(0)
-  cgstAmount        Int       @default(0)
-  sgstAmount        Int       @default(0)
-  taxAmount         Int       @default(0)
-  
-  extraChargesAmount Int      @default(0)
-  finalAmount       Int       @default(0)
-  
-  guestsData        Json?     // Stores array of guest objects
+  baseRate      Int     @default(0)
+  appliedRate   Int     @default(0)
+  ratePlanId    String? @db.ObjectId
+  pricingRuleId String? @db.ObjectId
+  pricingReason String?
+  nights        Int     @default(1)
 
-  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  grossAmount Int @default(0)
+
+  discountType   DiscountType?
+  discountValue  Int?
+  discountAmount Int           @default(0)
+  discountReason String?
+
+  requiresApproval Boolean        @default(false)
+  discountStatus   DiscountStatus @default(APPROVED)
+  approvedBy       String?        @db.ObjectId
+  approvedAt       DateTime?
+  approvalRemark   String?
+
+  taxProfileId String?     @db.ObjectId
+  taxMode      PricingMode @default(INCLUSIVE)
+  taxRate      Int         @default(0)
+  cgstRate     Int         @default(0)
+  sgstRate     Int         @default(0)
+
+  taxableAmount Int @default(0)
+  cgstAmount    Int @default(0)
+  sgstAmount    Int @default(0)
+  taxAmount     Int @default(0)
+
+  extraChargesAmount Int @default(0)
+  finalAmount        Int @default(0)
+
+  guestsData Json? // Stores array of guest objects
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+
+  @@index([reservationId])
+  @@index([roomId])
 }
 
 model Stay {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  reservationId String   @unique @db.ObjectId
-  
-  reservation   Reservation @relation(fields: [reservationId], references: [id])
-  stayRooms     StayRoom[]
-  roomCharges   RoomCharge[]
-  payments      Payment[]
-  invoice       Invoice?
+  id            String @id @default(auto()) @map("_id") @db.ObjectId
+  reservationId String @unique @db.ObjectId
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  createdBy     String?
+  reservation Reservation  @relation(fields: [reservationId], references: [id])
+  stayRooms   StayRoom[]
+  roomCharges RoomCharge[]
+  payments    Payment[]
+  invoice     Invoice?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
 }
 
 model Invoice {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  invoiceNumber  String   @unique
-  stayId         String   @unique @db.ObjectId
-  guestId        String   @db.ObjectId
-  
-  subtotal       Int      @default(0) // Paise
-  discountAmount Int      @default(0)
-  taxableAmount  Int      @default(0)
-  cgstAmount     Int      @default(0)
-  sgstAmount     Int      @default(0)
-  taxAmount      Int      @default(0)
-  totalAmount    Int      @default(0) // Grand Total
-  
-  paidAmount     Int      @default(0)
-  balanceAmount  Int      @default(0)
-  
-  status         String   @default("DRAFT") // DRAFT, ISSUED, PAID, VOID
-  
-  stay           Stay     @relation(fields: [stayId], references: [id])
-  guest          Guest    @relation(fields: [guestId], references: [id])
+  id            String @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceNumber String @unique
+  stayId        String @unique @db.ObjectId
+  guestId       String @db.ObjectId
 
-  issuedAt       DateTime?
-  createdAt      DateTime @default(now())
+  subtotal       Int @default(0) // Paise
+  discountAmount Int @default(0)
+  taxableAmount  Int @default(0)
+  cgstAmount     Int @default(0)
+  sgstAmount     Int @default(0)
+  taxAmount      Int @default(0)
+  totalAmount    Int @default(0) // Grand Total
+
+  paidAmount    Int @default(0)
+  balanceAmount Int @default(0)
+
+  status String @default("DRAFT") // DRAFT, ISSUED, PAID, VOID
+
+  stay  Stay  @relation(fields: [stayId], references: [id])
+  guest Guest @relation(fields: [guestId], references: [id])
+
+  issuedAt  DateTime?
+  createdAt DateTime  @default(now())
 }
 
 model StayRoom {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  stayId        String   @db.ObjectId
-  roomId        String   @db.ObjectId
-  
-  checkInDate   DateTime
-  checkOutDate  DateTime? // Null if still checked in
-  
-  // Price Snapshot
-  baseRate          Int       @default(0)
-  appliedRate       Int       @default(0)
-  ratePlanId        String?   @db.ObjectId
-  pricingRuleId     String?   @db.ObjectId
-  pricingReason     String?
-  nights            Int       @default(1)
-  
-  grossAmount       Int       @default(0)
-  
-  discountType      DiscountType?
-  discountValue     Int?
-  discountAmount    Int       @default(0)
-  discountReason    String?
-  
-  requiresApproval  Boolean   @default(false)
-  discountStatus    DiscountStatus @default(APPROVED)
-  approvedBy        String?   @db.ObjectId
-  approvedAt        DateTime?
-  approvalRemark    String?
-  
-  taxProfileId      String?   @db.ObjectId
-  taxMode           PricingMode @default(INCLUSIVE)
-  taxRate           Int       @default(0)
-  cgstRate          Int       @default(0)
-  sgstRate          Int       @default(0)
-  
-  taxableAmount     Int       @default(0)
-  cgstAmount        Int       @default(0)
-  sgstAmount        Int       @default(0)
-  taxAmount         Int       @default(0)
-  
-  extraChargesAmount Int      @default(0)
-  finalAmount       Int       @default(0)
-  
-  guestsData        Json?     // Stores array of guest objects
-  
-  stay          Stay     @relation(fields: [stayId], references: [id])
-  room          Room     @relation(fields: [roomId], references: [id])
-  roomCharges   RoomCharge[]
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  stayId String @db.ObjectId
+  roomId String @db.ObjectId
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  checkInDate  DateTime
+  checkOutDate DateTime? // Null if still checked in
+
+  // Price Snapshot
+  baseRate      Int     @default(0)
+  appliedRate   Int     @default(0)
+  ratePlanId    String? @db.ObjectId
+  pricingRuleId String? @db.ObjectId
+  pricingReason String?
+  nights        Int     @default(1)
+
+  grossAmount Int @default(0)
+
+  discountType   DiscountType?
+  discountValue  Int?
+  discountAmount Int           @default(0)
+  discountReason String?
+
+  requiresApproval Boolean        @default(false)
+  discountStatus   DiscountStatus @default(APPROVED)
+  approvedBy       String?        @db.ObjectId
+  approvedAt       DateTime?
+  approvalRemark   String?
+
+  taxProfileId String?     @db.ObjectId
+  taxMode      PricingMode @default(INCLUSIVE)
+  taxRate      Int         @default(0)
+  cgstRate     Int         @default(0)
+  sgstRate     Int         @default(0)
+
+  taxableAmount Int @default(0)
+  cgstAmount    Int @default(0)
+  sgstAmount    Int @default(0)
+  taxAmount     Int @default(0)
+
+  extraChargesAmount Int @default(0)
+  finalAmount        Int @default(0)
+
+  guestsData Json? // Stores array of guest objects
+
+  stay        Stay         @relation(fields: [stayId], references: [id])
+  room        Room         @relation(fields: [roomId], references: [id])
+  roomCharges RoomCharge[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stayId])
+  @@index([roomId])
 }
 
 model RoomCharge {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  stayId      String   @db.ObjectId
-  description String   // e.g., Room Rent, POS Restaurant Charge, Laundry
-  chargeType  String?  // e.g. EXTRA_BED, LAUNDRY, EARLY_CHECKIN
-  amount      Int      // Paise (Unit Rate)
-  
-  quantity    Int      @default(1)
-  chargeMode  ChargeMode @default(FIXED)
-  nights      Int      @default(1)
-  
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  stayId      String  @db.ObjectId
+  description String // e.g., Room Rent, POS Restaurant Charge, Laundry
+  chargeType  String? // e.g. EXTRA_BED, LAUNDRY, EARLY_CHECKIN
+  amount      Int // Paise (Unit Rate)
+
+  quantity   Int        @default(1)
+  chargeMode ChargeMode @default(FIXED)
+  nights     Int        @default(1)
+
   taxProfileId String? @db.ObjectId
   taxAmount    Int     @default(0)
   totalAmount  Int     @default(0)
-  
-  stay        Stay     @relation(fields: [stayId], references: [id])
-  stayRoomId  String?  @db.ObjectId
-  stayRoom    StayRoom? @relation(fields: [stayRoomId], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   String?
+  stay       Stay      @relation(fields: [stayId], references: [id])
+  stayRoomId String?   @db.ObjectId
+  stayRoom   StayRoom? @relation(fields: [stayRoomId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
 }
 
 model Payment {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  stayId      String   @db.ObjectId
-  amount      Int      // Paise
-  method      String   // CASH, CARD, UPI
-  
-  stay        Stay     @relation(fields: [stayId], references: [id])
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  stayId String @db.ObjectId
+  amount Int // Paise
+  method String // CASH, CARD, UPI
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  stay Stay @relation(fields: [stayId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model HousekeepingTask {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  roomId      String   @db.ObjectId
-  staffId     String?  @db.ObjectId
-  status      TaskStatus @default(PENDING)
-  
-  room        Room     @relation(fields: [roomId], references: [id])
-  staff       Staff?   @relation(fields: [staffId], references: [id])
+  id      String     @id @default(auto()) @map("_id") @db.ObjectId
+  roomId  String     @db.ObjectId
+  staffId String?    @db.ObjectId
+  status  TaskStatus @default(PENDING)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  room  Room   @relation(fields: [roomId], references: [id])
+  staff Staff? @relation(fields: [staffId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roomId])
 }
 
 model User {
-  id      String @id @default(auto()) @map("_id") @db.ObjectId
-  name    String
-  email   String @unique
-  clerkId String? @unique
-  phone   String? // ✅ Custom Auth Support
-  password String?         // ✅ Hashed Password
-  isVerified Boolean @default(false) // ✅ OTP Verification Status
-  otpCode   String?        // ✅ 6-digit OTP
-  otpExpiry DateTime?      // ✅ OTP Expiry Time
-  role    Role   @default(STAFF)
-  imageUrl String?         // ✅ Profile Photo
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  email      String    @unique
+  clerkId    String?   @unique
+  phone      String? // ✅ Custom Auth Support
+  password   String? // ✅ Hashed Password
+  isVerified Boolean   @default(false) // ✅ OTP Verification Status
+  otpCode    String? // ✅ 6-digit OTP
+  otpExpiry  DateTime? // ✅ OTP Expiry Time
+  role       Role      @default(STAFF)
+  imageUrl   String? // ✅ Profile Photo
 
   secondaryEmails String[] @default([]) // ✅ Additional emails for login
   secondaryPhones String[] @default([]) // ✅ Additional phones for login
@@ -467,30 +477,30 @@ model User {
   publicMetadata  Json? @default("{}")
   privateMetadata Json? @default("{}")
   unsafeMetadata  Json? @default("{}")
-  uiPreferences Json? @default("{}")
+  uiPreferences   Json? @default("{}")
 
   createdAt DateTime @default(now())
 
   sessions    UserSession[]
   activityLog ActivityLog[]
-  
-  businessId String? @db.ObjectId
-  business   Business? @relation("BusinessUsers", fields: [businessId], references: [id])
+
+  businessId      String?          @db.ObjectId
+  business        Business?        @relation("BusinessUsers", fields: [businessId], references: [id])
   businessProfile BusinessProfile?
 }
 
 model UserSession {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String?  @db.ObjectId
-  staffId   String?  @db.ObjectId
-  user      User?    @relation(fields: [userId], references: [id])
-  
-  ipAddress String?
-  userAgent String?
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId  String? @db.ObjectId
+  staffId String? @db.ObjectId
+  user    User?   @relation(fields: [userId], references: [id])
+
+  ipAddress  String?
+  userAgent  String?
   deviceType String? // mobile, desktop
   browser    String?
   os         String?
-  
+
   lastActive DateTime @default(now())
   expiresAt  DateTime
   createdAt  DateTime @default(now())
@@ -500,24 +510,24 @@ model UserSession {
 }
 
 model Expense {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId     String   @db.ObjectId
-  categoryId  String   @db.ObjectId
-  amount      Int      // Paise
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String @db.ObjectId
+  categoryId  String @db.ObjectId
+  amount      Int // Paise
   description String
-  
-  hotel       Hotel    @relation(fields: [hotelId], references: [id])
-  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   String?
+  hotel    Hotel           @relation(fields: [hotelId], references: [id])
+  category ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
 }
 
 model ExpenseCategory {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  expenses    Expense[]
+  id       String    @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  expenses Expense[]
 }
 
 // ==========================================
@@ -575,30 +585,30 @@ enum DiscountStatus {
 // ==========================================
 
 model RatePlan {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId     String   @db.ObjectId
-  name        String   // Standard, Corporate, Weekend
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String        @db.ObjectId
+  name        String // Standard, Corporate, Weekend
   description String?
-  isActive    Boolean  @default(true)
+  isActive    Boolean       @default(true)
   rules       PricingRule[]
-  
-  hotel       Hotel    @relation(fields: [hotelId], references: [id])
+
+  hotel Hotel @relation(fields: [hotelId], references: [id])
 }
 
 model PricingRule {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  ratePlanId  String   @db.ObjectId
-  roomTypeId  String   @db.ObjectId
-  
-  priority    Int      @default(0) // Higher number = higher priority
-  basePrice   Int      // Paise
-  
-  startDate   DateTime?
-  endDate     DateTime?
-  daysOfWeek  Int[]    // [0, 1, 6] = Sunday, Monday, Saturday
-  
-  ratePlan    RatePlan @relation(fields: [ratePlanId], references: [id])
-  roomType    RoomType @relation(fields: [roomTypeId], references: [id])
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  ratePlanId String @db.ObjectId
+  roomTypeId String @db.ObjectId
+
+  priority  Int @default(0) // Higher number = higher priority
+  basePrice Int // Paise
+
+  startDate  DateTime?
+  endDate    DateTime?
+  daysOfWeek Int[] // [0, 1, 6] = Sunday, Monday, Saturday
+
+  ratePlan RatePlan @relation(fields: [ratePlanId], references: [id])
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
 }
 
 model BusinessProfile {
@@ -616,8 +626,8 @@ model BusinessProfile {
   contactPersonEmail String?
   businessEmail      String?
 
-  currencyCode       String? @default("INR")
-  currencySymbol     String? @default("₹")
+  currencyCode   String? @default("INR")
+  currencySymbol String? @default("₹")
 
   upi             String?
   upiQrEnabled    Boolean @default(true)
@@ -627,18 +637,18 @@ model BusinessProfile {
   logoUrl         String?
   signatureUrl    String?
 
-  gstNumber            String?
-  businessAddress      String?
-  state                String?
-  district             String?
-  pinCode              String?
-  taxEnabled           Boolean @default(false)
-  taxRate              Float   @default(5.0)
-  gstType              String? @default("PRODUCT") // "PRODUCT" or "UNIVERSAL"
-  perProductTaxEnabled Boolean @default(false)
-  taxInclusive         Boolean @default(false)
-  servedStatusLabel    String  @default("SERVED")
-  enableFuelBilling    Boolean @default(false)
+  gstNumber             String?
+  businessAddress       String?
+  state                 String?
+  district              String?
+  pinCode               String?
+  taxEnabled            Boolean @default(false)
+  taxRate               Float   @default(5.0)
+  gstType               String? @default("PRODUCT") // "PRODUCT" or "UNIVERSAL"
+  perProductTaxEnabled  Boolean @default(false)
+  taxInclusive          Boolean @default(false)
+  servedStatusLabel     String  @default("SERVED")
+  enableFuelBilling     Boolean @default(false)
   enableHotelManagement Boolean @default(false)
 
   collectCustomerName    Boolean @default(true)
@@ -650,16 +660,16 @@ model BusinessProfile {
 }
 
 model ExtraService {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId     String   @db.ObjectId
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  hotelId     String  @db.ObjectId
   name        String
-  price       Int      // Paise
+  price       Int // Paise
   description String?
-  isActive    Boolean  @default(true)
-  
-  hotel       Hotel    @relation(fields: [hotelId], references: [id])
+  isActive    Boolean @default(true)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   String?
+  hotel Hotel @relation(fields: [hotelId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
 }

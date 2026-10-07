@@ -18,33 +18,39 @@ export async function GET() {
     // Securely scoped query to ONLY the authenticated business's hotel
     const floors = await prisma.floor.findMany({
       where: { hotelId: hotel.id, isActive: true },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        floorNumber: true,
         rooms: {
           where: { isActive: true },
-          include: {
-            roomType: true,
-            tasks: {
-              where: { status: 'COMPLETED' },
-              orderBy: { updatedAt: 'desc' },
-              take: 1
+          select: {
+            id: true,
+            roomNumber: true,
+            status: true,
+            roomType: { select: { name: true, basePrice: true } },
+            tasks: { 
+              where: { status: 'COMPLETED' }, 
+              orderBy: { updatedAt: 'desc' }, 
+              take: 1, 
+              select: { updatedAt: true } 
             },
             stays: {
-              where: { 
-                checkOutDate: null,
-                stay: {
-                  reservation: {
-                    status: 'CHECKED_IN'
-                  }
-                }
-              },
+              where: { checkOutDate: null },
               orderBy: { checkInDate: 'desc' },
-              include: {
+              select: {
+                checkInDate: true,
+                checkOutDate: true,
+                appliedRate: true,
                 stay: {
-                  include: {
+                  select: {
                     reservation: {
-                      include: {
-                        guest: true,
-                        rooms: true
+                      select: {
+                        status: true,
+                        advancePaid: true,
+                        totalAmount: true,
+                        guest: { select: { name: true, phone: true, idProof: true } },
+                        rooms: { select: { roomId: true, checkOutDate: true } }
                       }
                     }
                   }
