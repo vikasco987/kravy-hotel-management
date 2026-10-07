@@ -16,12 +16,25 @@ export async function GET(req: Request) {
     // Fetch all reservations for grouping
     const reservations = await prisma.reservation.findMany({
       where: { hotelId },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        totalAmount: true,
         guest: {
-          include: { documents: true }
+          select: {
+            name: true,
+            phone: true,
+            documents: { select: { documentType: true, verificationStatus: true } }
+          }
         },
-        rooms: true,
-        stay: { include: { stayRooms: true } }
+        rooms: {
+          select: { roomId: true, checkInDate: true, checkOutDate: true, nights: true }
+        },
+        stay: {
+          select: {
+            stayRooms: { select: { roomId: true, checkInDate: true, checkOutDate: true, nights: true } }
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });

@@ -179,7 +179,8 @@ export async function POST(request: Request) {
                    checkOutDate: new Date(checkOutDate),
                    baseRate: room?.roomType?.basePrice || 250000,
                    appliedRate: roomPricing?.[roomId]?.baseRate || room?.roomType?.basePrice || 250000,
-                   guestsData: roomGuests?.[roomId] ? roomGuests[roomId] : null
+                   guestsData: roomGuests?.[roomId] ? roomGuests[roomId] : null,
+                   guestsCount: Array.isArray(roomGuests?.[roomId]) ? roomGuests[roomId].length : 1
                 }
              });
           }

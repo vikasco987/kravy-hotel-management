@@ -207,7 +207,8 @@ export async function PUT(
                      checkOutDate: new Date(checkOutDate),
                      baseRate: room.baseRate ? Math.round(room.baseRate * 100) : 0,
                      appliedRate: room.baseRate ? Math.round(room.baseRate * 100) : 0,
-                     guestsData: room.guestsData || null
+                     guestsData: room.guestsData || null,
+                     guestsCount: Array.isArray(room.guestsData) ? room.guestsData.length : 1
                   }
                });
            }

@@ -125,9 +125,23 @@ export async function GET(req: Request) {
       where: whereClause,
       include: {
         guest: true,
-        rooms: true,
+        rooms: {
+          select: {
+            roomId: true,
+            checkInDate: true,
+            checkOutDate: true,
+            guestsCount: true
+          }
+        },
         stay: {
-          include: { stayRooms: true }
+          select: {
+            stayRooms: {
+              select: {
+                roomId: true,
+                checkOutDate: true
+              }
+            }
+          }
         }
       },
       orderBy: { createdAt: 'desc' },
@@ -157,7 +171,9 @@ export async function GET(req: Request) {
            roomNames.push(`Unassigned`);
          }
          
-         if (rr.guestsData && Array.isArray(rr.guestsData)) {
+         if (rr.guestsCount != null) {
+            totalGuests += rr.guestsCount;
+         } else if (rr.guestsData && Array.isArray(rr.guestsData)) {
             totalGuests += rr.guestsData.length;
          } else {
             totalGuests += 1;
@@ -289,7 +305,8 @@ export async function POST(req: Request) {
                checkOutDate: new Date(checkOutDate),
                baseRate: room.baseRate ? Math.round(room.baseRate * 100) : 0,
                appliedRate: room.baseRate ? Math.round(room.baseRate * 100) : 0,
-               guestsData: room.guestsData || null
+               guestsData: room.guestsData || null,
+               guestsCount: Array.isArray(room.guestsData) ? room.guestsData.length : 1
             }
          });
       }

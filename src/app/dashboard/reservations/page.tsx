@@ -67,16 +67,15 @@ export default function ReservationsPage() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
+      setPage(1);
     }, 500);
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
   useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, statusFilter, checkInDateFilter, checkOutDateFilter]);
-
-  useEffect(() => {
     setLoading(true);
+    const abortController = new AbortController();
+    
     const params = new URLSearchParams({
       page: page.toString(),
       limit: '10',
@@ -88,7 +87,7 @@ export default function ReservationsPage() {
     const url = `/api/hotel/reservations?${params.toString()}`;
     const startTime = Date.now();
 
-    fetch(url)
+    fetch(url, { signal: abortController.signal })
       .then(async res => {
         const responseTimeMs = Date.now() - startTime;
         const status = res.status;
@@ -117,6 +116,10 @@ export default function ReservationsPage() {
         setLoading(false);
       })
       .catch(e => {
+        if (e.name === 'AbortError') {
+           return; // Ignore aborted requests
+        }
+        
         setApiRequests(prev => [...prev, {
           url,
           method: 'GET',
@@ -128,6 +131,8 @@ export default function ReservationsPage() {
         console.error(e);
         setLoading(false);
       });
+      
+      return () => abortController.abort();
   }, [page, debouncedSearch, statusFilter, checkInDateFilter, checkOutDateFilter]);
 
   const getStatusBadge = (status: string) => {
@@ -266,7 +271,7 @@ export default function ReservationsPage() {
                  <Calendar size={16} className="text-gray-400 mr-2" />
                  <div className="flex flex-col">
                    <span className="text-[10px] font-bold text-gray-400 uppercase">Check-in</span>
-                   <input type="date" value={checkInDateFilter} onChange={(e) => setCheckInDateFilter(e.target.value)} className="text-xs font-bold text-gray-700 outline-none bg-transparent" />
+                   <input type="date" value={checkInDateFilter} onChange={(e) => { setCheckInDateFilter(e.target.value); setPage(1); }} className="text-xs font-bold text-gray-700 outline-none bg-transparent" />
                  </div>
               </div>
               
@@ -274,11 +279,11 @@ export default function ReservationsPage() {
                  <Calendar size={16} className="text-gray-400 mr-2" />
                  <div className="flex flex-col">
                    <span className="text-[10px] font-bold text-gray-400 uppercase">Check-out</span>
-                   <input type="date" value={checkOutDateFilter} onChange={(e) => setCheckOutDateFilter(e.target.value)} className="text-xs font-bold text-gray-700 outline-none bg-transparent" />
+                   <input type="date" value={checkOutDateFilter} onChange={(e) => { setCheckOutDateFilter(e.target.value); setPage(1); }} className="text-xs font-bold text-gray-700 outline-none bg-transparent" />
                  </div>
               </div>
               
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-3 min-w-[140px] cursor-pointer hover:bg-gray-50 outline-none text-xs font-bold text-gray-700 appearance-none">
+              <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-3 min-w-[140px] cursor-pointer hover:bg-gray-50 outline-none text-xs font-bold text-gray-700 appearance-none">
                   <option value="All">All Status</option>
                   <option value="Today">Today's Check-ins</option>
                   <option value="Upcoming">Upcoming</option>

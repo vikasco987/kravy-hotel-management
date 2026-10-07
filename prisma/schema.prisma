@@ -298,8 +298,8 @@ model ReservationRoom {
   extraChargesAmount Int @default(0)
   finalAmount        Int @default(0)
 
-  guestsData Json? // Stores array of guest objects
-
+  guestsData  Json? // Stores array of guest objects
+  guestsCount Int? // Stores length of guestsData array
   reservation Reservation @relation(fields: [reservationId], references: [id])
 
   @@index([reservationId])

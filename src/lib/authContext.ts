@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { getAuthUser } from './auth-utils';
+import { cache } from 'react';
 
-const prisma = new PrismaClient();
-
-export async function getAuthContext() {
+export const getAuthContext = cache(async () => {
   const authUser = await getAuthUser();
 
   if (!authUser) {
@@ -56,4 +55,4 @@ export async function getAuthContext() {
   }
 
   return { user: authUser, business, hotel };
-}
+});
