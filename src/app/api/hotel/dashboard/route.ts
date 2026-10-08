@@ -102,8 +102,7 @@ export async function GET() {
             roomRate: activeStayRoom.appliedRate || room.roomType?.basePrice || 0,
             amountPaid: reservation.advancePaid || 0,
             totalAmount: reservation.totalAmount || 0,
-            balance: (reservation.totalAmount || 0) - (reservation.advancePaid || 0),
-            guestsData: activeStayRoom.guestsData || null
+            balance: (reservation.totalAmount || 0) - (reservation.advancePaid || 0)
           };
         }
 
