@@ -3,10 +3,11 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from 'dayjs';
-import { Check, Sun, ArrowUp, ArrowDown, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight, Hotel, Users, IndianRupee, Snowflake, Wifi, Tv, Bath, Mountain, UserRound, ChevronDown, UserCheck, CalendarDays, UtensilsCrossed, MessageCircle, BarChart3, Wallet, Settings, MoreVertical, Layers, FileText, LogOut, Lock, Edit, Trash2 } from "lucide-react";
+import { Check, Sun, ArrowUp, ArrowDown, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight, Hotel, Users, IndianRupee, Snowflake, Wifi, Tv, Bath, Mountain, UserRound, ChevronDown, UserCheck, CalendarDays, UtensilsCrossed, MessageCircle, BarChart3, Wallet, Settings, MoreVertical, Layers, FileText, LogOut, Lock, Edit, Trash2, Code } from "lucide-react";
 import { GuestDetailsModal } from "@/components/hotel/GuestDetailsModal";
 import { AddRoomModal } from "@/components/hotel/AddRoomModal";
 import { EditFloorModal } from "@/components/hotel/EditFloorModal";
+import { ApiJsonDebugger } from "@/components/ui/ApiJsonDebugger";
 
 
 type RoomStatus = 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'DIRTY' | 'CLEANING' | 'INSPECTED' | 'MAINTENANCE' | 'BLOCKED';
@@ -248,6 +249,46 @@ function DashboardContent() {
   const searchQuery = searchParams.get("search") || "";
   const [highlightedRoomId, setHighlightedRoomId] = useState<string | null>(null);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
+
+  const [apiRequests, setApiRequests] = useState<any[]>([]);
+  const [isApiJsonOpen, setIsApiJsonOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const trackedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const startTime = Date.now();
+    const url = typeof input === 'string' ? input : input.toString();
+    const method = init?.method || 'GET';
+    try {
+      const response = await window.fetch(input, init);
+      const cloned = response.clone();
+      const status = response.status;
+      const responseTimeMs = Date.now() - startTime;
+      const text = await cloned.text();
+      let d;
+      try { d = JSON.parse(text); } catch(e) { d = text; }
+      
+      setApiRequests(prev => [...prev, {
+        url,
+        method,
+        status,
+        responseTimeMs,
+        timestamp: new Date().toISOString(),
+        response: d
+      }]);
+      
+      return response;
+    } catch (e: any) {
+      setApiRequests(prev => [...prev, {
+        url,
+        method,
+        status: 'ERROR',
+        responseTimeMs: Date.now() - startTime,
+        timestamp: new Date().toISOString(),
+        response: { error: String(e) }
+      }]);
+      throw e;
+    }
+  };
   const router = useRouter();
 
   const [focusedRoomId, setFocusedRoomId] = useState<string | null>(null);
@@ -277,14 +318,14 @@ function DashboardContent() {
 
   const handleStatusChange = async (roomId: string, newStatus: string) => {
     try {
-      const res = await fetch(`/api/hotel/rooms/${roomId}/status`, {
+      const res = await trackedFetch(`/api/hotel/rooms/${roomId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
       if (!res.ok) throw new Error('Failed to update status');
 
-      const refreshRes = await fetch('/api/hotel/dashboard');
+      const refreshRes = await trackedFetch('/api/hotel/dashboard');
       if (refreshRes.ok) {
         const newData = await refreshRes.json();
         setData(newData);
@@ -349,7 +390,7 @@ function DashboardContent() {
   };
 
   useEffect(() => {
-    fetch(`/api/hotel/dashboard?t=${Date.now()}`, { cache: 'no-store' })
+    trackedFetch(`/api/hotel/dashboard?t=${Date.now()}`, { cache: 'no-store' })
     .then(async res => {
       if (!res.ok) {
         const text = await res.text();
@@ -360,6 +401,7 @@ function DashboardContent() {
     })
     .then(fetchedData => {
       setData(fetchedData);
+      if (fetchedData.isAdmin !== undefined) setIsAdmin(fetchedData.isAdmin);
       if (fetchedData.floors && fetchedData.floors.length > 0) {
         setNewRoomFloorId(fetchedData.floors[0].id);
       }
@@ -374,7 +416,7 @@ function DashboardContent() {
     if (!data || !newFloorName.trim()) return;
 
     try {
-      const res = await fetch('/api/hotel/floors', {
+      const res = await trackedFetch('/api/hotel/floors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newFloorName })
@@ -411,7 +453,7 @@ function DashboardContent() {
   const handleDeleteFloor = async (floorId: string) => {
     if (!data) return;
     try {
-      const res = await fetch(`/api/hotel/floors/${floorId}`, {
+      const res = await trackedFetch(`/api/hotel/floors/${floorId}`, {
         method: 'DELETE'
       });
 
@@ -438,7 +480,7 @@ function DashboardContent() {
     }
     if (!confirm('Are you sure you want to delete this room? This action cannot be undone.')) return;
     try {
-      const res = await fetch(`/api/hotel/rooms/${roomId}`, {
+      const res = await trackedFetch(`/api/hotel/rooms/${roomId}`, {
         method: 'DELETE'
       });
 
@@ -489,7 +531,7 @@ function DashboardContent() {
       });
       setFocusedRoomId(null);
 
-      const refreshRes = await fetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' });
+      const refreshRes = await trackedFetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' });
       if (refreshRes.ok) {
         const newData = await refreshRes.json();
         setData(newData);
@@ -522,7 +564,7 @@ function DashboardContent() {
       const method = editingRoomId ? 'PATCH' : 'POST';
       const url = editingRoomId ? `/api/hotel/rooms/${editingRoomId}` : '/api/hotel/rooms';
 
-      const res = await fetch(url, {
+      const res = await trackedFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -540,7 +582,7 @@ function DashboardContent() {
         return;
       }
 
-      const refreshRes = await fetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' });
+      const refreshRes = await trackedFetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' });
       if (refreshRes.ok) {
         const newData = await refreshRes.json();
         setData(newData);
@@ -675,6 +717,11 @@ function DashboardContent() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  {isAdmin && (
+                    <button onClick={() => setIsApiJsonOpen(true)} className="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl font-bold text-[11px] flex items-center gap-1.5 shadow-sm transition whitespace-nowrap">
+                      <Code size={14} strokeWidth={2.5} /> API JSON
+                    </button>
+                  )}
                   <button onClick={() => { resetRoomForm(); setIsAddRoomOpen(true); }} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20">
                     <Plus size={14} strokeWidth={3} /> Add Room
                   </button>
@@ -1142,7 +1189,7 @@ function DashboardContent() {
         onClose={() => { setIsEditFloorOpen(false); setEditingFloor(null); }}
         floor={editingFloor}
         onSuccess={() => {
-          fetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' })
+          trackedFetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' })
             .then(res => res.json())
             .then(newData => setData(newData));
         }}
@@ -1154,7 +1201,7 @@ function DashboardContent() {
         onClose={() => setIsAddRoomOpen(false)}
         floors={data?.floors || []}
         onSuccess={() => {
-          fetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' })
+          trackedFetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' })
             .then(res => res.json())
             .then(newData => setData(newData));
         }}
@@ -1169,6 +1216,13 @@ function DashboardContent() {
           room={focusedRoom}
         />
       )}
+      
+      <ApiJsonDebugger 
+        apiRequests={apiRequests} 
+        isOpen={isApiJsonOpen} 
+        onClose={() => setIsApiJsonOpen(false)} 
+        onClear={() => setApiRequests([])} 
+      />
     </div>
   );
 }

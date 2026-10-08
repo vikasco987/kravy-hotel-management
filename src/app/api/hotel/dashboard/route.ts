@@ -162,7 +162,8 @@ export async function GET() {
       pendingArrivals: 0,
       pendingDepartures: 0,
       floors: formattedFloors,
-      vacatingRooms: [] // Stub for Phase 2 Check-out workflow
+      vacatingRooms: [], // Stub for Phase 2 Check-out workflow
+      isAdmin: authContext.user?.type === 'ADMIN' || authContext.user?.type === 'OWNER' || authContext.business?.createdBy === authContext.user?.id
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });

@@ -16,7 +16,8 @@ import {
   Layers,
   Sparkles,
   ClipboardList,
-  Wrench
+  Wrench,
+  Code
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
@@ -24,6 +25,7 @@ import { STATUS_COLORS, FilterBadge, FloorRow } from "@/components/hotel/RoomCom
 import { GuestDetailsModal } from "@/components/hotel/GuestDetailsModal";
 import { AddRoomModal } from "@/components/hotel/AddRoomModal";
 import { EditFloorModal } from "@/components/hotel/EditFloorModal";
+import { ApiJsonDebugger } from "@/components/ui/ApiJsonDebugger";
 
 interface Room {
   id: string;
@@ -57,11 +59,52 @@ export default function RoomsManagementPage() {
   const [newFloorName, setNewFloorName] = useState("");
   const router = useRouter();
 
+  const [apiRequests, setApiRequests] = useState<any[]>([]);
+  const [isApiJsonOpen, setIsApiJsonOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const trackedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const startTime = Date.now();
+    const url = typeof input === 'string' ? input : input.toString();
+    const method = init?.method || 'GET';
+    try {
+      const response = await window.fetch(input, init);
+      const cloned = response.clone();
+      const status = response.status;
+      const responseTimeMs = Date.now() - startTime;
+      const text = await cloned.text();
+      let d;
+      try { d = JSON.parse(text); } catch(e) { d = text; }
+      
+      setApiRequests(prev => [...prev, {
+        url,
+        method,
+        status,
+        responseTimeMs,
+        timestamp: new Date().toISOString(),
+        response: d
+      }]);
+      
+      return response;
+    } catch (e: any) {
+      setApiRequests(prev => [...prev, {
+        url,
+        method,
+        status: 'ERROR',
+        responseTimeMs: Date.now() - startTime,
+        timestamp: new Date().toISOString(),
+        response: { error: String(e) }
+      }]);
+      throw e;
+    }
+  };
+
   useEffect(() => {
-    fetch('/api/hotel/dashboard')
+    trackedFetch('/api/hotel/dashboard')
       .then(res => res.json())
       .then(d => {
         setData(d);
+        if (d.isAdmin !== undefined) setIsAdmin(d.isAdmin);
         setLoading(false);
       })
       .catch(e => {
@@ -72,14 +115,14 @@ export default function RoomsManagementPage() {
 
   const handleStatusChange = async (roomId: string, newStatus: string) => {
     try {
-      const res = await fetch(`/api/hotel/rooms/${roomId}/status`, {
+      const res = await trackedFetch(`/api/hotel/rooms/${roomId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
       if (!res.ok) throw new Error('Failed to update status');
 
-      const refreshRes = await fetch('/api/hotel/dashboard');
+      const refreshRes = await trackedFetch('/api/hotel/dashboard');
       if (refreshRes.ok) {
         const newData = await refreshRes.json();
         setData(newData);
@@ -192,7 +235,12 @@ export default function RoomsManagementPage() {
                 />
               ))}
 
-              <button onClick={() => setIsAddRoomOpen(true)} className="ml-auto flex items-center gap-1.5 text-indigo-600 font-bold text-xs hover:bg-indigo-50 px-4 py-2 rounded-full transition whitespace-nowrap">
+              {isAdmin && (
+                <button onClick={() => setIsApiJsonOpen(true)} className="ml-auto flex items-center gap-1.5 bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-full font-bold text-[11px] transition whitespace-nowrap shadow-sm">
+                  <Code size={14} strokeWidth={2.5} /> API JSON
+                </button>
+              )}
+              <button onClick={() => setIsAddRoomOpen(true)} className="flex items-center gap-1.5 text-indigo-600 font-bold text-xs hover:bg-indigo-50 px-4 py-2 rounded-full transition whitespace-nowrap">
                 <Plus size={14} strokeWidth={3} /> Add Room
               </button>
             </div>
@@ -613,7 +661,7 @@ export default function RoomsManagementPage() {
         onClose={() => setIsAddRoomOpen(false)}
         floors={data?.floors || []}
         onSuccess={() => {
-          fetch('/api/hotel/dashboard')
+          trackedFetch('/api/hotel/dashboard')
             .then(res => res.json())
             .then(newData => setData(newData));
         }}
@@ -626,7 +674,7 @@ export default function RoomsManagementPage() {
         onClose={() => { setIsEditFloorOpen(false); setEditingFloor(null); }}
         floor={editingFloor}
         onSuccess={() => {
-          fetch('/api/hotel/dashboard')
+          trackedFetch('/api/hotel/dashboard')
             .then(res => res.json())
             .then(d => setData(d));
         }}
@@ -639,6 +687,13 @@ export default function RoomsManagementPage() {
           room={selectedRoom}
         />
       )}
+      
+      <ApiJsonDebugger 
+        apiRequests={apiRequests} 
+        isOpen={isApiJsonOpen} 
+        onClose={() => setIsApiJsonOpen(false)} 
+        onClear={() => setApiRequests([])} 
+      />
     </div>
   );
 }
