@@ -150,34 +150,31 @@ export default function OccupiedRoomSelection({ onComplete }: { onComplete: (roo
                                     </div>
                                 </div>
                                 
-                                {/* Right Side: Rooms List */}
-                                <div className="p-6 flex-1 flex flex-wrap gap-4 items-center bg-white">
+                                {/* Right Side: Rooms — compact Dashboard/Rooms style */}
+                                <div className="flex-1 flex overflow-x-auto gap-3 py-3 px-4 items-center scrollbar-hide">
                                     {roomsInFloor.map(room => {
                                         const isSelected = selectedRoomIds.includes(room.id);
                                         const actualPrice = room.guestInfo?.roomRate || room.price || 0;
                                         const priceInRupees = actualPrice / 100;
                                         
                                         return (
-                                            <div 
+                                            <div
                                                 key={room.id}
                                                 onClick={() => handleToggleRoom(room.id)}
-                                                className={`relative cursor-pointer rounded-xl p-3 w-[95px] h-[105px] transition-all duration-200 border flex flex-col items-center justify-center text-center group bg-white ${isSelected ? 'border-[#6366f1] shadow-sm' : 'border-[#f1f5f9] hover:border-[#cbd5e1] shadow-sm hover:shadow'}`}
+                                                title={`Room ${room.roomNumber} · ${room.roomType || 'Standard'} · ₹${priceInRupees.toLocaleString('en-IN')}`}
+                                                className={`relative px-4 w-[76px] h-[52px] shrink-0 flex flex-col items-center justify-center rounded-[14px] cursor-pointer transition-all duration-200 select-none
+                                                    ${isSelected
+                                                        ? 'bg-indigo-100 text-indigo-900 ring-2 ring-indigo-500 shadow-md scale-[1.02]'
+                                                        : 'bg-indigo-50 text-indigo-800 border border-transparent hover:border-indigo-200 hover:scale-[1.02] hover:-translate-y-0.5'
+                                                    }`}
                                             >
                                                 {isSelected && (
-                                                    <div className="absolute -top-1.5 -right-1.5 bg-[#6366f1] text-white w-5 h-5 rounded-full flex items-center justify-center shadow-sm z-10">
-                                                        <Check size={12} strokeWidth={4} />
+                                                    <div className="absolute -top-1.5 -right-1.5 bg-indigo-600 text-white w-5 h-5 rounded-full flex items-center justify-center shadow-sm z-10">
+                                                        <Check size={10} strokeWidth={4} />
                                                     </div>
                                                 )}
-                                                <span className={`text-[17px] font-black mb-1 leading-none ${isSelected ? 'text-slate-800' : 'text-slate-700'}`}>
-                                                    {room.roomNumber}
-                                                </span>
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 truncate w-full">
-                                                    {room.roomType || 'Standard'}
-                                                </span>
-                                                <span className={`text-[13px] font-black tracking-tight mb-2.5 ${isSelected ? 'text-[#eab308]' : 'text-gray-500'}`}>
-                                                    ₹{priceInRupees.toLocaleString('en-IN')}
-                                                </span>
-                                                <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-[#6366f1]' : 'bg-gray-300'}`}></div>
+                                                <span className="font-extrabold text-[14px] tracking-tight leading-none">{room.roomNumber}</span>
+                                                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 ${isSelected ? 'bg-indigo-600' : 'bg-indigo-400'}`}></div>
                                             </div>
                                         );
                                     })}

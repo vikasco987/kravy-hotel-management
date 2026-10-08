@@ -59,7 +59,7 @@ export default function AvailableRoomSelection({ onComplete, initialRooms = [] }
                         <h2 className="text-[22px] font-black text-[#0f172a] tracking-tight">Select Available Rooms</h2>
                         <div className="flex items-center gap-2">
                             <CalendarDays size={14} className="text-indigo-500" />
-                            <span className="text-[13px] font-bold text-gray-500">
+                            <span className="text-[13px] font-bold text-gray-500" suppressHydrationWarning>
                                 {new Date(checkInDate).toLocaleDateString()} to {new Date(checkOutDate).toLocaleDateString()}
                             </span>
                             <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md ml-2">
@@ -144,34 +144,29 @@ export default function AvailableRoomSelection({ onComplete, initialRooms = [] }
                                     </div>
                                 </div>
                                 
-                                {/* Right Side: Rooms List */}
-                                <div className="p-6 flex-1 flex flex-wrap gap-4 items-center bg-white">
+                                {/* Right Side: Rooms — compact Dashboard/Rooms style */}
+                                <div className="flex-1 flex overflow-x-auto gap-3 py-3 px-4 items-center scrollbar-hide">
                                     {roomsInFloor.map(room => {
                                         const isSelected = selectedRoomIds.includes(room.id);
-                                        const price = (room.roomType?.basePrice || 0) / 100;
-                                        
+
                                         return (
-                                            <div 
+                                            <div
                                                 key={room.id}
                                                 onClick={() => handleToggleRoom(room.id)}
-                                                className={`relative cursor-pointer rounded-xl p-3 w-[95px] h-[105px] transition-all duration-200 border flex flex-col items-center justify-center text-center group bg-white ${isSelected ? 'border-[#6366f1] shadow-sm' : 'border-[#f1f5f9] hover:border-[#cbd5e1] shadow-sm hover:shadow'}`}
+                                                title={`Room ${room.roomNumber} · ${room.roomType?.name || 'Standard'} · ₹${((room.roomType?.basePrice || 0) / 100).toLocaleString('en-IN')}`}
+                                                className={`relative px-4 w-[76px] h-[52px] shrink-0 flex flex-col items-center justify-center rounded-[14px] cursor-pointer transition-all duration-200 select-none
+                                                    ${isSelected
+                                                        ? 'bg-indigo-100 text-indigo-800 ring-2 ring-indigo-500 shadow-md scale-[1.02]'
+                                                        : 'bg-emerald-50 text-emerald-800 border border-transparent hover:border-emerald-200 hover:scale-[1.02] hover:-translate-y-0.5'
+                                                    }`}
                                             >
                                                 {isSelected && (
-                                                    <div className="absolute -top-1.5 -right-1.5 bg-[#6366f1] text-white w-5 h-5 rounded-full flex items-center justify-center shadow-sm z-10">
-                                                        <Check size={12} strokeWidth={4} />
+                                                    <div className="absolute -top-1.5 -right-1.5 bg-indigo-600 text-white w-5 h-5 rounded-full flex items-center justify-center shadow-sm z-10">
+                                                        <Check size={10} strokeWidth={4} />
                                                     </div>
                                                 )}
-                                                <span className={`text-[17px] font-black mb-1 leading-none ${isSelected ? 'text-slate-800' : 'text-slate-700'}`}>
-                                                    {room.roomNumber}
-                                                </span>
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 truncate w-full">
-                                                    {room.roomType?.name || 'Standard'}
-                                                </span>
-                                                <span className={`text-[13px] font-black tracking-tight mb-2.5 ${isSelected ? 'text-[#16a34a]' : 'text-[#16a34a]'}`}>
-                                                    ₹{price.toLocaleString('en-IN')}
-                                                </span>
-                                                {/* Small dot indicator at the bottom */}
-                                                <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-[#6366f1]' : 'bg-[#8b5cf6]'}`}></div>
+                                                <span className="font-extrabold text-[14px] tracking-tight leading-none">{room.roomNumber}</span>
+                                                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 ${isSelected ? 'bg-indigo-500' : 'bg-emerald-500'}`}></div>
                                             </div>
                                         );
                                     })}
