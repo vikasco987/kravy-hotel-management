@@ -17,7 +17,8 @@ import {
   Sparkles,
   ClipboardList,
   Wrench,
-  Code
+  Code,
+  ChevronRight
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
@@ -50,6 +51,13 @@ export default function RoomsManagementPage() {
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
+
+  const handleToggleRoomBooking = (roomId: string) => {
+    setSelectedRooms(prev =>
+      prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+    );
+  };
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   const [isAddFloorOpen, setIsAddFloorOpen] = useState(false);
   const [isEditFloorOpen, setIsEditFloorOpen] = useState(false);
@@ -159,7 +167,7 @@ export default function RoomsManagementPage() {
     <div className="min-h-screen bg-[#F4F6F9] font-sans flex">
 
       {/* MAIN CONTENT AREA */}
-      <div className={`flex-1 transition-all duration-300 ${selectedRoom ? 'pr-[380px]' : ''}`}>
+      <div className={`flex-1 transition-all duration-300 ${selectedRoom ? 'pr-[440px]' : ''}`}>
 
 
 
@@ -267,7 +275,7 @@ export default function RoomsManagementPage() {
                   key={floor.id}
                   floor={filteredFloor}
                   floorIndex={index}
-                  selectedRooms={[]}
+                  selectedRooms={selectedRooms}
                   focusedRoomId={selectedRoom?.id}
                   highlightedRoomId={null}
                   onRoomClick={(roomId: string) => {
@@ -304,7 +312,7 @@ export default function RoomsManagementPage() {
 
       {/* RIGHT SIDE PANEL (Room Details) */}
       <div
-        className={`fixed top-[72px] right-0 bottom-0 w-[380px] bg-white shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-gray-200 transform transition-transform duration-300 z-40 overflow-y-auto ${selectedRoom ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-[72px] right-0 bottom-0 w-[440px] bg-white shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-gray-200 transform transition-transform duration-300 z-40 overflow-y-auto ${selectedRoom ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {selectedRoom && (
           <div className="flex flex-col h-full bg-white w-full p-4 overflow-y-auto space-y-4 pb-20">
@@ -397,6 +405,27 @@ export default function RoomsManagementPage() {
                 <div className="text-xs font-black text-slate-900">2 guests</div>
               </div>
             </div>
+
+            {/* Select for Booking */}
+            {!['OCCUPIED', 'MAINTENANCE', 'BLOCKED'].includes(selectedRoom.status) && (
+              <div className="bg-white border border-indigo-50/50 p-4 rounded-[20px] flex items-center justify-between shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50/50 flex items-center justify-center text-indigo-500 border border-indigo-100/50">
+                    <CalendarDays size={18} />
+                  </div>
+                  <div>
+                    <div className="text-[13px] font-black text-slate-800">Select for Booking</div>
+                    <div className="text-[10px] font-medium text-slate-400 mt-0.5">Add to current bulk selection</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleToggleRoomBooking(selectedRoom.id)}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-300 shadow-inner ${selectedRooms.includes(selectedRoom.id) ? 'bg-indigo-500' : 'bg-slate-200'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${selectedRooms.includes(selectedRoom.id) ? 'translate-x-6' : 'translate-x-1'}`}></div>
+                </button>
+              </div>
+            )}
 
             {/* Guest Information */}
             <div className="flex flex-col gap-2">
@@ -627,7 +656,20 @@ export default function RoomsManagementPage() {
         )}
       </div>
 
-
+      {/* Floating Book Action */}
+      <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-2 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 ease-out ${selectedRooms.length > 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
+        <div className="flex items-center gap-3 px-4">
+          <span className="bg-indigo-500 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">{selectedRooms.length}</span>
+          <span className="text-sm font-bold">{selectedRooms.length === 1 ? 'Room Selected' : 'Rooms Selected'}</span>
+        </div>
+        <button onClick={() => setSelectedRooms([])} className="text-xs font-bold text-gray-400 hover:text-white px-3 transition-colors">Clear</button>
+        <button
+          onClick={() => router.push('/dashboard/book?rooms=' + selectedRooms.join(','))}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black px-6 py-2.5 rounded-full transition-colors flex items-center gap-2 ml-1"
+        >
+          Book Rooms <ChevronRight size={16} />
+        </button>
+      </div>
 
       {/* Add Floor Modal */}
       {isAddFloorOpen && (
