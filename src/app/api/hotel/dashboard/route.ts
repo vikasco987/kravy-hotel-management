@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { getAuthContext } from '@/lib/authContext';
-
-const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 

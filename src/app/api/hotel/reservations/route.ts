@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { getAuthContext } from '@/lib/authContext';
-
-const prisma = new PrismaClient();
 
 export async function GET(req: Request) {
   try {
@@ -28,40 +26,19 @@ export async function GET(req: Request) {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    // 1. Fetch lightweight basic data for ALL reservations to compute stats 
-    // and to resolve shortId search since Prisma can't do substring search on ObjectIds
-    const allLight = await prisma.reservation.findMany({
-      where: { hotelId },
-      select: { 
-        id: true, 
-        status: true, 
-        rooms: { select: { checkInDate: true, checkOutDate: true } }
-      }
-    });
+    // 1. Compute stats using optimized parallel database counts
+    const [checkedInCount, checkedOutCount, upcomingCheckInsCount, upcomingCheckOutsCount, totalCount] = await Promise.all([
+      prisma.reservation.count({ where: { hotelId, status: 'CHECKED_IN' } }),
+      prisma.reservation.count({ where: { hotelId, status: 'CHECKED_OUT' } }),
+      prisma.reservation.count({ where: { hotelId, status: { in: ['RESERVED', 'CONFIRMED'] }, rooms: { some: { checkInDate: { gte: todayStart } } } } }),
+      prisma.reservation.count({ where: { hotelId, status: 'CHECKED_IN', rooms: { some: { checkOutDate: { gte: todayStart } } } } }),
+      prisma.reservation.count({ where: { hotelId } })
+    ]);
 
-    let checkedIn = 0;
-    let checkedOut = 0;
-    let upcomingCheckIns = 0;
-    let upcomingCheckOuts = 0;
-
-    allLight.forEach((res) => {
-      if (res.status === 'CHECKED_IN') checkedIn++;
-      if (res.status === 'CHECKED_OUT') checkedOut++;
-      
-      let minCI: Date | null = null;
-      let maxCO: Date | null = null;
-      res.rooms.forEach(r => {
-        if (!minCI || new Date(r.checkInDate) < minCI) minCI = new Date(r.checkInDate);
-        if (!maxCO || new Date(r.checkOutDate) > maxCO) maxCO = new Date(r.checkOutDate);
-      });
-
-      if (res.status === 'RESERVED' || res.status === 'CONFIRMED') {
-         if (minCI && (minCI as Date).getTime() >= todayStart.getTime()) upcomingCheckIns++;
-      }
-      if (res.status === 'CHECKED_IN') {
-         if (maxCO && (maxCO as Date).getTime() >= todayStart.getTime()) upcomingCheckOuts++;
-      }
-    });
+    let checkedIn = checkedInCount;
+    let checkedOut = checkedOutCount;
+    let upcomingCheckIns = upcomingCheckInsCount;
+    let upcomingCheckOuts = upcomingCheckOutsCount;
 
     // 2. Build Prisma Where Clause for actual data fetching
     const whereClause: any = { hotelId };
@@ -74,9 +51,13 @@ export async function GET(req: Request) {
       });
       const matchingRoomIds = matchingRooms.map((r: any) => r.id);
 
-      // Find shortId matches manually from light fetch
+      // Find shortId matches manually from a targeted ID fetch (only executed if searching)
       const searchUpper = search.toUpperCase();
-      const matchingShortIds = allLight.filter(r => r.id.substring(r.id.length - 4).toUpperCase().includes(searchUpper)).map(r => r.id);
+      let matchingShortIds: string[] = [];
+      if (searchUpper.length >= 2) {
+        const allIds = await prisma.reservation.findMany({ where: { hotelId }, select: { id: true } });
+        matchingShortIds = allIds.filter(r => r.id.substring(r.id.length - 4).toUpperCase().includes(searchUpper)).map(r => r.id);
+      }
 
       whereClause.OR = [
         { guest: { name: { contains: search, mode: 'insensitive' } } },
@@ -215,7 +196,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       stats: {
-        total: allLight.length,
+        total: totalCount,
         checkedIn,
         checkedOut,
         upcomingCheckIns,

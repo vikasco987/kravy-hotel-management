@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { getAuthContext } from '@/lib/authContext';
-
-const prisma = new PrismaClient();
 
 export async function GET(req: Request) {
   try {
@@ -13,13 +11,17 @@ export async function GET(req: Request) {
 
     const hotelId = authContext.hotel.id;
 
-    // Fetch all reservations for grouping
+    // Fetch all active reservations for grouping
     const reservations = await prisma.reservation.findMany({
-      where: { hotelId },
+      where: { 
+        hotelId,
+        status: { in: ['RESERVED', 'CONFIRMED', 'CHECKED_IN'] }
+      },
       select: {
         id: true,
         status: true,
         totalAmount: true,
+        advancePaid: true,
         guest: {
           select: {
             name: true,
@@ -32,7 +34,9 @@ export async function GET(req: Request) {
         },
         stay: {
           select: {
-            stayRooms: { select: { roomId: true, checkInDate: true, checkOutDate: true, nights: true } }
+            stayRooms: { select: { roomId: true, checkInDate: true, checkOutDate: true, nights: true } },
+            payments: { select: { amount: true } },
+            invoice: { select: { totalAmount: true } }
           }
         }
       },
@@ -56,19 +60,24 @@ export async function GET(req: Request) {
       else if (r.status === 'BLOCKED') roomStats.blocked++;
     });
 
-    const today = new Date();
+    const url = new URL(req.url);
+    const dateParam = url.searchParams.get('date');
+    const today = dateParam ? new Date(dateParam) : new Date();
     today.setHours(0, 0, 0, 0);
 
     const checkIns: any[] = [];
     const inHouse: any[] = [];
     const checkOuts: any[] = [];
-    let totalBookings = reservations.length;
+    
+    // Restore the original Total Bookings metric using a fast, lightweight database count
+    const totalBookings = await prisma.reservation.count({ where: { hotelId } });
 
     reservations.forEach((res: any) => {
       let minCheckIn: Date | null = null;
       let maxCheckOut: Date | null = null;
       let totalNights = 0;
       let roomNames: string[] = [];
+      let roomDetails: any[] = [];
 
       const roomsToMap = res.rooms && res.rooms.length > 0 ? res.rooms : (res.stay?.stayRooms || []);
       
@@ -80,8 +89,10 @@ export async function GET(req: Request) {
          if (rr.roomId && roomMap.has(rr.roomId)) {
            const rObj = roomMap.get(rr.roomId);
            roomNames.push(`${rObj.roomNumber} - ${rObj.roomType.name}`);
+           roomDetails.push({ name: `${rObj.roomNumber} - ${rObj.roomType.name}`, status: rObj.status, id: rObj.id, roomNumber: rObj.roomNumber });
          } else {
            roomNames.push(`Unassigned`);
+           roomDetails.push({ name: `Unassigned`, status: null, id: null, roomNumber: null });
          }
       }
 
@@ -94,6 +105,18 @@ export async function GET(req: Request) {
         isVerified = guestDocs.some((d: any) => d.verificationStatus === 'VERIFIED');
       }
 
+      const invoiceTotal = res.stay?.invoice?.totalAmount;
+      const finalTotalAmount = invoiceTotal !== undefined ? invoiceTotal : (res.totalAmount || 0);
+
+      let totalPaid = 0;
+      if (res.stay && res.stay.payments && res.stay.payments.length > 0) {
+        totalPaid = res.stay.payments.reduce((sum: number, p: any) => sum + p.amount, 0);
+      } else {
+        totalPaid = res.advancePaid || 0;
+      }
+
+      const balance = Math.max(0, finalTotalAmount - totalPaid);
+
       const formatted = {
         id: res.id,
         shortId: res.id.substring(res.id.length - 6).toUpperCase(),
@@ -103,10 +126,13 @@ export async function GET(req: Request) {
         isGuestVerified: isVerified,
         hasDocument: guestDocs.length > 0,
         rooms: roomNames,
+        roomDetails: roomDetails,
         checkInDate: minCheckIn,
         checkOutDate: maxCheckOut,
         nights: totalNights || 1,
-        totalAmount: res.totalAmount,
+        totalAmount: finalTotalAmount,
+        amountPaid: totalPaid,
+        balanceDue: balance,
         status: res.status,
       };
 
@@ -128,11 +154,31 @@ export async function GET(req: Request) {
       }
     });
 
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const [checkInsTodayCount, checkOutsTodayCount] = await Promise.all([
+      prisma.reservation.count({
+        where: {
+          hotelId,
+          rooms: { some: { checkInDate: { gte: today, lte: endOfDay } } },
+          status: { notIn: ['CANCELLED', 'NO_SHOW'] }
+        }
+      }),
+      prisma.reservation.count({
+        where: {
+          hotelId,
+          rooms: { some: { checkOutDate: { gte: today, lte: endOfDay } } },
+          status: { notIn: ['CANCELLED', 'NO_SHOW'] }
+        }
+      })
+    ]);
+
     return NextResponse.json({
       success: true,
       stats: {
-        checkInsToday: checkIns.length,
-        checkOutsToday: checkOuts.length,
+        checkInsToday: checkInsTodayCount,
+        checkOutsToday: checkOutsTodayCount,
         inHouse: inHouse.length,
         totalBookings
       },
@@ -141,7 +187,8 @@ export async function GET(req: Request) {
         checkIns,
         inHouse,
         checkOuts
-      }
+      },
+      isAdmin: authContext.user.type === 'ADMIN' || authContext.user.type === 'OWNER' || authContext.business?.createdBy === authContext.user.id
     });
   } catch (error: any) {
     console.error('Failed to fetch checkin data:', error);
