@@ -85,8 +85,6 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
   const isCheckedIn = reservation.status === 'CHECKED_IN';
   const isCheckedOut = reservation.status === 'CHECKED_OUT';
   const totalPaid = stay?.payments?.reduce((acc: number, p: any) => acc + p.amount, 0) || reservation.advanceAmount || 0;
-  const balance = (stay?.invoice?.totalAmount || reservation.totalAmount || 0) - totalPaid;
-  const totalAmount = stay?.invoice?.totalAmount || reservation.totalAmount || 0;
   
   const activeRooms = stay?.stayRooms?.length ? stay.stayRooms : (reservation.rooms || []);
   
@@ -124,10 +122,31 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
       ? Math.max(0, stay.invoice.subtotal - extraServicesTotal)
       : totalRoomGross;
   
+  const totalAmount = stay?.invoice?.totalAmount || (roomChargesSubtotal + extraServicesTotal + taxAmount);
+  const balance = totalAmount - totalPaid;
+
   const firstRoom = reservation.rooms?.[0];
   const expectedCheckIn = firstRoom?.checkInDate ? dayjs(firstRoom.checkInDate) : null;
-  const expectedCheckOut = firstRoom?.checkOutDate ? dayjs(firstRoom.checkOutDate) : null;
-  const nights = firstRoom ? Math.max(1, dayjs(firstRoom.checkOutDate).diff(dayjs(firstRoom.checkInDate), 'day')) : '-';
+  let expectedCheckOut = firstRoom?.checkOutDate ? dayjs(firstRoom.checkOutDate) : null;
+  let nights: number | string = firstRoom ? Math.max(1, dayjs(firstRoom.checkOutDate).diff(dayjs(firstRoom.checkInDate), 'day')) : '-';
+  
+  let isOverdue = false;
+  if (firstRoom) {
+     const today = dayjs().startOf('day');
+     const exp = dayjs(firstRoom.checkOutDate).startOf('day');
+     
+     if (isCheckedOut) {
+         const firstStayRoom = stay?.stayRooms?.find((sr: any) => sr.roomId === firstRoom.roomId) || stay?.stayRooms?.[0];
+         if (firstStayRoom && firstStayRoom.checkOutDate) {
+             expectedCheckOut = dayjs(firstStayRoom.checkOutDate);
+             nights = Math.max(1, expectedCheckOut.startOf('day').diff(dayjs(firstRoom.checkInDate).startOf('day'), 'day'));
+         }
+     } else if (isCheckedIn && today.isAfter(exp)) {
+         isOverdue = true;
+         expectedCheckOut = today;
+         nights = Math.max(1, today.diff(dayjs(firstRoom.checkInDate).startOf('day'), 'day'));
+     }
+  }
   
   const guestName = reservation.guest?.name || 'Walk-in Guest';
   const guestInitial = guestName.charAt(0).toUpperCase();
@@ -290,8 +309,20 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Check-out</p>
-                      <p className="text-xs font-bold text-gray-900">{expectedCheckOut ? expectedCheckOut.format('DD MMM YYYY') : '-'}</p>
-                      <p className="text-[10px] text-gray-500 font-medium">{expectedCheckOut ? expectedCheckOut.format('hh:mm A') : '-'}</p>
+                      {isOverdue ? (
+                         <>
+                           <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="text-xs font-bold text-orange-600">{expectedCheckOut ? expectedCheckOut.format('DD MMM YYYY') : '-'}</span>
+                              <span className="px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-700 text-[9px] font-black uppercase tracking-wider">Extended</span>
+                           </div>
+                           <p className="text-[10px] text-gray-500 font-medium line-through decoration-gray-400">Exp: {firstRoom?.checkOutDate ? dayjs(firstRoom.checkOutDate).format('DD MMM YYYY') : '-'}</p>
+                         </>
+                      ) : (
+                         <>
+                           <p className="text-xs font-bold text-gray-900">{expectedCheckOut ? expectedCheckOut.format('DD MMM YYYY') : '-'}</p>
+                           <p className="text-[10px] text-gray-500 font-medium">{expectedCheckOut ? expectedCheckOut.format('hh:mm A') : '-'}</p>
+                         </>
+                      )}
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Nights</p>
@@ -326,9 +357,27 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                         const roomRecord = roomDetails?.find((r: any) => r.id === roomInfo.roomId);
                         const roomNameStr = roomRecord ? roomRecord.roomNumber : (roomInfo.roomName || 'Unassigned');
                         const roomTypeStr = roomRecord?.roomType?.name || 'Standard';
-                        const nts = Math.max(1, dayjs(roomInfo.checkOutDate).diff(dayjs(roomInfo.checkInDate), 'day'));
+                        
+                        let rNts = Math.max(1, dayjs(roomInfo.checkOutDate).diff(dayjs(roomInfo.checkInDate), 'day'));
+                        let rCheckOut = dayjs(roomInfo.checkOutDate);
+                        let rOverdue = false;
+
+                        const sr = stay?.stayRooms?.find((s: any) => s.roomId === roomInfo.roomId);
+                        if (isCheckedOut && sr?.checkOutDate) {
+                            rCheckOut = dayjs(sr.checkOutDate);
+                            rNts = Math.max(1, rCheckOut.startOf('day').diff(dayjs(roomInfo.checkInDate).startOf('day'), 'day'));
+                        } else if (isCheckedIn) {
+                            const today = dayjs().startOf('day');
+                            const expected = dayjs(roomInfo.checkOutDate).startOf('day');
+                            if (today.isAfter(expected)) {
+                               rOverdue = true;
+                               rCheckOut = today;
+                               rNts = Math.max(1, today.diff(dayjs(roomInfo.checkInDate).startOf('day'), 'day'));
+                            }
+                        }
+
                         const rate = roomInfo.appliedRate || roomInfo.baseRate;
-                        const total = rate * nts;
+                        const total = rate * rNts;
                         
                         return (
                           <tr key={idx} className="bg-white">
@@ -336,7 +385,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                             <td className="px-5 py-3 text-xs font-medium text-gray-600">{roomTypeStr}</td>
                             <td className="px-5 py-3 text-xs font-medium text-gray-600">{roomInfo.guestsData?.length || 1}</td>
                             <td className="px-5 py-3 text-xs font-medium text-gray-900">₹{(rate/100).toLocaleString()}</td>
-                            <td className="px-5 py-3 text-xs font-medium text-gray-600">{nts}</td>
+                            <td className="px-5 py-3 text-xs font-medium text-gray-600">{rNts} {rOverdue && <span className="text-orange-600 font-bold text-[9px] uppercase ml-1">Ext</span>}</td>
                             <td className="px-5 py-3 text-xs font-bold text-gray-900 text-right">₹{(total/100).toLocaleString()}</td>
                           </tr>
                         );
@@ -503,13 +552,13 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {reservation.rooms.map((roomInfo: any, idx: number) => {
+                      {activeRooms.map((roomInfo: any, idx: number) => {
                         const roomRecord = roomDetails?.find((r: any) => r.id === roomInfo.roomId);
                         const roomNameStr = roomRecord ? roomRecord.roomNumber : (roomInfo.roomName || 'Unassigned');
                         const roomTypeStr = roomRecord?.roomType?.name || 'Standard';
-                        const nts = Math.max(1, dayjs(roomInfo.checkOutDate).diff(dayjs(roomInfo.checkInDate), 'day'));
+                        const nts = Math.max(1, roomInfo.nights || (roomInfo.checkInDate && roomInfo.checkOutDate ? dayjs(roomInfo.checkOutDate).diff(dayjs(roomInfo.checkInDate), 'day') : 1));
                         const rate = roomInfo.appliedRate || roomInfo.baseRate;
-                        const total = rate * nts;
+                        const total = roomInfo.grossAmount || (rate * nts);
                         
                         return (
                           <tr key={idx} className="bg-white">

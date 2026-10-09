@@ -168,8 +168,11 @@ export async function GET(req: Request) {
       prisma.reservation.count({
         where: {
           hotelId,
-          rooms: { some: { checkOutDate: { gte: today, lte: endOfDay } } },
-          status: { notIn: ['CANCELLED', 'NO_SHOW'] }
+          status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+          OR: [
+            { status: 'CHECKED_OUT', stay: { stayRooms: { some: { checkOutDate: { gte: today, lte: endOfDay } } } } },
+            { status: { not: 'CHECKED_OUT' }, rooms: { some: { checkOutDate: { gte: today, lte: endOfDay } } } }
+          ]
         }
       })
     ]);

@@ -34,6 +34,7 @@ interface Reservation {
   firstActiveRoomId?: string;
   checkInDate: string;
   checkOutDate: string;
+  actualCheckOutDate?: string;
   nights: number;
   guests: number;
   totalAmount: number;
@@ -367,13 +368,45 @@ export default function ReservationsPage() {
                        </div>
                      </td>
                      <td className="px-6 py-4">
-                       <div className="flex flex-col">
-                         <span className="text-xs font-bold text-gray-800">{res.checkOutDate ? dayjs(res.checkOutDate).format('DD MMM YYYY') : '-'}</span>
-                         <span className="text-[11px] text-gray-500 font-medium">{res.checkOutDate ? dayjs(res.checkOutDate).format('hh:mm A') : '-'}</span>
-                       </div>
+                       {(() => {
+                          const today = dayjs().startOf('day');
+                          const expected = dayjs(res.checkOutDate).startOf('day');
+                          const isOverdue = res.status === 'CHECKED_IN' && today.isAfter(expected);
+                          
+                          if (res.status === 'CHECKED_OUT') {
+                             return (
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-bold text-gray-800">{res.actualCheckOutDate ? dayjs(res.actualCheckOutDate).format('DD MMM YYYY') : '-'}</span>
+                                  <span className="text-[11px] text-gray-500 font-medium">{res.actualCheckOutDate ? dayjs(res.actualCheckOutDate).format('hh:mm A') : '-'}</span>
+                                </div>
+                             );
+                          }
+                          if (isOverdue) {
+                             return (
+                                <div className="flex flex-col">
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                     <span className="text-xs font-bold text-orange-600">{today.format('DD MMM YYYY')}</span>
+                                     <span className="px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-700 text-[9px] font-black uppercase tracking-wider">Extended</span>
+                                  </div>
+                                  <span className="text-[10px] text-gray-500 font-medium line-through decoration-gray-400">Exp: {res.checkOutDate ? dayjs(res.checkOutDate).format('DD MMM YYYY') : '-'}</span>
+                                </div>
+                             );
+                          }
+                          return (
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold text-gray-800">{res.checkOutDate ? dayjs(res.checkOutDate).format('DD MMM YYYY') : '-'}</span>
+                                <span className="text-[11px] text-gray-500 font-medium">{res.checkOutDate ? dayjs(res.checkOutDate).format('hh:mm A') : '-'}</span>
+                              </div>
+                          );
+                       })()}
                      </td>
                      <td className="px-6 py-4 text-sm font-bold text-gray-800">
-                       {res.nights}
+                       {(() => {
+                          if (res.status === 'CHECKED_IN' && res.checkOutDate && dayjs().startOf('day').isAfter(dayjs(res.checkOutDate).startOf('day'))) {
+                             return Math.max(1, dayjs().startOf('day').diff(dayjs(res.checkInDate).startOf('day'), 'day'));
+                          }
+                          return res.nights;
+                       })()}
                      </td>
                      <td className="px-6 py-4 text-sm font-bold text-gray-800">
     {res.guests}

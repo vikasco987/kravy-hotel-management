@@ -167,9 +167,15 @@ export async function GET(req: Request) {
          totalNights = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
       }
 
+      let actualCheckOutDate: Date | null = null;
       let firstActiveRoomId = null;
       if (res.stay && res.stay.stayRooms) {
          firstActiveRoomId = res.stay.stayRooms.find((sr: any) => !sr.checkOutDate)?.roomId;
+         for (const sr of res.stay.stayRooms) {
+            if (sr.checkOutDate && (!actualCheckOutDate || new Date(sr.checkOutDate) > actualCheckOutDate)) {
+               actualCheckOutDate = new Date(sr.checkOutDate);
+            }
+         }
       }
       if (!firstActiveRoomId && res.rooms && res.rooms.length > 0) {
          firstActiveRoomId = res.rooms[0].roomId;
@@ -184,6 +190,7 @@ export async function GET(req: Request) {
         rooms: roomNames,
         checkInDate: minCheckIn,
         checkOutDate: maxCheckOut,
+        actualCheckOutDate,
         nights: totalNights || 1,
         guests: totalGuests || 1,
         totalAmount: res.totalAmount,

@@ -114,6 +114,89 @@ export async function GET(
        include: { roomType: true }
     });
 
+    if (reservation.stay) {
+        const { PricingService } = await import('@/lib/pricing/PricingService');
+        const todayDate = new Date();
+        const firstStayRoom = reservation.stay.stayRooms.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+
+        for (const sr of reservation.stay.stayRooms) {
+            const checkIn = new Date(sr.checkInDate);
+            checkIn.setHours(0, 0, 0, 0);
+            
+            const outDate = sr.checkOutDate ? new Date(sr.checkOutDate) : new Date(todayDate);
+            outDate.setHours(0, 0, 0, 0);
+            
+            let actualNights = Math.round((outDate.getTime() - checkIn.getTime()) / 86400000);
+            if (actualNights < 1) actualNights = 1;
+
+            if (actualNights !== sr.nights) {
+                const pricing = PricingService.calculateRoomPricing({
+                    baseRate: sr.baseRate,
+                    nights: actualNights,
+                    discountType: sr.discountType as any,
+                    discountValue: sr.discountValue,
+                    taxMode: sr.taxMode as any,
+                    taxRate: sr.taxRate,
+                    extraCharges: reservation.stay.roomCharges
+                        .filter((c: any) => c.stayRoomId === sr.id || (!c.stayRoomId && firstStayRoom?.id === sr.id))
+                        .map((c: any) => ({
+                            amount: c.amount,
+                            quantity: c.quantity,
+                            chargeMode: c.chargeMode || 'FIXED'
+                        }))
+                });
+                
+                sr.nights = actualNights;
+                sr.grossAmount = pricing.grossAmount;
+                sr.discountAmount = pricing.discountAmount;
+                sr.taxableAmount = pricing.taxableAmount;
+                sr.cgstAmount = pricing.cgstAmount;
+                sr.sgstAmount = pricing.sgstAmount;
+                sr.taxAmount = pricing.taxAmount;
+                sr.extraChargesAmount = pricing.extraChargesAmount;
+                sr.finalAmount = pricing.finalAmount;
+
+                // Auto-heal the database for completed checkouts that missed the persistence patch
+                if (sr.checkOutDate) {
+                   await prisma.stayRoom.update({
+                      where: { id: sr.id },
+                      data: {
+                        nights: actualNights,
+                        grossAmount: pricing.grossAmount,
+                        discountAmount: pricing.discountAmount,
+                        taxableAmount: pricing.taxableAmount,
+                        cgstAmount: pricing.cgstAmount,
+                        sgstAmount: pricing.sgstAmount,
+                        taxAmount: pricing.taxAmount,
+                        extraChargesAmount: pricing.extraChargesAmount,
+                        finalAmount: pricing.finalAmount
+                      }
+                   });
+                }
+            }
+        }
+
+        // Dynamically update invoice totals for display if DRAFT
+        if (reservation.status === 'CHECKED_IN' && reservation.stay.invoice && reservation.stay.invoice.status === 'DRAFT') {
+            let invSubtotal = 0, invTax = 0, invTotal = 0, invTaxable = 0, invCgst = 0, invSgst = 0;
+            for (const sr of reservation.stay.stayRooms) {
+                invSubtotal += (sr.grossAmount - (sr.discountAmount || 0));
+                invTaxable += sr.taxableAmount;
+                invCgst += sr.cgstAmount;
+                invSgst += sr.sgstAmount;
+                invTax += sr.taxAmount;
+                invTotal += sr.finalAmount;
+            }
+            const extrasTotal = reservation.stay.roomCharges.reduce((acc, c) => acc + (c.amount * (c.quantity || 1)), 0);
+            reservation.stay.invoice.subtotal = invSubtotal + extrasTotal;
+            reservation.stay.invoice.taxAmount = invTax; 
+            reservation.stay.invoice.taxableAmount = invTaxable;
+            reservation.stay.invoice.cgstAmount = invCgst;
+            reservation.stay.invoice.sgstAmount = invSgst;
+            reservation.stay.invoice.totalAmount = invTotal;
+        }
+    }
+
     return NextResponse.json({ success: true, reservation, roomDetails: rooms }, { status: 200 });
 
   } catch (error: any) {

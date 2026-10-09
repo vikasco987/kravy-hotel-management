@@ -100,6 +100,21 @@ export async function POST(req: Request) {
           srTax = pricing.taxAmount;
           srExtras = pricing.extraChargesAmount;
           srFinal = pricing.finalAmount;
+
+          await tx.stayRoom.update({
+             where: { id: sr.id },
+             data: {
+               nights: actualNights,
+               grossAmount: pricing.grossAmount,
+               discountAmount: pricing.discountAmount,
+               taxableAmount: pricing.taxableAmount,
+               cgstAmount: pricing.cgstAmount,
+               sgstAmount: pricing.sgstAmount,
+               taxAmount: pricing.taxAmount,
+               extraChargesAmount: pricing.extraChargesAmount,
+               finalAmount: pricing.finalAmount
+             }
+          });
         }
 
         roomSubtotal += (srGross || (sr.baseRate * actualNights)) - (sr.discountAmount || 0);
@@ -122,7 +137,7 @@ export async function POST(req: Request) {
 
       const change = payment.amountReceived - remainingDue;
 
-      // 4. Update StayRooms as Checked-Out
+      // 4. Update StayRooms as Checked-Out (only checking out now)
       const now = new Date();
       await tx.stayRoom.updateMany({
         where: { id: { in: stayRoomIds } },
