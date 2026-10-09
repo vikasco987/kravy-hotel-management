@@ -86,9 +86,9 @@ export default function CheckinCheckoutPage() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500 bg-[#F4F6F9]">Loading...</div>;
 
-  const stats = data?.stats || { checkInsToday: 0, checkOutsToday: 0, inHouse: 0, totalBookings: 0 };
+  const stats = data?.stats || { checkInsToday: 0, checkOutsToday: 0, inHouse: 0, upcoming: 0, totalBookings: 0 };
   const roomStats = data?.roomStats || { available: 0, occupied: 0, dirty: 0, maintenance: 0, blocked: 0 };
-  const groups = data?.groups || { checkIns: [], inHouse: [], checkOuts: [] };
+  const groups = data?.groups || { upcoming: [], checkIns: [], inHouse: [], checkOuts: [] };
   const totalRooms = roomStats.available + roomStats.occupied + roomStats.dirty + roomStats.maintenance + roomStats.blocked;
   const occupancyRate = totalRooms > 0 ? Math.round((roomStats.occupied / totalRooms) * 100) : 0;
 
@@ -104,19 +104,27 @@ export default function CheckinCheckoutPage() {
     return true;
   };
 
-  const displayCheckIns = (activeTab === 'All' || activeTab === 'Check-in' || activeTab === 'Upcoming') ? groups.checkIns.filter(filterFn) : [];
+  const displayUpcoming = (activeTab === 'All' || activeTab === 'Upcoming') ? (groups.upcoming || []).filter(filterFn) : [];
+  const displayCheckIns = (activeTab === 'All' || activeTab === 'Check-in') ? groups.checkIns.filter(filterFn) : [];
   const displayInHouse = (activeTab === 'All' || activeTab === 'In House') ? groups.inHouse.filter(filterFn) : [];
   const displayCheckOuts = (activeTab === 'All' || activeTab === 'Check-out') ? groups.checkOuts.filter(filterFn) : [];
 
-  const renderTableRow = (res: any, statusType: 'checkin' | 'inhouse' | 'checkout') => {
+  const renderTableRow = (res: any, statusType: 'upcoming' | 'checkin' | 'inhouse' | 'checkout') => {
     let statusBadge;
     let actionBtn;
     const firstRoom = res.roomDetails && res.roomDetails.length > 0 ? res.roomDetails[0] : null;
     const roomId = firstRoom ? firstRoom.id : null;
 
-    if (statusType === 'checkin') {
+    if (statusType === 'upcoming') {
       statusBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">Upcoming</span>;
       actionBtn = <button onClick={() => router.push(`/dashboard/book?resId=${res.id}`)} className="px-3 py-1.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-bold hover:bg-indigo-100 transition shadow-sm opacity-0 group-hover:opacity-100">Check-in</button>;
+    } else if (statusType === 'checkin') {
+      statusBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">Checked In</span>;
+      if (res.status === 'CHECKED_OUT') {
+         actionBtn = <button onClick={() => router.push(`/dashboard/reservations/${res.id}`)} className="px-3 py-1.5 rounded bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition shadow-sm opacity-0 group-hover:opacity-100">View</button>;
+      } else {
+         actionBtn = <button onClick={() => router.push(roomId ? `/dashboard/checkout?roomId=${roomId}` : `/dashboard/checkout`)} className="px-3 py-1.5 rounded bg-rose-50 text-rose-700 border border-rose-100 text-xs font-bold hover:bg-rose-100 transition shadow-sm opacity-0 group-hover:opacity-100">Check-out</button>;
+      }
     } else if (statusType === 'inhouse') {
       statusBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wider">In House</span>;
       actionBtn = <button onClick={() => router.push(roomId ? `/dashboard/checkout?roomId=${roomId}` : `/dashboard/checkout`)} className="px-3 py-1.5 rounded bg-rose-50 text-rose-700 border border-rose-100 text-xs font-bold hover:bg-rose-100 transition shadow-sm opacity-0 group-hover:opacity-100">Check-out</button>;
@@ -296,7 +304,7 @@ export default function CheckinCheckoutPage() {
                 In House <span className={activeTab === 'In House' ? 'bg-indigo-500 text-white px-1.5 py-0.5 rounded text-[10px]' : 'bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[10px]'}>{stats.inHouse}</span>
              </button>
              <button onClick={() => setActiveTab('Upcoming')} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-colors whitespace-nowrap ${activeTab === 'Upcoming' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
-                Upcoming <span className={activeTab === 'Upcoming' ? 'bg-indigo-500 text-white px-1.5 py-0.5 rounded text-[10px]' : 'bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[10px]'}>{stats.checkInsToday}</span>
+                Upcoming <span className={activeTab === 'Upcoming' ? 'bg-indigo-500 text-white px-1.5 py-0.5 rounded text-[10px]' : 'bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[10px]'}>{stats.upcoming || 0}</span>
              </button>
            </div>
 
@@ -332,14 +340,30 @@ export default function CheckinCheckoutPage() {
                    </tr>
                  </thead>
                  <tbody>
-                    {/* CHECK-INS GROUP */}
-                    {displayCheckIns.length > 0 && (
+                    {/* UPCOMING GROUP */}
+                    {displayUpcoming.length > 0 && (
                       <>
                       <tr className="bg-slate-50/50">
                         <td colSpan={8} className="px-5 py-3 border-b border-gray-100">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center"><UserCheck size={14} strokeWidth={2.5}/></div>
-                            <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">Upcoming Arrivals</h2>
+                            <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">Pending Arrivals</h2>
+                            <span className="text-[10px] font-bold text-slate-400 ml-1">({displayUpcoming.length})</span>
+                          </div>
+                        </td>
+                      </tr>
+                      {displayUpcoming.map((res: any) => renderTableRow(res, 'upcoming'))}
+                      </>
+                    )}
+
+                    {/* CHECK-INS GROUP */}
+                    {displayCheckIns.length > 0 && (
+                      <>
+                      <tr className="bg-slate-50/50">
+                        <td colSpan={8} className="px-5 py-3 border-y border-gray-100">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center"><UserCheck size={14} strokeWidth={2.5}/></div>
+                            <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">Today's Check-ins</h2>
                             <span className="text-[10px] font-bold text-slate-400 ml-1">({displayCheckIns.length})</span>
                           </div>
                         </td>
@@ -380,7 +404,7 @@ export default function CheckinCheckoutPage() {
                       </>
                     )}
 
-                    {displayCheckIns.length === 0 && displayInHouse.length === 0 && displayCheckOuts.length === 0 && (
+                    {displayUpcoming.length === 0 && displayCheckIns.length === 0 && displayInHouse.length === 0 && displayCheckOuts.length === 0 && (
                        <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-400 font-bold text-sm">No guests found.</td></tr>
                     )}
                  </tbody>

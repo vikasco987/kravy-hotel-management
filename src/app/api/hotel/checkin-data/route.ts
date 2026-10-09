@@ -11,11 +11,27 @@ export async function GET(req: Request) {
 
     const hotelId = authContext.hotel.id;
 
-    // Fetch all active reservations for grouping
+    const url = new URL(req.url);
+    const dateParam = url.searchParams.get('date');
+    const today = dateParam ? new Date(dateParam) : new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Fetch all active reservations, plus any that were checked in/out on the selected date
     const reservations = await prisma.reservation.findMany({
       where: { 
         hotelId,
-        status: { in: ['RESERVED', 'CONFIRMED', 'CHECKED_IN'] }
+        OR: [
+          { status: { in: ['RESERVED', 'CONFIRMED', 'CHECKED_IN'] } },
+          { status: 'CHECKED_OUT', stay: { stayRooms: { some: { 
+              OR: [
+                { checkInDate: { gte: today, lte: endOfDay } },
+                { checkOutDate: { gte: today, lte: endOfDay } }
+              ]
+          } } } }
+        ]
       },
       select: {
         id: true,
@@ -60,11 +76,7 @@ export async function GET(req: Request) {
       else if (r.status === 'BLOCKED') roomStats.blocked++;
     });
 
-    const url = new URL(req.url);
-    const dateParam = url.searchParams.get('date');
-    const today = dateParam ? new Date(dateParam) : new Date();
-    today.setHours(0, 0, 0, 0);
-
+    const upcoming: any[] = [];
     const checkIns: any[] = [];
     const inHouse: any[] = [];
     const checkOuts: any[] = [];
@@ -136,57 +148,68 @@ export async function GET(req: Request) {
         status: res.status,
       };
 
+      let actualCheckInToday = false;
+      let actualCheckOutToday = false;
+      let isPendingUpcoming = false;
+
       if (res.status === 'RESERVED' || res.status === 'CONFIRMED') {
-         // Should check if it's today, but we'll put all upcoming in check-ins for demo 
-         checkIns.push(formatted);
-      } else if (res.status === 'CHECKED_IN') {
-         // If checkOutDate is today, it's a check-out, otherwise in-house
-         const co = maxCheckOut ? new Date(maxCheckOut) : null;
-         if (co) co.setHours(0, 0, 0, 0);
-         
-         if (co && co.getTime() === today.getTime()) {
-            checkOuts.push(formatted);
-         } else {
-            inHouse.push(formatted);
-         }
-      } else if (res.status === 'CHECKED_OUT') {
-         // Already checked out today? Let's just omit or put in a separate list
+          const expectedArrival = res.rooms?.[0]?.checkInDate ? new Date(res.rooms[0].checkInDate) : null;
+          if (expectedArrival) {
+              expectedArrival.setHours(0,0,0,0);
+              if (expectedArrival.getTime() >= today.getTime()) {
+                  isPendingUpcoming = true;
+              }
+          }
+      }
+
+      if (res.stay?.stayRooms) {
+          for (const sr of res.stay.stayRooms) {
+              if (sr.checkInDate) {
+                  const ci = new Date(sr.checkInDate);
+                  ci.setHours(0,0,0,0);
+                  if (ci.getTime() === today.getTime()) {
+                      actualCheckInToday = true;
+                  }
+              }
+              if (sr.checkOutDate) {
+                  const co = new Date(sr.checkOutDate);
+                  co.setHours(0,0,0,0);
+                  if (co.getTime() === today.getTime()) {
+                      actualCheckOutToday = true;
+                  }
+              }
+          }
+      }
+
+      if (isPendingUpcoming) {
+          upcoming.push(formatted);
+      }
+      
+      if (actualCheckInToday) {
+          checkIns.push(formatted);
+      }
+
+      if (res.status === 'CHECKED_IN') {
+          inHouse.push(formatted);
+      }
+
+      if (actualCheckOutToday && res.status === 'CHECKED_OUT') {
+          checkOuts.push(formatted);
       }
     });
-
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const [checkInsTodayCount, checkOutsTodayCount] = await Promise.all([
-      prisma.reservation.count({
-        where: {
-          hotelId,
-          rooms: { some: { checkInDate: { gte: today, lte: endOfDay } } },
-          status: { notIn: ['CANCELLED', 'NO_SHOW'] }
-        }
-      }),
-      prisma.reservation.count({
-        where: {
-          hotelId,
-          status: { notIn: ['CANCELLED', 'NO_SHOW'] },
-          OR: [
-            { status: 'CHECKED_OUT', stay: { stayRooms: { some: { checkOutDate: { gte: today, lte: endOfDay } } } } },
-            { status: { not: 'CHECKED_OUT' }, rooms: { some: { checkOutDate: { gte: today, lte: endOfDay } } } }
-          ]
-        }
-      })
-    ]);
 
     return NextResponse.json({
       success: true,
       stats: {
-        checkInsToday: checkInsTodayCount,
-        checkOutsToday: checkOutsTodayCount,
+        checkInsToday: checkIns.length,
+        checkOutsToday: checkOuts.length,
         inHouse: inHouse.length,
+        upcoming: upcoming.length,
         totalBookings
       },
       roomStats,
       groups: {
+        upcoming,
         checkIns,
         inHouse,
         checkOuts
