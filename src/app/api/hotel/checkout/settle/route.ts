@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { PricingService } from '@/lib/pricing/PricingService';
 import { getAuthContext } from '@/lib/authContext';
 import { randomBytes } from 'crypto';
 
@@ -52,6 +53,12 @@ export async function POST(req: Request) {
 
       if (!stay) throw new Error('Stay not found');
 
+      // Fetch the unconditionally first stay room to consistently map unassigned charges
+      const firstStayRoom = await tx.stayRoom.findFirst({
+        where: { stayId: stay.id },
+        orderBy: { createdAt: 'asc' }
+      });
+
       // Server-side calculation of the final bill
       // All calculations are done in minor units (paise) to prevent float issues
       let roomSubtotal = 0;
@@ -59,11 +66,46 @@ export async function POST(req: Request) {
       let extras = 0;
       let grandTotal = 0;
 
+      const todayDate = new Date();
       for (const sr of stayRooms) {
-        roomSubtotal += (sr.grossAmount || (sr.baseRate * sr.nights)) - (sr.discountAmount || 0);
-        taxes += sr.taxAmount || 0;
-        extras += sr.extraChargesAmount || 0;
-        grandTotal += sr.finalAmount || 0;
+        const checkIn = new Date(sr.checkInDate);
+        checkIn.setHours(0, 0, 0, 0);
+        const today = new Date(todayDate);
+        today.setHours(0, 0, 0, 0);
+        let actualNights = Math.round((today.getTime() - checkIn.getTime()) / 86400000);
+        if (actualNights < 1) actualNights = 1;
+
+        let srGross = sr.grossAmount;
+        let srTax = sr.taxAmount;
+        let srExtras = sr.extraChargesAmount;
+        let srFinal = sr.finalAmount;
+
+        if (actualNights !== sr.nights) {
+          const pricing = PricingService.calculateRoomPricing({
+            baseRate: sr.baseRate,
+            nights: actualNights,
+            discountType: sr.discountType as any,
+            discountValue: sr.discountValue,
+            taxMode: sr.taxMode as any,
+            taxRate: sr.taxRate,
+            extraCharges: stay.roomCharges
+              .filter(c => (c as any).stayRoomId === sr.id || (!(c as any).stayRoomId && firstStayRoom?.id === sr.id))
+              .map(c => ({
+                amount: c.amount,
+                quantity: c.quantity,
+                chargeMode: (c as any).chargeMode || 'FIXED'
+              }))
+          });
+          srGross = pricing.grossAmount;
+          srTax = pricing.taxAmount;
+          srExtras = pricing.extraChargesAmount;
+          srFinal = pricing.finalAmount;
+        }
+
+        roomSubtotal += (srGross || (sr.baseRate * actualNights)) - (sr.discountAmount || 0);
+        taxes += srTax || 0;
+        extras += srExtras || 0;
+        grandTotal += srFinal || 0;
       }
 
       const combinedSubtotal = roomSubtotal + extras;

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { PricingService } from '@/lib/pricing/PricingService';
 import { getAuthContext } from '@/lib/authContext';
 
 const prisma = new PrismaClient();
@@ -70,6 +71,12 @@ export async function GET(req: Request) {
     // But in Kravy schema, guests are typically on the reservation, or we can just fetch the lead guest.
     // Let's also grab advance paid from the reservation
 
+    // Fetch the unconditionally first stay room to consistently map unassigned charges
+    const firstStayRoom = await prisma.stayRoom.findFirst({
+      where: { stayId: stayContext.id },
+      orderBy: { createdAt: 'asc' }
+    });
+
     // Assemble payload for the checkout suite
     const payload = {
       stayId: stayContext.id,
@@ -77,24 +84,60 @@ export async function GET(req: Request) {
       groupId: `GRP-${stayContext.reservationId.slice(-10).toUpperCase()}`, // Generate a friendly Group ID
       leadGuest: stayContext.reservation.guest,
       advancePaid: stayContext.reservation.advancePaid,
-      linkedRooms: stayContext.stayRooms.map(sr => ({
-        stayRoomId: sr.id,
-        roomId: sr.roomId,
-        roomNumber: sr.room.roomNumber,
-        roomType: sr.room.roomType.name,
-        floor: sr.room.floor?.name || '',
-        status: sr.room.status,
-        tariff: sr.grossAmount - sr.discountAmount, // Net room rent
-        baseRate: sr.baseRate,
-        nights: sr.nights,
-        checkInDate: sr.checkInDate,
-        taxMode: sr.taxMode,
-        taxRate: sr.taxRate,
-        taxAmount: sr.taxAmount,
-        extraChargesAmount: sr.extraChargesAmount,
-        finalAmount: sr.finalAmount,
-        guestsData: sr.guestsData,
-      })),
+      linkedRooms: stayContext.stayRooms.map(sr => {
+        const checkIn = new Date(sr.checkInDate);
+        checkIn.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let actualNights = Math.round((today.getTime() - checkIn.getTime()) / 86400000);
+        if (actualNights < 1) actualNights = 1;
+
+        let tariff = sr.grossAmount - (sr.discountAmount || 0);
+        let taxAmount = sr.taxAmount;
+        let finalAmount = sr.finalAmount;
+        let extraChargesAmount = sr.extraChargesAmount;
+
+        if (actualNights !== sr.nights) {
+          const pricing = PricingService.calculateRoomPricing({
+            baseRate: sr.baseRate,
+            nights: actualNights,
+            discountType: sr.discountType as any,
+            discountValue: sr.discountValue,
+            taxMode: sr.taxMode as any,
+            taxRate: sr.taxRate,
+            extraCharges: stayContext.roomCharges
+              .filter(c => (c as any).stayRoomId === sr.id || (!(c as any).stayRoomId && firstStayRoom?.id === sr.id))
+              .map(c => ({
+                amount: c.amount,
+                quantity: c.quantity,
+                chargeMode: (c as any).chargeMode || 'FIXED'
+              }))
+          });
+          tariff = pricing.grossAmount - pricing.discountAmount;
+          taxAmount = pricing.taxAmount;
+          finalAmount = pricing.finalAmount;
+          extraChargesAmount = pricing.extraChargesAmount;
+        }
+
+        return {
+          stayRoomId: sr.id,
+          roomId: sr.roomId,
+          roomNumber: sr.room.roomNumber,
+          roomType: sr.room.roomType.name,
+          floor: sr.room.floor?.name || '',
+          status: sr.room.status,
+          tariff, // Net room rent
+          baseRate: sr.baseRate,
+          nights: actualNights,
+          checkInDate: sr.checkInDate,
+          taxMode: sr.taxMode,
+          taxRate: sr.taxRate,
+          taxAmount,
+          extraChargesAmount,
+          finalAmount,
+          guestsData: sr.guestsData,
+        };
+      }),
       extraCharges: stayContext.roomCharges.map(charge => ({
         id: charge.id,
         stayRoomId: (charge as any).stayRoomId,
