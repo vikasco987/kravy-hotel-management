@@ -88,7 +88,7 @@ function CheckoutSuite() {
      return <OccupiedRoomSelection onComplete={(ids) => router.push(`/dashboard/checkout?roomId=${ids[0]}&selectedRooms=${ids.join(',')}`)} />;
   }
 
-  if (isLoading) return <div className="h-screen w-screen flex items-center justify-center bg-[#fdfaf5]"><div className="animate-spin text-teal-700">Loading Checkout Suite...</div></div>;
+  if (isLoading) return <div className="h-screen w-screen flex items-center justify-center bg-[#fdfaf5]"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>;
   if (error || !data) return <div className="p-8 text-center text-red-500 font-bold">{error}</div>;
 
   // --- Calculations based on selected rooms ---
@@ -761,7 +761,7 @@ function CheckoutSuite() {
 
 export default function CheckoutPage() {
   return (
-    <React.Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-[#fdfaf5]"><div className="animate-spin text-teal-700">Loading...</div></div>}>
+    <React.Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-[#fdfaf5]"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>}>
       <CheckoutSuite />
     </React.Suspense>
   )
