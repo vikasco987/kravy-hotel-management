@@ -646,7 +646,7 @@ function GuestCheckInSuite() {
                   {/* Advance Payment */}
                   <div className="flex items-center justify-between gap-2 pt-2">
                      <span className="text-xs font-bold text-green-700 w-24">Advance / Paid:</span>
-                     <div className="flex flex-1 gap-1">
+                     <div className="flex flex-1 gap-1 min-w-0">
                         <select className="border border-gray-300 rounded text-[10px] font-bold text-gray-700 px-1 py-1.5 w-16 outline-none">
                            <option>₹ Full</option>
                            <option>Partial</option>
@@ -655,7 +655,7 @@ function GuestCheckInSuite() {
                            type="number" 
                            value={advancePaid}
                            onChange={(e) => setAdvancePaid(e.target.value)}
-                           className="border border-gray-300 rounded text-gray-900 text-right text-xs font-bold px-2 py-1.5 flex-1 outline-none focus:ring-1 focus:ring-blue-500" 
+                           className="border border-gray-300 rounded text-gray-900 text-right text-xs font-bold px-2 py-1.5 flex-1 min-w-0 outline-none focus:ring-1 focus:ring-blue-500" 
                         />
                      </div>
                   </div>
