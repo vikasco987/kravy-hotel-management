@@ -40,8 +40,8 @@ export async function POST(request: Request) {
 
     // 4. Create StayRooms and update Room status
     const nights = calculateNights(checkInDate, checkOutDate);
-    const checkInParsed = new Date(checkInDate);
-    const checkOutParsed = new Date(checkOutDate);
+    const checkInParsed = new Date(Number(checkInDate.split('T')[0].split('-')[0]), Number(checkInDate.split('T')[0].split('-')[1]) - 1, Number(checkInDate.split('T')[0].split('-')[2]), new Date().getHours(), new Date().getMinutes(), new Date().getSeconds());
+    const checkOutParsed = new Date(Number(checkOutDate.split('T')[0].split('-')[0]), Number(checkOutDate.split('T')[0].split('-')[1]) - 1, Number(checkOutDate.split('T')[0].split('-')[2]), 11, 0, 0);
 
     // Fetch rooms to get fallback basePrice if needed
     const dbRooms = await prisma.room.findMany({
@@ -175,8 +175,8 @@ export async function POST(request: Request) {
                 data: {
                    reservationId: reservationIdToUse,
                    roomId: roomId,
-                   checkInDate: new Date(checkInDate),
-                   checkOutDate: new Date(checkOutDate),
+                   checkInDate: checkInParsed,
+                   checkOutDate: checkOutParsed,
                    baseRate: room?.roomType?.basePrice || 250000,
                    appliedRate: roomPricing?.[roomId]?.baseRate || room?.roomType?.basePrice || 250000,
                    guestsData: roomGuests?.[roomId] ? roomGuests[roomId] : null,
