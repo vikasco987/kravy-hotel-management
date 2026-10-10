@@ -483,16 +483,7 @@ export default function CheckinCheckoutPage() {
                 </div>
               </div>
 
-              {/* Recent Activity */}
-              <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Recent Activity</h3>
-                </div>
-                
-                <div className="flex items-center justify-center py-6 text-[11px] font-bold text-slate-400">
-                  No recent activity
-                </div>
-              </div>
+
 
            </div>
         </div>
