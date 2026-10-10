@@ -97,7 +97,7 @@ export default function CheckinCheckoutPage() {
       const q = searchQuery.trim().toLowerCase();
       const matchName = res.guestName?.toLowerCase().includes(q);
       const matchPhone = res.guestPhone?.includes(q);
-      const matchId = res.shortId?.toLowerCase().includes(q) || res.id?.toLowerCase().includes(q);
+      const matchId = String(res.reservationNumber).includes(q) || res.id?.toLowerCase().includes(q);
       const matchRoom = (res.roomDetails || []).some((r: any) => r.roomNumber && String(r.roomNumber).trim().toLowerCase() === q);
       if (!matchName && !matchPhone && !matchId && !matchRoom) return false;
     }
@@ -158,7 +158,7 @@ export default function CheckinCheckoutPage() {
             <div className="flex flex-col">
               <span className="text-sm font-bold text-gray-900 leading-tight">{res.guestName}</span>
               <span className="text-[11px] text-gray-500 font-medium">{res.guestPhone}</span>
-              <span className="text-[10px] text-gray-400 mt-0.5">ID: {res.shortId}</span>
+              <span className="text-[10px] text-gray-400 mt-0.5">RES-{res.reservationNumber}</span>
               {res.hasDocument ? (
                  res.isGuestVerified ? (
                    <span className="text-[10px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1"><CheckCircle2 size={10} /> Verified</span>

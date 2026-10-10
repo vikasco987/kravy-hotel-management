@@ -27,7 +27,7 @@ import { ApiJsonDebugger } from '@/components/ui/ApiJsonDebugger';
 
 interface Reservation {
   id: string;
-  shortId: string;
+  reservationNumber: number;
   guestName: string;
   guestPhone: string;
   rooms: string[];
@@ -68,7 +68,9 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
+      const trimmed = searchQuery.trim();
+      const newSearch = trimmed.length >= 2 ? searchQuery : "";
+      setDebouncedSearch(newSearch);
       setPage(1);
     }, 500);
     return () => clearTimeout(handler);
@@ -164,7 +166,7 @@ export default function ReservationsPage() {
     return colors[Math.abs(hash) % colors.length];
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500 bg-[#F4F6F9]">Loading Reservations...</div>;
+  if (loading && !data) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500 bg-[#F4F6F9]">Loading Reservations...</div>;
 
   const stats = data?.stats || { total: 0, checkedIn: 0, checkedOut: 0, upcomingCheckIns: 0, upcomingCheckOuts: 0 };
   const allReservations = data?.reservations || [];
@@ -330,7 +332,7 @@ export default function ReservationsPage() {
                    <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider text-center">Actions</th>
                  </tr>
                </thead>
-               <tbody className="divide-y divide-gray-50">
+               <tbody className={`divide-y divide-gray-50 ${loading ? 'opacity-50 pointer-events-none transition-opacity duration-200' : 'transition-opacity duration-200'}`}>
                  {reservations.length === 0 ? (
                    <tr>
                      <td colSpan={11} className="px-6 py-12 text-center text-gray-400 font-medium">No reservations found.</td>
@@ -338,7 +340,7 @@ export default function ReservationsPage() {
                  ) : reservations.map((res) => (
                    <tr key={res.id} className="hover:bg-gray-50/50 transition-colors">
                      <td className="px-6 py-4">
-                       <span className="text-xs font-bold text-gray-500">#RES-{res.shortId}</span>
+                       <span className="text-xs font-bold text-gray-500">#RES-{res.reservationNumber}</span>
                      </td>
                      <td className="px-6 py-4 flex items-center gap-3">
                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${getAvatarColor(res.guestName)}`}>
@@ -527,7 +529,7 @@ export default function ReservationsPage() {
             <div className="p-6">
               <h3 className="text-xl font-black text-gray-900 mb-2">Delete Reservation?</h3>
               <p className="text-sm font-medium text-gray-500 mb-6">
-                Are you sure you want to delete reservation <strong>#RES-{deleteModalRes.shortId}</strong> for guest <strong>{deleteModalRes.guestName}</strong>? This action cannot be undone.
+                Are you sure you want to delete reservation <strong>#RES-{deleteModalRes.reservationNumber}</strong> for guest <strong>{deleteModalRes.guestName}</strong>? This action cannot be undone.
               </p>
               
               <div className="flex gap-3 justify-end">

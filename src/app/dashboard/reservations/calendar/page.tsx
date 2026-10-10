@@ -22,7 +22,7 @@ interface Room {
 
 interface Block {
   reservationId: string;
-  shortId: string;
+  reservationNumber: number;
   guestName: string;
   roomId: string;
   checkInDate: string;
@@ -135,7 +135,7 @@ export default function ReservationCalendarPage() {
 
   const filteredBlocks = useMemo(() => {
     return blocks.filter(b => {
-      const matchSearch = !searchQuery || b.guestName.toLowerCase().includes(searchQuery.toLowerCase()) || b.shortId.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchSearch = !searchQuery || b.guestName.toLowerCase().includes(searchQuery.toLowerCase()) || String(b.reservationNumber).includes(searchQuery.toLowerCase());
       const matchStatus = statusFilter === 'All' || b.status === statusFilter;
       return matchSearch && matchStatus;
     });
@@ -326,7 +326,7 @@ export default function ReservationCalendarPage() {
                                >
                                   <div className="flex items-center justify-between gap-2">
                                      <span className="font-bold text-[11px] truncate">{block.guestName}</span>
-                                     <span className="text-[9px] font-black opacity-70 shrink-0">#{block.shortId}</span>
+                                     <span className="text-[9px] font-black opacity-70 shrink-0">#{block.reservationNumber}</span>
                                   </div>
                                   <div className="flex items-center justify-between mt-0.5">
                                      <span className="text-[10px] font-bold opacity-80">{block.status}</span>

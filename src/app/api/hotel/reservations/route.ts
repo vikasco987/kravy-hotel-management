@@ -51,25 +51,23 @@ export async function GET(req: Request) {
       });
       const matchingRoomIds = matchingRooms.map((r: any) => r.id);
 
-      // Find shortId matches manually from a targeted ID fetch (only executed if searching)
-      const searchUpper = search.toUpperCase();
-      let matchingShortIds: string[] = [];
-      if (searchUpper.length >= 2) {
-        const allIds = await prisma.reservation.findMany({ where: { hotelId }, select: { id: true } });
-        matchingShortIds = allIds.filter(r => r.id.substring(r.id.length - 4).toUpperCase().includes(searchUpper)).map(r => r.id);
-      }
-
-      whereClause.OR = [
+      const orConditions: any[] = [
         { guest: { name: { contains: search, mode: 'insensitive' } } },
         { guest: { phone: { contains: search, mode: 'insensitive' } } }
       ];
 
+      // Match reservation number safely
+      const resMatch = search.match(/\d+/);
+      if (resMatch) {
+        orConditions.push({ reservationNumber: parseInt(resMatch[0], 10) });
+      }
+
       if (matchingRoomIds.length > 0) {
-        whereClause.OR.push({ rooms: { some: { roomId: { in: matchingRoomIds } } } });
+        orConditions.push({ rooms: { some: { roomId: { in: matchingRoomIds } } } });
       }
-      if (matchingShortIds.length > 0) {
-        whereClause.OR.push({ id: { in: matchingShortIds } });
-      }
+
+      whereClause.OR = orConditions;
+
     }
 
     if (statusFilter && statusFilter !== 'All') {
@@ -184,7 +182,8 @@ export async function GET(req: Request) {
       return {
         firstActiveRoomId,
         id: res.id,
-        shortId: res.id.substring(res.id.length - 4).toUpperCase(),
+        shortId: String(res.reservationNumber),
+        reservationNumber: res.reservationNumber,
         guestName: res.guest.name,
         guestPhone: res.guest.phone,
         rooms: roomNames,
@@ -257,11 +256,18 @@ export async function POST(req: Request) {
          }
       });
 
-      // 2. Create Reservation
+      // 2. Fetch and increment counter safely inside transaction
+      const counter = await tx.counter.update({
+         where: { id: 'ReservationSequence' },
+         data: { value: { increment: 1 } }
+      });
+
+      // 3. Create Reservation
       const reservation = await tx.reservation.create({
          data: {
             hotelId,
             guestId: guest.id,
+            reservationNumber: counter.value,
             status: 'RESERVED',
             totalAmount: Math.round(totalAmount * 100),
             advancePaid: advanceAmount ? Math.round(advanceAmount * 100) : 0,

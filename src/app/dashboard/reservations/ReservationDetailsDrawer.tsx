@@ -164,7 +164,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                 <button onClick={onClose} className="p-1.5 -ml-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition">
                   <ArrowLeft size={18} />
                 </button>
-                <h1 className="text-[19px] font-black text-gray-900 tracking-tight">RES-{reservation.shortId}</h1>
+                <h1 className="text-[19px] font-black text-gray-900 tracking-tight">RES-{reservation.reservationNumber || reservation.shortId}</h1>
                 {getStatusBadge(reservation.status)}
               </div>
               <p className="text-[11px] font-medium text-gray-500 ml-8">

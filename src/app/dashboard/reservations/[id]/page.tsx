@@ -90,7 +90,7 @@ export default function ReservationDetails({ params }: { params: Promise<{ id: s
             </button>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight">RES-{reservation.shortId}</h1>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">RES-{reservation.reservationNumber}</h1>
                 {getStatusBadge(reservation.status)}
               </div>
               <p className="text-sm font-medium text-gray-500 mt-0.5">

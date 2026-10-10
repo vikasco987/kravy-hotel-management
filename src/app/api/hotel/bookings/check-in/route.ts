@@ -154,10 +154,16 @@ export async function POST(request: Request) {
          });
          await tx.reservationRoom.deleteMany({ where: { reservationId: reservationId } });
       } else {
+         const counter = await tx.counter.update({
+            where: { id: 'ReservationSequence' },
+            data: { value: { increment: 1 } }
+         });
+
          const newRes = await tx.reservation.create({
            data: {
              hotelId: hotelId,
              guestId: guest.id,
+             reservationNumber: counter.value,
              status: 'CHECKED_IN',
              totalAmount: Math.round(totalAmount * 100),
              advancePaid: Math.round(advancePaid * 100),

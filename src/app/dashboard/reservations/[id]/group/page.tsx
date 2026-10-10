@@ -116,7 +116,7 @@ export default function GroupReservationView({ params }: { params: Promise<{ id:
             </button>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight">RES-{reservation.shortId}</h1>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">RES-{reservation.reservationNumber}</h1>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black bg-purple-100 text-purple-700 uppercase tracking-widest"><Users size={12}/> Group</span>
                 {getStatusBadge(reservation.status)}
               </div>

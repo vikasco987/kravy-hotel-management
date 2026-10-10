@@ -233,9 +233,10 @@ model Room {
 }
 
 model Reservation {
-  id      String @id @default(auto()) @map("_id") @db.ObjectId
-  hotelId String @db.ObjectId
-  guestId String @db.ObjectId
+  id                String @id @default(auto()) @map("_id") @db.ObjectId
+  reservationNumber Int?   @unique
+  hotelId           String @db.ObjectId
+  guestId           String @db.ObjectId
 
   status BookingStatus @default(RESERVED)
 
@@ -657,6 +658,11 @@ model BusinessProfile {
   requireCustomerPhone   Boolean @default(false)
   collectCustomerAddress Boolean @default(false)
   requireCustomerAddress Boolean @default(false)
+}
+
+model Counter {
+  id    String @id @map("_id") // e.g. "ReservationSequence"
+  value Int    @default(1000)
 }
 
 model ExtraService {

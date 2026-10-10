@@ -61,7 +61,8 @@ export async function GET(req: Request) {
           if (rrCheckIn < endDate && rrCheckOut > startDate) {
              blocks.push({
                 reservationId: res.id,
-                shortId: res.id.substring(res.id.length - 4).toUpperCase(),
+                shortId: String(res.reservationNumber),
+                reservationNumber: res.reservationNumber,
                 guestName: res.guest.name,
                 roomId: rr.roomId,
                 checkInDate: rr.checkInDate,

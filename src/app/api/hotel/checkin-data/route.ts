@@ -35,6 +35,7 @@ export async function GET(req: Request) {
       },
       select: {
         id: true,
+        reservationNumber: true,
         status: true,
         totalAmount: true,
         advancePaid: true,
@@ -140,7 +141,8 @@ export async function GET(req: Request) {
 
       const formatted = {
         id: res.id,
-        shortId: res.id.substring(res.id.length - 6).toUpperCase(),
+        shortId: String(res.reservationNumber),
+        reservationNumber: res.reservationNumber,
         guestName: res.guest.name,
         guestPhone: res.guest.phone,
         guestIdProof: idDocumentType,
