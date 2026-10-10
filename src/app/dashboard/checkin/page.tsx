@@ -185,10 +185,37 @@ export default function CheckinCheckoutPage() {
           </div>
         </td>
         <td className="px-5 py-4">
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-gray-700">{res.checkOutDate ? dayjs(res.checkOutDate).format('DD MMM YYYY') : '-'}</span>
-            <span className="text-[11px] text-gray-400 font-medium mt-0.5">{res.checkOutDate ? dayjs(res.checkOutDate).format('hh:mm A') : '-'}</span>
-          </div>
+          {(() => {
+             const today = dayjs().startOf('day');
+             const expected = dayjs(res.checkOutDate).startOf('day');
+             const isOverdue = res.status === 'CHECKED_IN' && today.isAfter(expected);
+             
+             if (res.status === 'CHECKED_OUT') {
+                return (
+                   <div className="flex flex-col">
+                     <span className="text-xs font-bold text-gray-700">{res.actualCheckOutDate ? dayjs(res.actualCheckOutDate).format('DD MMM YYYY') : '-'}</span>
+                     <span className="text-[11px] text-gray-400 font-medium mt-0.5">{res.actualCheckOutDate ? dayjs(res.actualCheckOutDate).format('hh:mm A') : '-'}</span>
+                   </div>
+                );
+             }
+             if (isOverdue) {
+                return (
+                   <div className="flex flex-col">
+                     <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-xs font-bold text-orange-600">{today.format('DD MMM YYYY')}</span>
+                        <span className="px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-700 text-[9px] font-black uppercase tracking-wider">Extended</span>
+                     </div>
+                     <span className="text-[10px] text-gray-500 font-medium line-through decoration-gray-400">Exp: {res.checkOutDate ? dayjs(res.checkOutDate).format('DD MMM YYYY') : '-'}</span>
+                   </div>
+                );
+             }
+             return (
+                 <div className="flex flex-col">
+                   <span className="text-xs font-bold text-gray-700">{res.checkOutDate ? dayjs(res.checkOutDate).format('DD MMM YYYY') : '-'}</span>
+                   <span className="text-[11px] text-gray-400 font-medium mt-0.5">{res.checkOutDate ? dayjs(res.checkOutDate).format('hh:mm A') : '-'}</span>
+                 </div>
+             );
+          })()}
         </td>
         <td className="px-5 py-4">
            {statusBadge}

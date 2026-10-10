@@ -129,6 +129,15 @@ export async function GET(req: Request) {
 
       const balance = Math.max(0, finalTotalAmount - totalPaid);
 
+      let actualCheckOutDate: Date | null = null;
+      if (res.stay && res.stay.stayRooms) {
+         for (const sr of res.stay.stayRooms) {
+            if (sr.checkOutDate && (!actualCheckOutDate || new Date(sr.checkOutDate) > actualCheckOutDate)) {
+               actualCheckOutDate = new Date(sr.checkOutDate);
+            }
+         }
+      }
+
       const formatted = {
         id: res.id,
         shortId: res.id.substring(res.id.length - 6).toUpperCase(),
@@ -141,6 +150,7 @@ export async function GET(req: Request) {
         roomDetails: roomDetails,
         checkInDate: minCheckIn,
         checkOutDate: maxCheckOut,
+        actualCheckOutDate,
         nights: totalNights || 1,
         totalAmount: finalTotalAmount,
         amountPaid: totalPaid,
