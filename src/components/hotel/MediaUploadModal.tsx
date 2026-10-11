@@ -59,6 +59,10 @@ export default function MediaUploadModal({
     setError(null);
     try {
       if (stream) stopCamera();
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError("Camera is not supported on this browser or device. Please use 'File Upload' instead.");
+        return;
+      }
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: 'environment' } 
       });
@@ -66,8 +70,14 @@ export default function MediaUploadModal({
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-    } catch (err) {
-      setError("Camera access denied or not available.");
+    } catch (err: any) {
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        setError("Camera access was denied. Please check browser permissions or switch to 'File Upload'.");
+      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        setError("No camera device was found. Please switch to 'File Upload'.");
+      } else {
+        setError("Camera access denied or not available. Please switch to 'File Upload'.");
+      }
     }
   };
 
@@ -168,9 +178,16 @@ export default function MediaUploadModal({
   };
 
   const saveAll = () => {
-    // If they have something typed but not added, optionally add it, or just ignore.
-    // Let's just return the documents array.
-    onCapture(documents);
+    // If they have something typed or selected but not added yet, include it in final output
+    let finalDocs = [...documents];
+    if (selectedFile || idNumber.trim()) {
+      finalDocs.push({
+        file: selectedFile || undefined,
+        dataUrl: capturedImage || undefined,
+        idNumber: idNumber.trim() || undefined
+      });
+    }
+    onCapture(finalDocs);
   };
   
   // Can add to list if there is a file selected OR if they typed an ID number.
@@ -315,7 +332,7 @@ export default function MediaUploadModal({
                  <h4 className="font-bold text-gray-800 text-sm">Added Documents ({documents.length})</h4>
                  <button 
                     onClick={saveAll}
-                    disabled={documents.length === 0}
+                    disabled={documents.length === 0 && !canAddToList}
                     className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-md transition"
                  >
                     <Check size={16} /> Save All & Close

@@ -48,6 +48,7 @@ export interface GuestData {
   isLead: boolean;
   photoUrl?: string;
   idDocuments?: IDDocument[];
+  idUrls?: string[];
   // Legacy fields for backward compatibility during transition
   idUrl?: string;
   idNumber?: string;
@@ -92,12 +93,18 @@ export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, init
   const [otherMode, setOtherMode] = useState<"FIXED" | "DAILY">(initialData?.otherMode || "FIXED");
 
   const [isCalculating, setIsCalculating] = useState(false);
-  const [snapshot, setSnapshot] = useState<RoomPricingSnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<RoomPricingSnapshot | null>(initialData || null);
   const [calcError, setCalcError] = useState(false);
 
-  const [guests, setGuests] = useState<GuestData[]>(initialGuests || [
-    { id: 'g1', name: '', phone: '', age: '', gender: 'Male', isLead: true }
-  ]);
+  const [guests, setGuests] = useState<GuestData[]>(() => {
+    if (initialGuests && initialGuests.length > 0) {
+      return initialGuests.map((g, i) => ({
+        ...g,
+        id: g.id || `g-${i + 1}`
+      }));
+    }
+    return [{ id: 'g1', name: '', phone: '', age: '', gender: 'Male', isLead: true }];
+  });
   
   const [activeUpload, setActiveUpload] = useState<{ guestId: string, type: 'id' | 'photo' } | null>(null);
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
@@ -197,7 +204,7 @@ export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, init
     setIsCreateServiceOpen(true);
   };
 
-const handleMediaUpload = async (docs: any[]) => {
+  const handleMediaUpload = async (docs: any[]) => {
     if (!activeUpload) return;
     const { guestId, type } = activeUpload;
     
@@ -219,18 +226,28 @@ const handleMediaUpload = async (docs: any[]) => {
           let finalUrl = doc.dataUrl;
           
           if (doc.file) {
-              const formData = new FormData();
-              formData.append('file', doc.file);
-              formData.append('type', type);
-              const res = await fetch('/api/hotel/upload', { method: 'POST', body: formData });
-              const data = await res.json();
-              if (data.fileReference) {
-                 finalUrl = data.fileReference;
-                 
-                 // Run OCR if it's an ID and they didn't manually type a number
-                 if (type === 'id' && !finalIdNumber) {
-                     const ocrData = await extractIdDetails(doc.file);
-                     finalIdNumber = ocrData.idNumber || "";
+              try {
+                const formData = new FormData();
+                formData.append('file', doc.file);
+                formData.append('type', type);
+                const res = await fetch('/api/hotel/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.fileReference) {
+                   finalUrl = data.fileReference;
+                }
+              } catch (uploadErr) {
+                console.warn("Upload endpoint failed, retaining preview URL:", uploadErr);
+              }
+              
+              // Run OCR if it's an ID and they didn't manually type a number
+              if (type === 'id' && !finalIdNumber) {
+                 try {
+                   const ocrData = await extractIdDetails(doc.file);
+                   if (ocrData?.idNumber) {
+                     finalIdNumber = ocrData.idNumber;
+                   }
+                 } catch (ocrErr) {
+                   console.warn("OCR extraction skipped:", ocrErr);
                  }
               }
           }
@@ -241,13 +258,15 @@ const handleMediaUpload = async (docs: any[]) => {
       if (type === 'id') {
          setGuests(prev => prev.map(g => {
             if (g.id === guestId) {
-               // Update idDocuments array
-               // Also set legacy idUrl/idNumber to the first one for backward compatibility
+               const idNumberToUse = finalDocs.find(d => d.number)?.number || (finalDocs.length > 0 ? finalDocs[0].number : g.idNumber);
                return {
                   ...g,
                   idDocuments: finalDocs,
+                  idUrls: finalDocs.map(d => d.url).filter(Boolean),
                   idUrl: finalDocs.length > 0 ? finalDocs[0].url : undefined,
-                  idNumber: finalDocs.length > 0 ? finalDocs[0].number : undefined
+                  idNumber: idNumberToUse,
+                  documentType: g.documentType || 'ID Document',
+                  isVerified: finalDocs.length > 0 ? true : g.isVerified
                };
             }
             return g;
@@ -489,6 +508,7 @@ const handleMediaUpload = async (docs: any[]) => {
                            removeGuest={removeGuest}
                            guestsLength={guests.length}
                            onEditGuest={setEditingGuestId}
+                           onUpload={(guestId: string, type: 'id' | 'photo') => setActiveUpload({ guestId, type })}
                            roomNo={roomNo}
                         />
                      ))}
@@ -656,7 +676,23 @@ const handleMediaUpload = async (docs: any[]) => {
           allowMultiple={activeUpload.type === 'id'}
           initialDocuments={
              activeUpload.type === 'id' 
-               ? (guests.find(g => g.id === activeUpload.guestId)?.idDocuments || []).map(d => ({ dataUrl: d.url, idNumber: d.number, isExisting: true }))
+               ? (() => {
+                   const g = guests.find(guest => guest.id === activeUpload.guestId);
+                   if (!g) return undefined;
+                   if (g.idDocuments && g.idDocuments.length > 0) {
+                     return g.idDocuments.map(d => ({ dataUrl: d.url, idNumber: d.number, isExisting: true }));
+                   }
+                   if (g.idUrls && g.idUrls.length > 0) {
+                     return g.idUrls.map(url => ({ dataUrl: url, idNumber: g.idNumber, isExisting: true }));
+                   }
+                   if (g.idUrl) {
+                     return [{ dataUrl: g.idUrl, idNumber: g.idNumber, isExisting: true }];
+                   }
+                   if (g.idNumber) {
+                     return [{ idNumber: g.idNumber, isExisting: true }];
+                   }
+                   return undefined;
+                 })()
                : undefined
           }
           onCapture={handleMediaUpload}
@@ -1053,7 +1089,7 @@ function ChargeCard({ title, value, icon, onChange, mode, onModeChange }: any) {
   );
 }
 
-function GuestRow({ guest, index, updateGuest, removeGuest, guestsLength, onEditGuest, roomNo }: any) {
+function GuestRow({ guest, index, updateGuest, removeGuest, guestsLength, onEditGuest, onUpload, roomNo }: any) {
   const hasDocument = (guest.idUrls && guest.idUrls.length > 0) || guest.idUrl || guest.idNumber || (guest.idDocuments && guest.idDocuments.length > 0);
   return (
     <tr className="border-b last:border-0 hover:bg-slate-50 transition-colors">
@@ -1106,10 +1142,20 @@ function GuestRow({ guest, index, updateGuest, removeGuest, guestsLength, onEdit
       <td className="px-2 py-1.5">
         <div className="flex flex-col gap-1">
           <div className="flex gap-1.5">
-            <button onClick={() => onEditGuest(guest.id)} className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-[8px] font-semibold transition-colors ${hasDocument ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+            <button 
+              type="button"
+              onClick={() => onUpload ? onUpload(guest.id, 'id') : onEditGuest(guest.id)} 
+              title={hasDocument ? "ID uploaded - click to manage" : "Upload ID proof"}
+              className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-[8px] font-semibold transition-colors ${hasDocument ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
               {hasDocument ? <CheckCircle2 size={13}/> : <Upload size={13} />} ID
             </button>
-            <button onClick={() => onEditGuest(guest.id)} className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-[8px] font-semibold transition-colors ${guest.photoUrl ? 'bg-blue-100 text-blue-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+            <button 
+              type="button"
+              onClick={() => onUpload ? onUpload(guest.id, 'photo') : onEditGuest(guest.id)} 
+              title={guest.photoUrl ? "Photo captured - click to retake" : "Take Photo with Camera"}
+              className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-[8px] font-semibold transition-colors ${guest.photoUrl ? 'bg-blue-100 text-blue-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+            >
               {guest.photoUrl ? <CheckCircle2 size={13}/> : <Camera size={13} />} CAM
             </button>
             {guestsLength > 1 && (

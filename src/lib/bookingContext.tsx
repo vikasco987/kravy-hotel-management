@@ -11,6 +11,7 @@ export interface GuestData {
   gender: string;
   isLead: boolean;
   idUrl?: string;
+  idUrls?: string[];
   idNumber?: string;
   photoUrl?: string;
   idDocuments?: { url: string; number?: string }[];
