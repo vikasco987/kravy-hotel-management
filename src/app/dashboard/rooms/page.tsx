@@ -18,7 +18,8 @@ import {
   ClipboardList,
   Wrench,
   Code,
-  ChevronRight
+  ChevronRight,
+  Edit
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
@@ -63,6 +64,9 @@ export default function RoomsManagementPage() {
   const [isEditFloorOpen, setIsEditFloorOpen] = useState(false);
   const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [editingRoomHasGuest, setEditingRoomHasGuest] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<any | null>(null);
   const [newFloorNumber, setNewFloorNumber] = useState("");
   const [newFloorName, setNewFloorName] = useState("");
   const router = useRouter();
@@ -120,6 +124,17 @@ export default function RoomsManagementPage() {
         setLoading(false);
       });
   }, []);
+
+  const openEditRoom = (room: any, floorId: string) => {
+    setEditingRoomId(room.id);
+    setEditingRoomHasGuest(!!room.guestInfo);
+    setEditingRoom({
+      ...room,
+      floorId,
+      basePrice: typeof room.price === 'number' ? Math.round(room.price / 100) : 1500,
+    });
+    setIsAddRoomOpen(true);
+  };
 
   const handleStatusChange = async (roomId: string, newStatus: string) => {
     try {
@@ -248,7 +263,7 @@ export default function RoomsManagementPage() {
                   <Code size={14} strokeWidth={2.5} /> API JSON
                 </button>
               )}
-              <button onClick={() => setIsAddRoomOpen(true)} className="flex items-center gap-1.5 text-indigo-600 font-bold text-xs hover:bg-indigo-50 px-4 py-2 rounded-full transition whitespace-nowrap">
+              <button onClick={() => { setEditingRoomId(null); setEditingRoom(null); setEditingRoomHasGuest(false); setIsAddRoomOpen(true); }} className="flex items-center gap-1.5 text-indigo-600 font-bold text-xs hover:bg-indigo-50 px-4 py-2 rounded-full transition whitespace-nowrap">
                 <Plus size={14} strokeWidth={3} /> Add Room
               </button>
             </div>
@@ -521,6 +536,20 @@ export default function RoomsManagementPage() {
                     Manual availability change is locked while a guest is staying. Please use the check-out process.
                   </div>
                   <button
+                    onClick={() => {
+                      const floor = data?.floors.find(f => f.rooms.some(r => r.id === selectedRoom.id));
+                      if (floor) {
+                        openEditRoom(selectedRoom, floor.id);
+                      }
+                    }}
+                    className="w-full p-3.5 bg-[#fbf5ff] text-purple-600 rounded-[14px] text-[11px] font-bold hover:bg-purple-100 transition-all flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Edit size={14} /> Edit Room
+                    </div>
+                    <span>&gt;</span>
+                  </button>
+                  <button
                     onClick={() => router.push(`/dashboard/checkout?roomId=${selectedRoom.id}`)}
                     className="w-full p-3.5 bg-emerald-50 text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between"
                   >
@@ -613,6 +642,20 @@ export default function RoomsManagementPage() {
                       </button>
                     </>
                   )}
+                  <button
+                    onClick={() => {
+                      const floor = data?.floors.find(f => f.rooms.some(r => r.id === selectedRoom.id));
+                      if (floor) {
+                        openEditRoom(selectedRoom, floor.id);
+                      }
+                    }}
+                    className="p-3.5 bg-[#fbf5ff] text-purple-600 rounded-[14px] text-[11px] font-bold hover:bg-purple-100 transition-all flex items-center justify-between w-full"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Edit size={14} /> Edit Room
+                    </div>
+                    <span className="text-[10px]">&gt;</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -700,13 +743,31 @@ export default function RoomsManagementPage() {
       {/* Add Room Modal */}
       <AddRoomModal
         isOpen={isAddRoomOpen}
-        onClose={() => setIsAddRoomOpen(false)}
+        onClose={() => {
+          setIsAddRoomOpen(false);
+          setEditingRoomId(null);
+          setEditingRoom(null);
+          setEditingRoomHasGuest(false);
+        }}
         floors={data?.floors || []}
         onSuccess={() => {
+          setIsAddRoomOpen(false);
+          setEditingRoomId(null);
+          setEditingRoom(null);
+          setEditingRoomHasGuest(false);
           trackedFetch('/api/hotel/dashboard')
             .then(res => res.json())
-            .then(newData => setData(newData));
+            .then(newData => {
+              setData(newData);
+              if (selectedRoom) {
+                const updated = newData.floors?.flatMap((f: any) => f.rooms).find((r: any) => r.id === selectedRoom.id);
+                if (updated) setSelectedRoom(updated);
+              }
+            });
         }}
+        editingRoomId={editingRoomId}
+        editingRoomHasGuest={editingRoomHasGuest}
+        initialData={editingRoom}
       />
 
       
