@@ -89,18 +89,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             basePrice: basePrice ? Math.round(basePrice * 100) : 150000
           }
         });
-      } else if (basePrice) {
-         roomType = await prisma.roomType.update({
-            where: { id: roomType.id },
-            data: { basePrice: Math.round(basePrice * 100) }
-         });
       }
       finalRoomTypeId = roomType.id;
-    } else if (basePrice && room.roomType && room.roomType.basePrice !== Math.round(basePrice * 100)) {
-        await prisma.roomType.update({
-            where: { id: room.roomTypeId },
-            data: { basePrice: Math.round(basePrice * 100) }
-         });
     }
 
     // 3. Validate unique room number within the hotel, ignoring the current room
@@ -118,13 +108,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
     }
 
+    // 4. Update room-specific details (including independent customPrice)
     const updatedRoom = await prisma.room.update({
       where: { id },
       data: {
         ...(floorId && { floorId }),
         ...(finalRoomTypeId && { roomTypeId: finalRoomTypeId }),
         ...(roomNumber && { roomNumber }),
-        ...(status && { status })
+        ...(status && { status }),
+        ...(basePrice !== undefined && { customPrice: Math.round(basePrice * 100) })
       },
       include: {
         roomType: true,

@@ -183,8 +183,8 @@ export async function POST(request: Request) {
                    roomId: roomId,
                    checkInDate: checkInParsed,
                    checkOutDate: checkOutParsed,
-                   baseRate: room?.roomType?.basePrice || 250000,
-                   appliedRate: roomPricing?.[roomId]?.baseRate || room?.roomType?.basePrice || 250000,
+                   baseRate: (room?.customPrice !== null && room?.customPrice !== undefined) ? room.customPrice : (room?.roomType?.basePrice || 250000),
+                   appliedRate: roomPricing?.[roomId]?.baseRate || ((room?.customPrice !== null && room?.customPrice !== undefined) ? room.customPrice : (room?.roomType?.basePrice || 250000)),
                    guestsData: roomGuests?.[roomId] ? roomGuests[roomId] : null,
                    guestsCount: Array.isArray(roomGuests?.[roomId]) ? roomGuests[roomId].length : 1
                 }
@@ -247,7 +247,7 @@ export async function POST(request: Request) {
          };
         
         // Authoritative Server Calculation
-        const baseRate = room?.roomType?.basePrice || 250000;
+        const baseRate = (room?.customPrice !== null && room?.customPrice !== undefined) ? room.customPrice : (room?.roomType?.basePrice || 250000);
         
         const calcResult = PricingService.calculateRoomPricing({
            baseRate: pricing?.baseRate || baseRate, // Allow manual base rate override for now

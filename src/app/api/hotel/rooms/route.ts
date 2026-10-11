@@ -63,11 +63,6 @@ export async function POST(req: Request) {
             basePrice: basePrice ? Math.round(basePrice * 100) : 150000
           }
         });
-      } else if (basePrice) {
-         roomType = await prisma.roomType.update({
-            where: { id: roomType.id },
-            data: { basePrice: Math.round(basePrice * 100) }
-         });
       }
     }
     
@@ -101,6 +96,7 @@ export async function POST(req: Request) {
         roomTypeId: finalRoomTypeId,
         roomNumber,
         status: safeStatus as RoomStatus,
+        ...(basePrice !== undefined && { customPrice: Math.round(basePrice * 100) }),
       },
       include: {
         roomType: true,

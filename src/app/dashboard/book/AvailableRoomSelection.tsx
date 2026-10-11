@@ -153,7 +153,7 @@ export default function AvailableRoomSelection({ onComplete, initialRooms = [] }
                                             <div
                                                 key={room.id}
                                                 onClick={() => handleToggleRoom(room.id)}
-                                                title={`Room ${room.roomNumber} · ${room.roomType?.name || 'Standard'} · ₹${((room.roomType?.basePrice || 0) / 100).toLocaleString('en-IN')}`}
+                                                title={`Room ${room.roomNumber} · ${room.roomType?.name || 'Standard'} · ₹${(((room.customPrice !== null && room.customPrice !== undefined) ? room.customPrice : (room.roomType?.basePrice || 0)) / 100).toLocaleString('en-IN')}`}
                                                 className={`relative px-4 w-[76px] h-[52px] shrink-0 flex flex-col items-center justify-center rounded-[14px] cursor-pointer transition-all duration-200 select-none
                                                     ${isSelected
                                                         ? 'bg-indigo-100 text-indigo-800 ring-2 ring-indigo-500 shadow-md scale-[1.02]'

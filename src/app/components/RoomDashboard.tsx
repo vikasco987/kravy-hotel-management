@@ -343,6 +343,7 @@ function DashboardContent() {
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editingRoomHasGuest, setEditingRoomHasGuest] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<any | null>(null);
 
   // Form States - Floor
   const [newFloorName, setNewFloorName] = useState("");
@@ -370,12 +371,18 @@ function DashboardContent() {
     setNewRoomAmenities([]);
     setNewRoomNotes("");
     setEditingRoomId(null);
+    setEditingRoom(null);
     setEditingRoomHasGuest(false);
   };
 
   const openEditRoom = (room: any, floorId: string) => {
     setEditingRoomId(room.id);
     setEditingRoomHasGuest(!!room.guestInfo);
+    setEditingRoom({
+      ...room,
+      floorId,
+      basePrice: typeof room.price === 'number' ? Math.round(room.price / 100) : 1500,
+    });
     setNewRoomNumber(room.roomNumber || room.number || "");
     setNewRoomFloorId(floorId);
     setNewRoomType(room.roomType || room.type || "Standard");
@@ -1198,16 +1205,25 @@ function DashboardContent() {
       {/* Add Room Modal */}
       <AddRoomModal
         isOpen={isAddRoomOpen}
-        onClose={() => setIsAddRoomOpen(false)}
+        onClose={() => {
+          setIsAddRoomOpen(false);
+          setEditingRoomId(null);
+          setEditingRoom(null);
+          setEditingRoomHasGuest(false);
+        }}
         floors={data?.floors || []}
         onSuccess={() => {
+          setIsAddRoomOpen(false);
+          setEditingRoomId(null);
+          setEditingRoom(null);
+          setEditingRoomHasGuest(false);
           trackedFetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' })
             .then(res => res.json())
             .then(newData => setData(newData));
         }}
         editingRoomId={editingRoomId}
         editingRoomHasGuest={editingRoomHasGuest}
-        initialData={focusedRoom}
+        initialData={editingRoom}
       />
       {focusedRoom && (
         <GuestDetailsModal

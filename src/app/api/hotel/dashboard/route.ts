@@ -26,6 +26,7 @@ export async function GET() {
             id: true,
             roomNumber: true,
             status: true,
+            customPrice: true,
             roomType: { select: { name: true, basePrice: true } },
             tasks: { 
               where: { status: 'COMPLETED' }, 
@@ -123,7 +124,7 @@ export async function GET() {
           status: derivedStatus,
           housekeepingStatus: room.status,
           roomType: room.roomType?.name || 'Unknown',
-          price: room.roomType?.basePrice || 0,
+          price: (room.customPrice !== null && room.customPrice !== undefined) ? room.customPrice : (room.roomType?.basePrice || 0),
           lastCleaned,
           guestInfo
         };

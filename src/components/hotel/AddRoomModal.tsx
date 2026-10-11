@@ -37,6 +37,7 @@ export function AddRoomModal({
   const [newRoomStaff, setNewRoomStaff] = useState("");
   const [newRoomAmenities, setNewRoomAmenities] = useState<string[]>([]);
   const [newRoomNotes, setNewRoomNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetRoomForm = () => {
     setNewRoomNumber("");
@@ -57,11 +58,16 @@ export function AddRoomModal({
         setNewRoomFloorId(initialData.floorId || initialData.floor?.id || floors?.[0]?.id || "");
         setNewRoomType(initialData.roomType || initialData.type || "Standard");
         setNewRoomCapacity(initialData.capacity || 2);
-        setNewRoomPrice(initialData.price || 1500);
+        const parsedPrice = typeof initialData.basePrice === 'number'
+          ? initialData.basePrice
+          : typeof initialData.price === 'number'
+            ? Math.round(initialData.price / 100)
+            : 1500;
+        setNewRoomPrice(parsedPrice);
         setNewRoomStatus((initialData.status as RoomStatus) || "AVAILABLE");
         setNewRoomStaff(initialData.staff || "");
         setNewRoomAmenities(initialData.amenities || []);
-        setNewRoomNotes(initialData.notes || "");
+        setNewRoomNotes(initialData.notes || initialData.description || "");
       } else {
         resetRoomForm();
       }
@@ -80,6 +86,7 @@ export function AddRoomModal({
     e.preventDefault();
     if (!newRoomNumber.trim() || !newRoomFloorId) return;
 
+    setIsSubmitting(true);
     try {
       const method = editingRoomId ? 'PATCH' : 'POST';
       const url = editingRoomId ? `/api/hotel/rooms/${editingRoomId}` : '/api/hotel/rooms';
@@ -112,6 +119,8 @@ export function AddRoomModal({
     } catch (error) {
       console.error(error);
       alert(`Network error while ${editingRoomId ? 'updating' : 'creating'} room`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -128,7 +137,9 @@ export function AddRoomModal({
               <Hotel size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-slate-900">{editingRoomId ? 'Edit Room' : 'Add New Room'}</h2>
+              <h2 className="text-xl font-bold tracking-tight text-slate-900">
+                {editingRoomId ? `Edit Room — Room ${newRoomNumber || initialData?.roomNumber || initialData?.number || ''}`.trim() : 'Add New Room'}
+              </h2>
               <p className="mt-0.5 text-sm text-slate-500">{editingRoomId ? 'Update room details and configuration' : 'Create a room and configure its details'}</p>
             </div>
           </div>
@@ -198,6 +209,9 @@ export function AddRoomModal({
                           onChange={(e) => setNewRoomType(e.target.value)}
                           className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 appearance-none"
                         >
+                          {!['Standard', 'Deluxe', 'Suite'].includes(newRoomType) && (
+                            <option value={newRoomType}>{newRoomType}</option>
+                          )}
                           <option>Standard</option>
                           <option>Deluxe</option>
                           <option>Suite</option>
@@ -407,10 +421,13 @@ export function AddRoomModal({
             </button>
             <button
               onClick={handleAddRoom}
-              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-[0.98]"
+              disabled={isSubmitting}
+              className={`flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-[0.98] ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               <Check size={17} />
-              {editingRoomId ? 'Update Room' : 'Save Room'}
+              {isSubmitting
+                ? (editingRoomId ? 'Updating...' : 'Saving...')
+                : (editingRoomId ? 'Update Room' : 'Save Room')}
             </button>
           </div>
         </div>

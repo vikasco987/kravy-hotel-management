@@ -118,7 +118,7 @@ function ReservationWizardContent() {
     if (isSelected) {
       setSelectedRooms(prev => prev.filter(r => r.id !== room.id));
     } else {
-      setSelectedRooms(prev => [...prev, { ...room, baseRate: room.roomType?.basePrice || 250000 }]);
+      setSelectedRooms(prev => [...prev, { ...room, baseRate: (room.customPrice !== null && room.customPrice !== undefined) ? room.customPrice : (room.roomType?.basePrice || 250000) }]);
     }
   };
 
@@ -287,7 +287,7 @@ function ReservationWizardContent() {
                           </div>
                           <div className="mt-4 flex items-center justify-between text-sm font-bold">
                             <span className="text-gray-500">Base Rate</span>
-                            <span className="text-gray-900">₹{((room.roomType?.basePrice || 250000)/100).toLocaleString()}</span>
+                            <span className="text-gray-900">₹{((((room.customPrice !== null && room.customPrice !== undefined) ? room.customPrice : (room.roomType?.basePrice || 250000)))/100).toLocaleString()}</span>
                           </div>
                         </div>
                       );

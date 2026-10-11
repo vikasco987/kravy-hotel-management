@@ -215,6 +215,7 @@ model Room {
   roomNumber String
   status     RoomStatus @default(AVAILABLE)
   isActive   Boolean    @default(true)
+  customPrice Int?      // Room-specific price override in paise (if null, falls back to roomType.basePrice)
 
   hotel    Hotel    @relation(fields: [hotelId], references: [id])
   floor    Floor    @relation(fields: [floorId], references: [id])
