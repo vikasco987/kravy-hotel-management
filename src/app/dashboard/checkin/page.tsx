@@ -147,9 +147,6 @@ export default function CheckinCheckoutPage() {
 
     return (
       <tr key={res.id} className="hover:bg-slate-50 transition-colors border-b border-gray-100/50 last:border-0 group bg-white">
-        <td className="px-5 py-4 w-[40px]">
-          <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
-        </td>
         <td className="px-5 py-4">
           <div className="flex items-center gap-3">
             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${getAvatarColor(res.guestName)}`}>
@@ -356,7 +353,6 @@ export default function CheckinCheckoutPage() {
                <table className="w-full text-left border-collapse min-w-[800px]">
                  <thead>
                    <tr className="bg-slate-50 border-b border-gray-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                     <th className="px-5 py-4 w-[40px]"><input type="checkbox" className="rounded border-gray-300" disabled /></th>
                      <th className="px-5 py-4">Guest</th>
                      <th className="px-5 py-4">Room</th>
                      <th className="px-5 py-4">Check-in</th>
@@ -371,7 +367,7 @@ export default function CheckinCheckoutPage() {
                     {displayUpcoming.length > 0 && (
                       <>
                       <tr className="bg-slate-50/50">
-                        <td colSpan={8} className="px-5 py-3 border-b border-gray-100">
+                        <td colSpan={7} className="px-5 py-3 border-b border-gray-100">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center"><UserCheck size={14} strokeWidth={2.5}/></div>
                             <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">Pending Arrivals</h2>
@@ -387,7 +383,7 @@ export default function CheckinCheckoutPage() {
                     {displayCheckIns.length > 0 && (
                       <>
                       <tr className="bg-slate-50/50">
-                        <td colSpan={8} className="px-5 py-3 border-y border-gray-100">
+                        <td colSpan={7} className="px-5 py-3 border-y border-gray-100">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center"><UserCheck size={14} strokeWidth={2.5}/></div>
                             <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">Today's Check-ins</h2>
@@ -403,7 +399,7 @@ export default function CheckinCheckoutPage() {
                     {displayInHouse.length > 0 && (
                       <>
                       <tr className="bg-slate-50/50">
-                        <td colSpan={8} className="px-5 py-3 border-y border-gray-100">
+                        <td colSpan={7} className="px-5 py-3 border-y border-gray-100">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded bg-blue-100 text-blue-600 flex items-center justify-center"><Hotel size={14} strokeWidth={2.5}/></div>
                             <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">In House</h2>
@@ -419,7 +415,7 @@ export default function CheckinCheckoutPage() {
                     {displayCheckOuts.length > 0 && (
                       <>
                       <tr className="bg-slate-50/50">
-                        <td colSpan={8} className="px-5 py-3 border-y border-gray-100">
+                        <td colSpan={7} className="px-5 py-3 border-y border-gray-100">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded bg-rose-100 text-rose-600 flex items-center justify-center"><LogOut size={14} strokeWidth={2.5}/></div>
                             <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">Check-outs</h2>
@@ -432,7 +428,7 @@ export default function CheckinCheckoutPage() {
                     )}
 
                     {displayUpcoming.length === 0 && displayCheckIns.length === 0 && displayInHouse.length === 0 && displayCheckOuts.length === 0 && (
-                       <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-400 font-bold text-sm">No guests found.</td></tr>
+                       <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400 font-bold text-sm">No guests found.</td></tr>
                     )}
                  </tbody>
                </table>
