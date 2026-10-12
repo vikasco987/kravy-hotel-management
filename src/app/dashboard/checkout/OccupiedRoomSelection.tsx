@@ -46,7 +46,7 @@ export default function OccupiedRoomSelection({ onComplete }: { onComplete: (roo
 
     const handleToggleRoom = (roomId: string) => {
         setSelectedRoomIds(prev =>
-            prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+            prev.includes(roomId) ? [] : [roomId]
         );
     };
 
