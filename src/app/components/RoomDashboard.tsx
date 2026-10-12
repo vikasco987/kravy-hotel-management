@@ -742,10 +742,17 @@ function DashboardContent() {
                 {data.floors.map((floor, index) => {
                   const visibleRooms = filter === 'ALL' ? floor.rooms : floor.rooms.filter((r: any) => r.status === filter);
                   if (visibleRooms.length === 0 && filter !== 'ALL') return null;
+
+                  const sortedRooms = [...visibleRooms].sort((a: any, b: any) => {
+                    const numA = String(a.roomNumber || a.number || '').trim();
+                    const numB = String(b.roomNumber || b.number || '').trim();
+                    return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+                  });
+
                   return (
                     <FloorRow
                       key={floor.id}
-                      floor={{ ...floor, rooms: visibleRooms }}
+                      floor={{ ...floor, rooms: sortedRooms }}
                       floorIndex={index}
                       selectedRooms={selectedRooms}
                       focusedRoomId={focusedRoomId}

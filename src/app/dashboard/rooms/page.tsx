@@ -280,9 +280,15 @@ export default function RoomsManagementPage() {
 
               if (filteredRooms.length === 0 && (activeFilter !== 'ALL' || searchQuery)) return null;
 
+              const sortedRooms = [...filteredRooms].sort((a: any, b: any) => {
+                const numA = String(a.roomNumber || a.number || '').trim();
+                const numB = String(b.roomNumber || b.number || '').trim();
+                return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+              });
+
               const filteredFloor = {
                 ...floor,
-                rooms: filteredRooms
+                rooms: sortedRooms
               };
 
               return (
