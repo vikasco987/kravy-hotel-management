@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { PricingService } from '@/lib/pricing/PricingService';
 import { getAuthContext } from '@/lib/authContext';
 import { randomBytes } from 'crypto';
+import { getStandardChecklistJson, isChecklistEmpty } from '@/lib/housekeeping';
 
 const prisma = new PrismaClient();
 
@@ -150,6 +151,36 @@ export async function POST(req: Request) {
         where: { id: { in: roomIdsToUpdate } },
         data: { status: 'DIRTY' }
       });
+
+      // 5b. Idempotently create PENDING HousekeepingTask for each checked-out room
+      for (const roomId of roomIdsToUpdate) {
+        const existingActiveTask = await tx.housekeepingTask.findFirst({
+          where: {
+            roomId,
+            status: { in: ['PENDING', 'IN_PROGRESS'] }
+          }
+        });
+
+        if (!existingActiveTask) {
+          await tx.housekeepingTask.create({
+            data: {
+              roomId,
+              status: 'PENDING',
+              priority: 'MEDIUM',
+              checklist: getStandardChecklistJson(),
+              notes: 'Generated automatically from Guest Check-out settlement'
+            }
+          });
+        } else if (isChecklistEmpty(existingActiveTask.checklist)) {
+          // If active task exists but checklist is empty (e.g. legacy checkout task), initialize it safely without touching notes or status
+          await tx.housekeepingTask.update({
+            where: { id: existingActiveTask.id },
+            data: {
+              checklist: getStandardChecklistJson()
+            }
+          });
+        }
+      }
 
       // 6. Generate or Update Invoice (Handle DRAFT and PAID for partial checkouts)
       const existingInvoice = await tx.invoice.findUnique({ where: { stayId: stay.id } });

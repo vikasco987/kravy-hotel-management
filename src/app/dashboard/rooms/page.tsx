@@ -136,6 +136,20 @@ export default function RoomsManagementPage() {
     setIsAddRoomOpen(true);
   };
 
+  const handleSetClean = async (roomId: string) => {
+    try {
+      // Ensure the room is marked DIRTY / has an unresolved Housekeeping task with standard checklist
+      await trackedFetch(`/api/hotel/rooms/${roomId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'DIRTY' })
+      });
+    } catch (e) {
+      console.warn('Proceeding to housekeeping workflow:', e);
+    }
+    router.push(`/dashboard/housekeeping?roomId=${roomId}`);
+  };
+
   const handleStatusChange = async (roomId: string, newStatus: string) => {
     try {
       const res = await trackedFetch(`/api/hotel/rooms/${roomId}/status`, {
@@ -143,7 +157,10 @@ export default function RoomsManagementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
-      if (!res.ok) throw new Error('Failed to update status');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Failed to update status');
+      }
 
       const refreshRes = await trackedFetch('/api/hotel/dashboard');
       if (refreshRes.ok) {
@@ -153,9 +170,9 @@ export default function RoomsManagementPage() {
           setSelectedRoom({ ...selectedRoom, status: newStatus });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Failed to update room status');
+      alert(error.message || 'Failed to update room status');
     }
   };
 
@@ -167,7 +184,7 @@ export default function RoomsManagementPage() {
 
 
   const getFloorStats = (rooms: Room[]) => {
-    let stats = { available: 0, occupied: 0, dirty: 0, maintenance: 0, blocked: 0 };
+    const stats = { available: 0, occupied: 0, dirty: 0, maintenance: 0, blocked: 0 };
     rooms.forEach(r => {
       if (r.status === 'AVAILABLE') stats.available++;
       if (r.status === 'OCCUPIED') stats.occupied++;
@@ -326,7 +343,7 @@ export default function RoomsManagementPage() {
 
           <div className="text-center py-6 flex items-center justify-center gap-2 opacity-50">
             <span className="text-rose-400">♥</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">"Great hospitality creates lasting memories."</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">&ldquo;Great hospitality creates lasting memories.&rdquo;</span>
           </div>
         </div>
       </div>
@@ -566,7 +583,7 @@ export default function RoomsManagementPage() {
                   </button>
 
                   {selectedRoom.housekeepingStatus === 'DIRTY' ? (
-                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full">
+                    <button onClick={() => handleSetClean(selectedRoom.id)} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full">
                       <div className="flex items-center gap-2">
                         <Sparkles size={14} /> Set Clean
                       </div>
@@ -603,7 +620,7 @@ export default function RoomsManagementPage() {
                   </button>
                   
                   {selectedRoom.housekeepingStatus === 'DIRTY' || selectedRoom.status === 'DIRTY' ? (
-                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full">
+                    <button onClick={() => handleSetClean(selectedRoom.id)} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full">
                       <div className="flex items-center gap-2">
                         <Sparkles size={14} /> Set Clean
                       </div>

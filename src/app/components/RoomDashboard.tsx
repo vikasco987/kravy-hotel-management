@@ -316,6 +316,20 @@ function DashboardContent() {
     );
   };
 
+  const handleSetClean = async (roomId: string) => {
+    try {
+      // Ensure the room is marked DIRTY / has an unresolved Housekeeping task with standard checklist
+      await trackedFetch(`/api/hotel/rooms/${roomId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'DIRTY' })
+      });
+    } catch (e) {
+      console.warn('Proceeding to housekeeping workflow:', e);
+    }
+    router.push(`/dashboard/housekeeping?roomId=${roomId}`);
+  };
+
   const handleStatusChange = async (roomId: string, newStatus: string) => {
     try {
       const res = await trackedFetch(`/api/hotel/rooms/${roomId}/status`, {
@@ -323,16 +337,19 @@ function DashboardContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
-      if (!res.ok) throw new Error('Failed to update status');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Failed to update status');
+      }
 
       const refreshRes = await trackedFetch('/api/hotel/dashboard');
       if (refreshRes.ok) {
         const newData = await refreshRes.json();
         setData(newData);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Failed to update room status');
+      alert(error.message || 'Failed to update room status');
     }
   };
 
@@ -668,7 +685,7 @@ function DashboardContent() {
                 <Sun size={48} className="text-yellow-400 fill-yellow-400" />
                 <div>
                   <h1 className="text-3xl font-bold text-white tracking-tight">Good Afternoon, System Administrator</h1>
-                  <p className="text-blue-100 text-sm mt-1">Here's what's happening at Grand Plaza today.</p>
+                  <p className="text-blue-100 text-sm mt-1">Here&apos;s what&apos;s happening at Grand Plaza today.</p>
                 </div>
               </div>
 
@@ -693,7 +710,7 @@ function DashboardContent() {
             <QuickActionCard title="Guest Check-in" subtitle="New arrivals" icon={UserRound} onClick={() => router.push('/dashboard/book')} colorTheme={{ bg: 'bg-blue-50', text: 'text-blue-600' }} />
             <QuickActionCard title="Guest Check-out" subtitle="Departures today" icon={UserCheck} onClick={() => router.push('/dashboard/checkout')} colorTheme={{ bg: 'bg-purple-50', text: 'text-purple-600' }} />
             <QuickActionCard title="Reservations" subtitle="Manage bookings" icon={CalendarDays} onClick={() => router.push('/dashboard/reservations')} colorTheme={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }} />
-            <QuickActionCard title="Housekeeping" subtitle="Room cleaning" icon={Sparkles} onClick={() => { }} colorTheme={{ bg: 'bg-amber-50', text: 'text-amber-600' }} />
+            <QuickActionCard title="Housekeeping" subtitle="Room cleaning" icon={Sparkles} onClick={() => router.push('/dashboard/housekeeping')} colorTheme={{ bg: 'bg-amber-50', text: 'text-amber-600' }} />
             <QuickActionCard title="Restaurant" subtitle="View orders" icon={UtensilsCrossed} onClick={() => { }} colorTheme={{ bg: 'bg-rose-50', text: 'text-rose-600' }} />
             <QuickActionCard title="WhatsApp" subtitle="Guest messaging" icon={MessageCircle} onClick={() => { }} colorTheme={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }} />
 
@@ -862,7 +879,7 @@ function DashboardContent() {
 
                   {/* Subtle footer */}
                   <div className="pt-6 text-[10px] text-gray-400 font-medium text-center italic flex items-center justify-center gap-1">
-                    <span className="text-amber-500">âœ¦</span> "Great hospitality creates lasting memories."
+                    <span className="text-amber-500">✧</span> &ldquo;Great hospitality creates lasting memories.&rdquo;
                   </div>
                 </div>
               </div>
@@ -1072,7 +1089,7 @@ function DashboardContent() {
 
                     {focusedRoom.housekeepingStatus === 'DIRTY' || focusedRoom.status === 'DIRTY' ? (
                       <button 
-                        onClick={() => handleStatusChange(focusedRoom.id, 'AVAILABLE')} 
+                        onClick={() => handleSetClean(focusedRoom.id)}
                         className="p-3.5 bg-emerald-50/80 text-emerald-600 rounded-[14px] flex items-center gap-2.5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all font-black text-[12px] shadow-sm"
                       >
                         <Sparkles size={16} className="opacity-90" /> Set Clean
@@ -1096,7 +1113,8 @@ function DashboardContent() {
                     ) : (
                       <button 
                         onClick={() => handleStatusChange(focusedRoom.id, 'MAINTENANCE')} 
-                        className="p-3.5 bg-amber-50 text-amber-600 rounded-[14px] flex items-center gap-2.5 border border-amber-100 hover:bg-amber-100 hover:border-amber-200 transition-all font-black text-[12px] shadow-sm"
+                        disabled={focusedRoom.status === 'OCCUPIED'}
+                        className={`p-3.5 bg-amber-50 text-amber-600 rounded-[14px] flex items-center gap-2.5 border border-amber-100 hover:bg-amber-100 hover:border-amber-200 transition-all font-black text-[12px] shadow-sm ${focusedRoom.status === 'OCCUPIED' ? 'opacity-40 cursor-not-allowed' : ''}`}
                       >
                         <Wrench size={16} className="opacity-90" /> Maintenance
                       </button>
@@ -1112,7 +1130,8 @@ function DashboardContent() {
                     ) : (
                       <button 
                         onClick={() => handleStatusChange(focusedRoom.id, 'BLOCKED')} 
-                        className="p-3.5 bg-blue-50/80 text-blue-600 rounded-[14px] flex items-center gap-2.5 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 transition-all font-black text-[12px] shadow-sm"
+                        disabled={focusedRoom.status === 'OCCUPIED'}
+                        className={`p-3.5 bg-blue-50/80 text-blue-600 rounded-[14px] flex items-center gap-2.5 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 transition-all font-black text-[12px] shadow-sm ${focusedRoom.status === 'OCCUPIED' ? 'opacity-40 cursor-not-allowed' : ''}`}
                       >
                         <Lock size={16} className="opacity-90" /> Block Room
                       </button>

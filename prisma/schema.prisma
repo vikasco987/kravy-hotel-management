@@ -447,6 +447,13 @@ model HousekeepingTask {
   staffId String?    @db.ObjectId
   status  TaskStatus @default(PENDING)
 
+  priority         String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  checklist        Json?     @default("[]")     // Array of checklist items { id, label, completed }
+  notes            String?                      // Housekeeping / cleaning notes
+  inspectionStatus String?                      // PENDING, PASSED, RE_CLEAN
+  inspectedBy      String?   @db.ObjectId
+  inspectedAt      DateTime?
+
   room  Room   @relation(fields: [roomId], references: [id])
   staff Staff? @relation(fields: [staffId], references: [id])
 
