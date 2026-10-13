@@ -580,19 +580,20 @@ export default function FloorsManagementPage() {
                       </button>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-2.5 items-center">
+                    <div className="flex flex-wrap gap-3 items-center">
                       {sortedRooms.map(room => {
                         const config = STATUS_COLORS[room.status] || STATUS_COLORS.AVAILABLE;
                         const label = room.roomNumber || 'N/A';
                         return (
                           <div
                             key={room.id}
+                            id={`room-${label}`}
                             onClick={() => router.push('/dashboard/rooms')}
                             title={`Room ${label} - ${config.label}\nClick to view in Rooms`}
-                            className={`px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-extrabold cursor-pointer border border-transparent hover:border-gray-300 hover:scale-[1.02] transition shadow-xs ${config.bg} ${config.text}`}
+                            className={`w-[78px] h-[52px] shrink-0 flex flex-col items-center justify-center rounded-[14px] cursor-pointer transition-all duration-200 border border-transparent hover:border-gray-200 hover:scale-[1.02] hover:-translate-y-0.5 shadow-xs ${config.bg} ${config.text}`}
                           >
-                            <span>{label}</span>
-                            <span className={`w-2 h-2 rounded-full ${config.dot}`}></span>
+                            <span className="font-extrabold text-[14px] tracking-tight leading-none">{label}</span>
+                            <div className={`w-2 h-2 rounded-full mt-1.5 ${config.dot}`}></div>
                           </div>
                         );
                       })}
@@ -600,10 +601,10 @@ export default function FloorsManagementPage() {
                       <button
                         onClick={() => handleOpenAddRoomForFloor(floor.id)}
                         title="Add another room to this floor"
-                        className="px-3 py-2 rounded-xl border border-dashed border-gray-300 text-gray-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/40 text-xs font-bold flex items-center gap-1 transition"
+                        className="w-[78px] h-[52px] shrink-0 rounded-[14px] border-2 border-dashed border-gray-200 text-gray-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/40 text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all"
                       >
-                        <Plus size={13} strokeWidth={2.5} />
-                        <span>Add Room</span>
+                        <Plus size={16} strokeWidth={2.5} />
+                        <span className="text-[10px] font-bold tracking-tight leading-none">Add Room</span>
                       </button>
                     </div>
                   )}
