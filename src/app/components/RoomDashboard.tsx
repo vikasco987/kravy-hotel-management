@@ -716,7 +716,7 @@ function DashboardContent() {
 
             <QuickActionCard title="Rooms" subtitle="Room inventory" icon={BedDouble} onClick={() => { }} colorTheme={{ bg: 'bg-sky-50', text: 'text-sky-600' }} />
             <QuickActionCard title="Staff" subtitle="Manage staff" icon={Users} onClick={() => router.push('/dashboard/staff')} colorTheme={{ bg: 'bg-cyan-50', text: 'text-cyan-600' }} />
-            <QuickActionCard title="Floors" subtitle="Floor overview" icon={Building2} onClick={() => { }} colorTheme={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }} />
+            <QuickActionCard title="Floors" subtitle="Floor overview" icon={Building2} onClick={() => router.push('/dashboard/floors')} colorTheme={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }} />
             <QuickActionCard title="Reports" subtitle="Analytics & reports" icon={BarChart3} onClick={() => { }} colorTheme={{ bg: 'bg-amber-50', text: 'text-amber-600' }} />
             <QuickActionCard title="Settings" subtitle="System settings" icon={Settings} onClick={() => { }} colorTheme={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }} />
             <QuickActionCard title="Expenses & P&L" subtitle="Financial reports" icon={Wallet} onClick={() => { }} colorTheme={{ bg: 'bg-rose-50', text: 'text-rose-600' }} />
