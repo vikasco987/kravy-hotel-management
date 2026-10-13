@@ -18,9 +18,11 @@ import {
   Loader2,
   Power,
   ChevronDown,
-  KeyRound
+  KeyRound,
+  Code
 } from 'lucide-react';
 import dayjs from 'dayjs';
+import { ApiJsonDebugger } from '@/components/ui/ApiJsonDebugger';
 
 interface StaffMember {
   id: string;
@@ -63,6 +65,20 @@ const ROLE_CONFIG: Record<string, { label: string; badgeBg: string; badgeText: s
   }
 };
 
+const sanitizeBody = (data: any): any => {
+  if (!data || typeof data !== 'object') return data;
+  if (Array.isArray(data)) return data.map(sanitizeBody);
+  const sanitized = { ...data };
+  for (const key of Object.keys(sanitized)) {
+    if (['password', 'token', 'secret', 'cookie', 'authorization'].includes(key.toLowerCase())) {
+      sanitized[key] = '[REDACTED]';
+    } else if (typeof sanitized[key] === 'object') {
+      sanitized[key] = sanitizeBody(sanitized[key]);
+    }
+  }
+  return sanitized;
+};
+
 export default function StaffManagementPage() {
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +116,46 @@ export default function StaffManagementPage() {
 
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // API JSON Debugger State
+  const [apiRequests, setApiRequests] = useState<any[]>([]);
+  const [isApiJsonOpen, setIsApiJsonOpen] = useState(false);
+
+  const trackedFetch = useCallback(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const startTime = Date.now();
+    const url = typeof input === 'string' ? input : input.toString();
+    const method = init?.method || 'GET';
+    try {
+      const response = await window.fetch(input, init);
+      const cloned = response.clone();
+      const status = response.status;
+      const responseTimeMs = Date.now() - startTime;
+      const text = await cloned.text();
+      let d;
+      try { d = JSON.parse(text); } catch { d = text; }
+
+      setApiRequests(prev => [...prev, {
+        url,
+        method,
+        status,
+        responseTimeMs,
+        timestamp: new Date().toISOString(),
+        response: sanitizeBody(d)
+      }]);
+
+      return response;
+    } catch (e: any) {
+      setApiRequests(prev => [...prev, {
+        url,
+        method,
+        status: 'ERROR',
+        responseTimeMs: Date.now() - startTime,
+        timestamp: new Date().toISOString(),
+        response: { error: String(e) }
+      }]);
+      throw e;
+    }
+  }, []);
+
   const showNotification = useCallback((type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 4000);
@@ -107,7 +163,7 @@ export default function StaffManagementPage() {
 
   const fetchStaff = useCallback(async () => {
     try {
-      const res = await fetch('/api/hotel/staff');
+      const res = await trackedFetch('/api/hotel/staff');
       if (!res.ok) {
         if (res.status === 401) {
           throw new Error('Please log in to manage hotel staff.');
@@ -125,11 +181,11 @@ export default function StaffManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [trackedFetch]);
 
   useEffect(() => {
     let active = true;
-    fetch('/api/hotel/staff')
+    trackedFetch('/api/hotel/staff')
       .then(async (res) => {
         if (!res.ok) {
           if (res.status === 401) throw new Error('Please log in to manage hotel staff.');
@@ -154,7 +210,7 @@ export default function StaffManagementPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [trackedFetch]);
 
   // Summary Metrics
   const stats = useMemo(() => {
@@ -243,7 +299,7 @@ export default function StaffManagementPage() {
         payload.password = formPassword.trim();
       }
 
-      const res = await fetch(url, {
+      const res = await trackedFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -273,7 +329,7 @@ export default function StaffManagementPage() {
     const newStatus = confirmModal.action === 'deactivate' ? 'inactive' : 'active';
 
     try {
-      const res = await fetch(`/api/hotel/staff/${member.id}`, {
+      const res = await trackedFetch(`/api/hotel/staff/${member.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -345,13 +401,23 @@ export default function StaffManagementPage() {
             </p>
           </div>
 
-          <button
-            onClick={openAddModal}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-sm shadow-indigo-500/20 transition-all hover:scale-[1.01] shrink-0"
-          >
-            <UserPlus size={16} strokeWidth={2.5} />
-            <span>Add Staff Member</span>
-          </button>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={() => setIsApiJsonOpen(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs shadow-sm transition-all shrink-0"
+              title="View Staff API JSON and Network Logs"
+            >
+              <Code size={15} strokeWidth={2.5} />
+              <span>API JSON Debugger</span>
+            </button>
+            <button
+              onClick={openAddModal}
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-sm shadow-indigo-500/20 transition-all hover:scale-[1.01] shrink-0"
+            >
+              <UserPlus size={16} strokeWidth={2.5} />
+              <span>Add Staff Member</span>
+            </button>
+          </div>
         </div>
 
         {/* SUMMARY KPI CARDS */}
@@ -891,6 +957,14 @@ export default function StaffManagementPage() {
           </div>
         </div>
       )}
+
+      {/* API JSON DEBUGGER MODAL */}
+      <ApiJsonDebugger
+        apiRequests={apiRequests}
+        isOpen={isApiJsonOpen}
+        onClose={() => setIsApiJsonOpen(false)}
+        onClear={() => setApiRequests([])}
+      />
     </div>
   );
 }

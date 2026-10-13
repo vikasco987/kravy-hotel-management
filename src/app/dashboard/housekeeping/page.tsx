@@ -23,9 +23,11 @@ import {
   UserX,
   Eye,
   CheckSquare,
-  Square
+  Square,
+  Code
 } from 'lucide-react';
 import dayjs from 'dayjs';
+import { ApiJsonDebugger } from '@/components/ui/ApiJsonDebugger';
 
 interface TaskStaff {
   id: string;
@@ -95,6 +97,20 @@ const PRIORITY_BADGES: Record<string, { bg: string; text: string; border: string
   URGENT: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
 };
 
+const sanitizeBody = (data: any): any => {
+  if (!data || typeof data !== 'object') return data;
+  if (Array.isArray(data)) return data.map(sanitizeBody);
+  const sanitized = { ...data };
+  for (const key of Object.keys(sanitized)) {
+    if (['password', 'token', 'secret', 'cookie', 'authorization'].includes(key.toLowerCase())) {
+      sanitized[key] = '[REDACTED]';
+    } else if (typeof sanitized[key] === 'object') {
+      sanitized[key] = sanitizeBody(sanitized[key]);
+    }
+  }
+  return sanitized;
+};
+
 export default function HousekeepingPage() {
   const [tasks, setTasks] = useState<HousekeepingTaskItem[]>([]);
   const [counts, setCounts] = useState<TaskCounts>({
@@ -107,6 +123,46 @@ export default function HousekeepingPage() {
   });
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // API JSON Debugger State
+  const [apiRequests, setApiRequests] = useState<any[]>([]);
+  const [isApiJsonOpen, setIsApiJsonOpen] = useState(false);
+
+  const trackedFetch = useCallback(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const startTime = Date.now();
+    const url = typeof input === 'string' ? input : input.toString();
+    const method = init?.method || 'GET';
+    try {
+      const response = await window.fetch(input, init);
+      const cloned = response.clone();
+      const status = response.status;
+      const responseTimeMs = Date.now() - startTime;
+      const text = await cloned.text();
+      let d;
+      try { d = JSON.parse(text); } catch { d = text; }
+
+      setApiRequests(prev => [...prev, {
+        url,
+        method,
+        status,
+        responseTimeMs,
+        timestamp: new Date().toISOString(),
+        response: sanitizeBody(d)
+      }]);
+
+      return response;
+    } catch (e: any) {
+      setApiRequests(prev => [...prev, {
+        url,
+        method,
+        status: 'ERROR',
+        responseTimeMs: Date.now() - startTime,
+        timestamp: new Date().toISOString(),
+        response: { error: String(e) }
+      }]);
+      throw e;
+    }
+  }, []);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -160,7 +216,7 @@ export default function HousekeepingPage() {
       if (floorFilter !== 'ALL') params.set('floorId', floorFilter);
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
 
-      const res = await fetch(`/api/hotel/housekeeping?${params.toString()}`);
+      const res = await trackedFetch(`/api/hotel/housekeeping?${params.toString()}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Error ${res.status}: Failed to fetch housekeeping tasks`);
@@ -176,7 +232,7 @@ export default function HousekeepingPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, priorityFilter, staffFilter, floorFilter, searchQuery]);
+  }, [statusFilter, priorityFilter, staffFilter, floorFilter, searchQuery, trackedFetch]);
 
   const initialRoomIdHandled = React.useRef(false);
 
@@ -189,7 +245,7 @@ export default function HousekeepingPage() {
     if (floorFilter !== 'ALL') params.set('floorId', floorFilter);
     if (searchQuery.trim()) params.set('search', searchQuery.trim());
 
-    fetch(`/api/hotel/housekeeping?${params.toString()}`)
+    trackedFetch(`/api/hotel/housekeeping?${params.toString()}`)
       .then(async (res) => {
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -231,7 +287,7 @@ export default function HousekeepingPage() {
     return () => {
       active = false;
     };
-  }, [statusFilter, priorityFilter, staffFilter, floorFilter, searchQuery, openChecklistModal]);
+  }, [statusFilter, priorityFilter, staffFilter, floorFilter, searchQuery, openChecklistModal, trackedFetch]);
 
   // Load Rooms and Staff for creation
   const openCreateModal = async () => {
@@ -245,8 +301,8 @@ export default function HousekeepingPage() {
 
     try {
       const [roomsRes, staffRes] = await Promise.all([
-        fetch('/api/hotel/rooms'),
-        fetch('/api/hotel/staff?role=HOUSEKEEPING&status=active'),
+        trackedFetch('/api/hotel/rooms'),
+        trackedFetch('/api/hotel/staff?role=HOUSEKEEPING&status=active'),
       ]);
 
       if (roomsRes.ok) {
@@ -283,7 +339,7 @@ export default function HousekeepingPage() {
         notes: taskNotes.trim() || undefined,
       };
 
-      const res = await fetch('/api/hotel/housekeeping', {
+      const res = await trackedFetch('/api/hotel/housekeeping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -311,7 +367,7 @@ export default function HousekeepingPage() {
 
     if (housekeepingStaff.length === 0) {
       try {
-        const staffRes = await fetch('/api/hotel/staff?role=HOUSEKEEPING&status=active');
+        const staffRes = await trackedFetch('/api/hotel/staff?role=HOUSEKEEPING&status=active');
         if (staffRes.ok) {
           const staffData = await staffRes.json();
           setHousekeepingStaff(staffData || []);
@@ -331,7 +387,7 @@ export default function HousekeepingPage() {
     setAssignError(null);
 
     try {
-      const res = await fetch(`/api/hotel/housekeeping/${assigningTask.id}`, {
+      const res = await trackedFetch(`/api/hotel/housekeeping/${assigningTask.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ staffId: assignStaffId || null }),
@@ -356,7 +412,7 @@ export default function HousekeepingPage() {
     setActionLoading(true);
     setActionError(null);
     try {
-      const res = await fetch(`/api/hotel/housekeeping/${task.id}`, {
+      const res = await trackedFetch(`/api/hotel/housekeeping/${task.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'START_CLEANING' }),
@@ -394,7 +450,7 @@ export default function HousekeepingPage() {
     setSelectedTask({ ...selectedTask, checklist: updatedChecklist });
 
     try {
-      const res = await fetch(`/api/hotel/housekeeping/${selectedTask.id}`, {
+      const res = await trackedFetch(`/api/hotel/housekeeping/${selectedTask.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ checklist: updatedChecklist }),
@@ -418,7 +474,7 @@ export default function HousekeepingPage() {
     setActionSuccess(null);
 
     try {
-      const res = await fetch(`/api/hotel/housekeeping/${selectedTask.id}`, {
+      const res = await trackedFetch(`/api/hotel/housekeeping/${selectedTask.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'COMPLETE_CLEANING' }),
@@ -448,7 +504,7 @@ export default function HousekeepingPage() {
     setActionSuccess(null);
 
     try {
-      const res = await fetch(`/api/hotel/housekeeping/${selectedTask.id}`, {
+      const res = await trackedFetch(`/api/hotel/housekeeping/${selectedTask.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -506,6 +562,14 @@ export default function HousekeepingPage() {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={() => setIsApiJsonOpen(true)}
+              className="h-10 px-3.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2"
+              title="View Housekeeping API JSON and Network Logs"
+            >
+              <Code size={15} strokeWidth={2.5} />
+              <span>API JSON Debugger</span>
+            </button>
             <button
               onClick={fetchTasks}
               className="h-10 px-3.5 bg-slate-50 border border-gray-200 text-slate-700 hover:bg-slate-100 rounded-xl text-xs font-bold transition flex items-center gap-2"
@@ -1241,6 +1305,13 @@ export default function HousekeepingPage() {
         </div>
       )}
 
+      {/* API JSON DEBUGGER MODAL */}
+      <ApiJsonDebugger
+        apiRequests={apiRequests}
+        isOpen={isApiJsonOpen}
+        onClose={() => setIsApiJsonOpen(false)}
+        onClear={() => setApiRequests([])}
+      />
     </div>
   );
 }
