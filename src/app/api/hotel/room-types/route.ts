@@ -14,7 +14,7 @@ export async function GET() {
     const { hotel } = authContext;
 
     const roomTypes = await prisma.roomType.findMany({
-      where: { hotelId: hotel.id },
+      where: { hotelId: hotel.id, isActive: true },
       orderBy: { name: 'asc' }
     });
 
