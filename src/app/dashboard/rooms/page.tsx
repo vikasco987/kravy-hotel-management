@@ -19,7 +19,10 @@ import {
   Wrench,
   Code,
   ChevronRight,
-  Edit
+  Edit,
+  CheckCircle,
+  BedDouble,
+  LockKeyhole
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
@@ -206,47 +209,64 @@ export default function RoomsManagementPage() {
         <div className="p-8 max-w-[1400px] mx-auto space-y-6">
 
           {/* TOP STATS */}
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 min-w-[150px] shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Building2 size={20} /></div>
-              <div>
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Rooms</div>
-                <div className="text-xl font-black text-gray-900">{roomStats.total}</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 md:gap-4">
+            <div className="bg-white border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 shadow-sm hover:shadow transition-all duration-200 flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                <Building2 size={22} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Total Rooms</div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.total}</div>
               </div>
             </div>
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 min-w-[150px] shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center text-xl font-black">9</div>
-              <div>
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Available</div>
-                <div className="text-xl font-black text-gray-900">{roomStats.available}</div>
+
+            <div className="bg-white border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 shadow-sm hover:shadow transition-all duration-200 flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                <CheckCircle size={22} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Available</div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.available}</div>
               </div>
             </div>
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 min-w-[150px] shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-xl font-black">8</div>
-              <div>
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Occupied</div>
-                <div className="text-xl font-black text-gray-900">{roomStats.occupied}</div>
+
+            <div className="bg-white border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 shadow-sm hover:shadow transition-all duration-200 flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+                <BedDouble size={22} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Occupied</div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.occupied}</div>
               </div>
             </div>
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 min-w-[150px] shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center"><span className="text-xl font-black">0</span></div>
-              <div>
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Dirty</div>
-                <div className="text-xl font-black text-gray-900">{roomStats.dirty}</div>
+
+            <div className="bg-white border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 shadow-sm hover:shadow transition-all duration-200 flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100">
+                <Sparkles size={22} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Dirty</div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.dirty}</div>
               </div>
             </div>
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 min-w-[150px] shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center"><span className="text-xl font-black">0</span></div>
-              <div>
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Maintenance</div>
-                <div className="text-xl font-black text-gray-900">{roomStats.maintenance}</div>
+
+            <div className="bg-white border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 shadow-sm hover:shadow transition-all duration-200 flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+                <Wrench size={22} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Maintenance</div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.maintenance}</div>
               </div>
             </div>
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 min-w-[150px] shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gray-50 text-gray-500 flex items-center justify-center"><span className="text-xl font-black">0</span></div>
-              <div>
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Blocked</div>
-                <div className="text-xl font-black text-gray-900">{roomStats.blocked}</div>
+
+            <div className="bg-white border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 shadow-sm hover:shadow transition-all duration-200 flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center shrink-0 border border-gray-200">
+                <LockKeyhole size={22} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Blocked</div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.blocked}</div>
               </div>
             </div>
           </div>
