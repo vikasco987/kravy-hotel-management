@@ -568,7 +568,7 @@ export default function HousekeepingPage() {
               title="View Housekeeping API JSON and Network Logs"
             >
               <Code size={15} strokeWidth={2.5} />
-              <span>API JSON Debugger</span>
+              <span>API JSON</span>
             </button>
             <button
               onClick={fetchTasks}
