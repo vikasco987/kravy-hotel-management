@@ -21,6 +21,8 @@ export const metadata: Metadata = {
   description: "Manage your hotel rooms and bookings efficiently with Kravy.",
 };
 
+import { ConfirmProvider } from "@/components/ConfirmContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,18 +34,20 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${fraunces.variable} h-full antialiased`}>
       <body className="min-h-full bg-[#f4f1eb] text-gray-900 font-sans">
-        <div className="flex h-screen overflow-hidden bg-[#F4F6F9]">
-          <Sidebar />
-          <div className="flex flex-1 flex-col overflow-hidden relative">
-            {/* Topbar */}
-            <GlobalHeader today={today} />
-            
-            {/* Main content */}
-            <main className="flex-1 overflow-y-auto w-full">
-              {children}
-            </main>
+        <ConfirmProvider>
+          <div className="flex h-screen overflow-hidden bg-[#F4F6F9]">
+            <Sidebar />
+            <div className="flex flex-1 flex-col overflow-hidden relative">
+              {/* Topbar */}
+              <GlobalHeader today={today} />
+
+              {/* Main content */}
+              <main className="flex-1 overflow-y-auto w-full">
+                {children}
+              </main>
+            </div>
           </div>
-        </div>
+        </ConfirmProvider>
       </body>
     </html>
   );
