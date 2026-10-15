@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
@@ -9,6 +10,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:rooms:edit');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { hotel } = authContext;
@@ -76,6 +82,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:rooms:delete');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { hotel } = authContext;

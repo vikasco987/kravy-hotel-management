@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { PricingService } from '@/lib/pricing/PricingService';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission, hasPermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
@@ -10,6 +11,11 @@ export async function GET(req: Request) {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'page:checkin');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -146,7 +152,11 @@ export async function GET(req: Request) {
         amount: charge.amount, // minor units (paise)
         quantity: charge.quantity,
         total: charge.totalAmount
-      }))
+      })),
+      canPrintA4: hasPermission(authContext.user, 'action:printing:invoice_a4'),
+      canPrint80mm: hasPermission(authContext.user, 'action:printing:invoice_80mm'),
+      canPrint58mm: hasPermission(authContext.user, 'action:printing:invoice_58mm'),
+      canPrintReceipt: hasPermission(authContext.user, 'action:printing:payment_receipt')
     };
 
     return NextResponse.json(payload, { status: 200 });

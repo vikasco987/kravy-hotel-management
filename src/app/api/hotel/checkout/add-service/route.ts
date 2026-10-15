@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
@@ -9,6 +10,11 @@ export async function POST(req: Request) {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:checkout:add_services');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { stayId, stayRoomId, name, price, quantity, type } = await req.json();
@@ -27,7 +33,7 @@ export async function POST(req: Request) {
       if (!stayRoom) {
         throw new Error('StayRoom not found');
       }
-      
+
       if (stayRoom.stayId !== stayId) {
          throw new Error('StayRoom does not belong to the provided Stay');
       }
@@ -43,7 +49,7 @@ export async function POST(req: Request) {
       });
 
       let chargeDifference = 0;
-      let newTotal = price * quantity;
+      const newTotal = price * quantity;
 
       if (existingCharge) {
         // If quantity becomes 0, remove the charge
@@ -82,11 +88,11 @@ export async function POST(req: Request) {
       // 3. Update StayRoom totals (we only modify extraChargesAmount, taxableAmount, taxAmount, grossAmount, finalAmount)
       // To be perfectly accurate, we should recalculate tax based on taxMode.
       // For EXTRA_SERVICES, tax is usually applied on top if EXCLUSIVE, or included if INCLUSIVE.
-      
+
       let additionalTax = 0;
       let additionalGross = chargeDifference;
       let additionalFinal = chargeDifference;
-      
+
       if (stayRoom.taxMode === 'EXCLUSIVE') {
          // Tax is applied on top of the charge
          additionalTax = Math.round(chargeDifference * (stayRoom.taxRate / 10000));
@@ -115,7 +121,7 @@ export async function POST(req: Request) {
            finalAmount: { increment: additionalFinal }
         }
       });
-      
+
       return updatedStayRoom;
     });
 

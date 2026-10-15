@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getAuthContext } from '@/lib/authContext';
 import { PricingService } from '@/lib/pricing/PricingService';
+import { requirePermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
 function calculateNights(checkInStr: string, checkOutStr: string): number {
   const checkInParts = checkInStr.split('T')[0].split('-');
   const checkOutParts = checkOutStr.split('T')[0].split('-');
-  
+
   if (checkInParts.length === 3 && checkOutParts.length === 3) {
     const ci = new Date(Date.UTC(Number(checkInParts[0]), Number(checkInParts[1]) - 1, Number(checkInParts[2])));
     const co = new Date(Date.UTC(Number(checkOutParts[0]), Number(checkOutParts[1]) - 1, Number(checkOutParts[2])));
@@ -24,6 +25,11 @@ export async function POST(request: Request) {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:checkin:perform');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const hotelId = authContext.hotel.id;
@@ -48,7 +54,7 @@ export async function POST(request: Request) {
       where: { id: { in: roomIds } },
       include: { roomType: true }
     });
-    
+
     // We will use a database transaction to ensure overlap protection
     console.log("Starting check-in transaction for rooms:", roomIds);
     const stay = await prisma.$transaction(async (tx) => {
@@ -76,7 +82,7 @@ export async function POST(request: Request) {
           guestPhotoUrl: leadGuestData?.photoUrl || null,
         }
       });
-      
+
       // Save documents for the lead guest if any
       if (leadGuestData?.idUrls && leadGuestData.idUrls.length > 0) {
          for (const url of leadGuestData.idUrls) {
@@ -114,7 +120,7 @@ export async function POST(request: Request) {
             }
          });
       }
-      
+
       // Create records for all other guests (we could link them to the StayRoom if schema allowed it, for now just create the Guest profile)
       for (const g of allGuests) {
          if (g.id !== leadGuestData?.id && g.name) {
@@ -203,14 +209,14 @@ export async function POST(request: Request) {
       for (const roomId of roomIds) {
         const pricing = roomPricing?.[roomId];
         const room = dbRooms.find(r => r.id === roomId);
-        
+
         // OVERLAP PROTECTION: Check if room is already occupied or booked in this date range
         if (roomId.length === 24) {
            console.log("OVERLAP CHECK START:");
            console.log("Room:", room?.roomNumber, "ID:", roomId);
            console.log("checkInParsed:", checkInParsed);
            console.log("checkOutParsed:", checkOutParsed);
-           
+
            const existing = await tx.reservationRoom.findFirst({
               where: {
                  roomId: roomId,
@@ -230,25 +236,25 @@ export async function POST(request: Request) {
                  }
               }
            });
-           
+
            if (existing) {
                console.log("Overlap check failed for room:", roomId, "Conflict with reservation:", existing.reservationId);
                console.log("Existing checkIn:", existing.checkInDate, "Existing checkOut:", existing.checkOutDate);
                throw new Error(`Room ${room?.roomNumber || roomId} is already occupied or booked for these dates.`);
             }
          }
-         
+
          let stayRoomData: any = {
              stayId: stayRecord.id,
-             roomId: room ? room.id : undefined, 
+             roomId: room ? room.id : undefined,
              checkInDate: checkInParsed,
              checkOutDate: null, // Must be null because guest is currently staying
              nights: nights,
          };
-        
+
         // Authoritative Server Calculation
         const baseRate = (room?.customPrice !== null && room?.customPrice !== undefined) ? room.customPrice : (room?.roomType?.basePrice || 250000);
-        
+
         const calcResult = PricingService.calculateRoomPricing({
            baseRate: pricing?.baseRate || baseRate, // Allow manual base rate override for now
            nights: nights,
@@ -303,7 +309,7 @@ export async function POST(request: Request) {
                  }
               });
            }
-           
+
            if (pricing && pricing.otherCharge > 0) {
               await tx.roomCharge.create({
                  data: {
@@ -360,7 +366,7 @@ export async function POST(request: Request) {
           }
         });
       }
-      
+
       return stayRecord;
     }, {
       maxWait: 5000, // 5 seconds max wait to acquire transaction lock
@@ -371,7 +377,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Check-in Error:", error);
     let errorMessage = 'An unexpected error occurred during check-in. Please try again.';
-    
+
     if (error?.message) {
       if (error.message.includes('Transaction already closed') || error.message.includes('expired transaction')) {
         errorMessage = 'The check-in process took too long and timed out. Please try again.';
@@ -379,7 +385,7 @@ export async function POST(request: Request) {
         errorMessage = error.message; // Keep our custom validation errors
       }
     }
-    
+
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

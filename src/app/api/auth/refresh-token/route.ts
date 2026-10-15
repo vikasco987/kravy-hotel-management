@@ -28,62 +28,113 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, message: "Malformed refresh token" }, { status: 401 });
         }
 
-        // 2. Fetch User & Validate Token Hash
+        // 2. Fetch User or Staff & Validate Token Hash
         const user = await prisma.user.findUnique({
             where: { id: userId }
         });
 
-        if (!user || user.isDisabled) {
-            return NextResponse.json({ success: false, message: "User not found or disabled" }, { status: 401 });
-        }
-
         const hashedJti = crypto.createHash('sha256').update(jti).digest('hex');
-        const currentMeta = (user.privateMetadata as any) || {};
-        const existingTokens = currentMeta.refreshTokens || [];
 
-        // Find the token in DB
-        const activeToken = existingTokens.find((t: any) => t.jtiHash === hashedJti);
-        if (!activeToken || activeToken.status === "revoked") {
-            return NextResponse.json({ success: false, message: "Refresh token revoked or already used" }, { status: 401 });
+        if (user && !user.isDisabled) {
+            const currentMeta = (user.privateMetadata as any) || {};
+            const existingTokens = currentMeta.refreshTokens || [];
+
+            // Find the token in DB
+            const activeToken = existingTokens.find((t: any) => t.jtiHash === hashedJti);
+            if (!activeToken || activeToken.status === "revoked") {
+                return NextResponse.json({ success: false, message: "Refresh token revoked or already used" }, { status: 401 });
+            }
+
+            // 3. NO Token Rotation (Fixes race conditions on concurrent requests)
+            const newAccessToken = jwt.sign(
+                {
+                    userId: user.id,
+                    clerkId: user.ownerId || user.clerkId,
+                    role: user.role,
+                    email: user.email,
+                    name: user.name,
+                    jtiHash: hashedJti // Keep the same hashedJti
+                },
+                JWT_SECRET,
+                { expiresIn: "90d" }
+            );
+
+            const response = NextResponse.json({
+                success: true,
+                message: "Tokens refreshed successfully"
+            });
+
+            response.cookies.set("kravy_auth_token", newAccessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+                maxAge: 90 * 24 * 60 * 60,
+                path: "/",
+            });
+            response.cookies.set("kravy_refresh_token", refreshTokenStr, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+                maxAge: 60 * 60 * 24 * 90,
+                path: "/",
+            });
+
+            return response;
         }
 
-        // 3. NO Token Rotation (Fixes race conditions on concurrent requests)
-        const newAccessToken = jwt.sign(
-            { 
-                userId: user.id, 
-                clerkId: user.ownerId || user.clerkId, 
-                role: user.role,
-                email: user.email,
-                name: user.name,
-                jtiHash: hashedJti // Keep the same hashedJti
-            },
-            JWT_SECRET,
-            { expiresIn: "90d" }
-        );
-
-        const response = NextResponse.json({
-            success: true,
-            message: "Tokens refreshed successfully"
+        // Check if token belongs to active Staff
+        const staff = await prisma.staff.findUnique({
+            where: { id: userId }
         });
 
-        // 4. Set Cookies on the response object
-        response.cookies.set("kravy_auth_token", newAccessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 90 * 24 * 60 * 60, // 15 minutes
-            path: "/",
-        });
-        
-        response.cookies.set("kravy_refresh_token", refreshTokenStr, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 60 * 60 * 24 * 90, // 90 days
-            path: "/",
-        });
+        if (staff && staff.status === 'active') {
+            const currentMeta = (staff.privateMetadata as any) || {};
+            const existingTokens = currentMeta.refreshTokens || [];
 
-        return response;
+            const activeToken = existingTokens.find((t: any) => t.jtiHash === hashedJti);
+            if (!activeToken || activeToken.status === "revoked") {
+                return NextResponse.json({ success: false, message: "Refresh token revoked or already used" }, { status: 401 });
+            }
+
+            const newAccessToken = jwt.sign(
+                {
+                    staffId: staff.id,
+                    userId: staff.id,
+                    hotelId: staff.hotelId,
+                    businessId: staff.businessId,
+                    role: staff.role || "STAFF",
+                    isStaff: true,
+                    email: staff.email,
+                    name: staff.name,
+                    permissions: Array.isArray(staff.permissions) ? staff.permissions : [],
+                    jtiHash: hashedJti
+                },
+                JWT_SECRET,
+                { expiresIn: "90d" }
+            );
+
+            const response = NextResponse.json({
+                success: true,
+                message: "Tokens refreshed successfully"
+            });
+
+            const cookieOptions = {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax" as const,
+                maxAge: 90 * 24 * 60 * 60,
+                path: "/"
+            };
+
+            response.cookies.set("kravy_auth_token", newAccessToken, cookieOptions);
+            response.cookies.set("kravy_refresh_token", refreshTokenStr, cookieOptions);
+            response.cookies.set("staff_token", newAccessToken, cookieOptions);
+            response.cookies.set("staff_refresh_token", refreshTokenStr, cookieOptions);
+
+            return response;
+        }
+
+        return NextResponse.json({ success: false, message: "User not found or disabled" }, { status: 401 });
 
     } catch (error) {
         console.error("Custom Auth Refresh Token Error:", error);

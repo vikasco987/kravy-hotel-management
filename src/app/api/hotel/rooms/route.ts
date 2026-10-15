@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient, RoomStatus } from '@prisma/client';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
@@ -9,6 +10,11 @@ export async function GET() {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'page:rooms');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { hotel } = authContext;
@@ -32,6 +38,11 @@ export async function POST(req: Request) {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:rooms:create');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { hotel } = authContext;
@@ -65,9 +76,9 @@ export async function POST(req: Request) {
         });
       }
     }
-    
+
     if (!roomType) return NextResponse.json({ error: 'Invalid room type for this hotel' }, { status: 400 });
-    
+
     // override the id for creation
     const finalRoomTypeId = roomType.id;
 

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthContext } from '@/lib/authContext';
 import { Role, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { requirePermission, PERMISSION_CATALOG } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,11 @@ export async function GET(req: Request) {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized or Hotel not found' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'page:staff');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -56,6 +62,7 @@ export async function GET(req: Request) {
         email: true,
         phone: true,
         status: true,
+        permissions: true,
         createdAt: true,
         updatedAt: true,
         _count: {
@@ -83,8 +90,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized or Hotel not found' }, { status: 401 });
     }
 
+    const authCheck = requirePermission(authContext.user, 'action:staff:create');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
+    }
+
     const body = await req.json();
-    const { name, role, email, phone, password, status } = body;
+    const { name, role, email, phone, password, status, permissions } = body;
 
     // 1. Validation
     if (!name || typeof name !== 'string' || name.trim().length < 2) {
@@ -93,17 +105,17 @@ export async function POST(req: Request) {
 
     const cleanRole = (role || 'STAFF').toUpperCase() as Role;
     if (!ALLOWED_STAFF_ROLES.includes(cleanRole)) {
-      return NextResponse.json({ 
-        error: `Invalid role. Allowed operational roles are: ${ALLOWED_STAFF_ROLES.join(', ')}` 
+      return NextResponse.json({
+        error: `Invalid role. Allowed operational roles are: ${ALLOWED_STAFF_ROLES.join(', ')}`
       }, { status: 400 });
     }
 
-    const cleanEmail = email && typeof email === 'string' && email.trim() !== '' 
-      ? email.trim().toLowerCase() 
+    const cleanEmail = email && typeof email === 'string' && email.trim() !== ''
+      ? email.trim().toLowerCase()
       : undefined;
 
-    const cleanPhone = phone && typeof phone === 'string' && phone.trim() !== '' 
-      ? phone.trim() 
+    const cleanPhone = phone && typeof phone === 'string' && phone.trim() !== ''
+      ? phone.trim()
       : undefined;
 
     // 2. Email uniqueness check
@@ -127,7 +139,35 @@ export async function POST(req: Request) {
 
     const cleanStatus = status === 'inactive' ? 'inactive' : 'active';
 
-    // 4. Create Staff record
+    // 4. Permissions validation
+    const cleanPermissions: string[] = [];
+    if (permissions !== undefined && permissions !== null) {
+      if (!Array.isArray(permissions)) {
+        return NextResponse.json({ error: 'Permissions must be an array of string keys' }, { status: 400 });
+      }
+
+      // If non-admin attempts to grant permissions during creation, verify manage_permissions
+      const permCheck = requirePermission(authContext.user, 'action:staff:manage_permissions');
+      if (!permCheck.authorized) {
+        return NextResponse.json(permCheck.errorResponse, { status: 403 });
+      }
+
+      const validCatalogKeys = new Set(PERMISSION_CATALOG.map(p => p.key));
+      for (const p of permissions) {
+        if (typeof p !== 'string') {
+          return NextResponse.json({ error: 'Each permission must be a string key' }, { status: 400 });
+        }
+        const trimmed = p.trim();
+        if (trimmed && !validCatalogKeys.has(trimmed)) {
+          return NextResponse.json({ error: `Invalid permission key: ${trimmed}` }, { status: 400 });
+        }
+        if (trimmed && !cleanPermissions.includes(trimmed)) {
+          cleanPermissions.push(trimmed);
+        }
+      }
+    }
+
+    // 5. Create Staff record
     const staff = await prisma.staff.create({
       data: {
         hotelId: authContext.hotel.id,
@@ -136,7 +176,7 @@ export async function POST(req: Request) {
         role: cleanRole,
         accessType: cleanRole,
         status: cleanStatus,
-        permissions: [],
+        permissions: cleanPermissions,
         ...(cleanEmail ? { email: cleanEmail } : {}),
         ...(cleanPhone ? { phone: cleanPhone } : {}),
         ...(hashedPassword ? { password: hashedPassword } : {}),
@@ -148,6 +188,7 @@ export async function POST(req: Request) {
         email: true,
         phone: true,
         status: true,
+        permissions: true,
         createdAt: true,
         updatedAt: true,
         _count: {

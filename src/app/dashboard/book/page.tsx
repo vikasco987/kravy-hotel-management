@@ -34,10 +34,34 @@ function GuestCheckInSuite() {
   const [advancePaid, setAdvancePaid] = useState("0");
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
-  
+  const [canPrintReceipt, setCanPrintReceipt] = useState(true);
+  const [canPrintA4, setCanPrintA4] = useState(true);
+  const [canPrint80mm, setCanPrint80mm] = useState(true);
+  const [canPrint58mm, setCanPrint58mm] = useState(true);
+
   const { roomPricing, roomGuests, setRoomPricing, setRoomGuests, checkInDate, checkOutDate } = useBookingStore();
   const roomPricingRef = useRef(roomPricing);
   useEffect(() => { roomPricingRef.current = roomPricing; }, [roomPricing]);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(me => {
+        if (me && me.isStaff) {
+          const perms = Array.isArray(me.permissions) ? me.permissions : [];
+          setCanPrintA4(perms.includes('action:printing:invoice_a4') || perms.includes('action:checkout:print_invoice_a4') || perms.includes('action:reservations:print_invoice'));
+          setCanPrint80mm(perms.includes('action:printing:invoice_80mm') || perms.includes('action:checkout:print_thermal_80mm') || perms.includes('action:reservations:print_receipt'));
+          setCanPrint58mm(perms.includes('action:printing:invoice_58mm') || perms.includes('action:checkout:print_thermal_58mm') || perms.includes('action:reservations:print_receipt'));
+          setCanPrintReceipt(
+            perms.includes('action:printing:payment_receipt') ||
+            perms.includes('action:printing:guest_registration_card') ||
+            perms.includes('action:checkout:print_receipt') ||
+            perms.includes('action:reservations:print_receipt')
+          );
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   const resIdParam = searchParams.get("resId");
 
@@ -53,10 +77,10 @@ function GuestCheckInSuite() {
              const roomRecords = data.roomDetails || [];
              setRooms(roomRecords.map((r: any) => r.id));
              setFetchedRooms(roomRecords);
-             
+
              const pricing: any = {};
              const guestsInfo: any = {};
-             
+
              resRecord.rooms.forEach((rr: any) => {
                 const discount = rr.baseRate - (rr.appliedRate || rr.baseRate);
                 pricing[rr.roomId] = {
@@ -72,7 +96,7 @@ function GuestCheckInSuite() {
                      finalAmount: (rr.appliedRate || rr.baseRate),
                      nights: rr.nights || Math.max(1, (new Date(rr.checkOutDate).getTime() - new Date(rr.checkInDate).getTime()) / (1000 * 3600 * 24))
                   };
-                
+
                 if (rr.guestsData && Array.isArray(rr.guestsData) && rr.guestsData.length > 0) {
                    guestsInfo[rr.roomId] = rr.guestsData;
                 } else {
@@ -100,10 +124,10 @@ function GuestCheckInSuite() {
     } else if (roomsParam) {
       const roomIds = roomsParam.split(",");
       setRooms(roomIds);
-      
+
       setIsFetching(true);
       setFetchError(null);
-      
+
       fetch(`/api/hotel/rooms/bulk?ids=${roomsParam}`)
         .then(res => res.json())
         .then(data => {
@@ -234,20 +258,20 @@ function GuestCheckInSuite() {
       const data = await res.json();
       if (data.success) {
         alert("Check-in successful!");
-        
+
         // Prepare Receipt Data
         const receiptRooms = fetchedRooms.map(room => {
           const pricing = roomPricing[room.id];
           const guests = roomGuests[room.id] || [];
           const leadGuest = guests.find(g => g.isLead) || guests[0] || {};
-          
+
           let rentVal = ((room.customPrice !== null && room.customPrice !== undefined) ? room.customPrice : (room.roomType?.basePrice || 0)) / 100;
           let discountVal = 0;
           let gstVal = rentVal * 0.12;
           let extraVal = 0;
           let finalRent = rentVal;
           let netTotal = rentVal + gstVal;
-          
+
           if (pricing) {
              rentVal = pricing.baseRate / 100;
              discountVal = pricing.discountAmount / 100;
@@ -305,7 +329,7 @@ function GuestCheckInSuite() {
           hotelPhone: '8606093110',
           hotelEmail: 'info@raintechpos.com'
         });
-        
+
         setShowReceipt(true);
         // Invalidate router cache so dashboard fetches new status
         router.refresh();
@@ -327,7 +351,7 @@ function GuestCheckInSuite() {
 
   return (
     <div className="bg-[#f0f4f8] min-h-screen flex flex-col font-sans overflow-hidden h-screen">
-      
+
       {/* 1. TOP NAVBAR */}
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex items-center gap-6">
@@ -335,13 +359,13 @@ function GuestCheckInSuite() {
               <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Guest Check-in & Multi-Room Booking Suite</span>
               <h1 className="text-2xl font-black text-gray-900 tracking-tight">Guest Check-in</h1>
            </div>
-           
+
            <div className="flex items-center gap-2 ml-4">
               <div className="relative">
                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                 <input 
-                   type="text" 
-                   placeholder="Search Mobile No. / Guest Name..." 
+                 <input
+                   type="text"
+                   placeholder="Search Mobile No. / Guest Name..."
                    className="pl-9 pr-4 py-1.5 border border-gray-300 rounded-md text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                  />
               </div>
@@ -352,19 +376,19 @@ function GuestCheckInSuite() {
         </div>
 
         <div className="flex items-center gap-2">
-           <button 
+           <button
              onClick={() => router.push('/dashboard/book')}
              className="bg-[#0e2a6d] text-white px-4 py-1.5 rounded-md text-sm font-bold shadow-sm flex items-center gap-2 hover:bg-[#091a42]"
            >
               <CheckCircle size={14} /> Choose / Add Rooms
            </button>
-           <button 
+           <button
              onClick={() => setShowColumnSettings(true)}
              className="bg-[#0070f3] text-white px-4 py-1.5 rounded-md text-sm font-bold shadow-sm flex items-center gap-2 hover:bg-[#005bb5]"
            >
               <Settings2 size={14} /> Column Settings
            </button>
-           <button 
+           <button
              onClick={() => router.push('/dashboard')}
              className="bg-gray-600 text-white px-4 py-1.5 rounded-md text-sm font-bold shadow-sm flex items-center gap-2 hover:bg-gray-700"
            >
@@ -375,10 +399,10 @@ function GuestCheckInSuite() {
 
       {/* MAIN CONTENT SPLIT */}
       <div className="flex flex-1 overflow-hidden p-3 gap-3">
-         
+
          {/* LEFT PANEL: TABLE */}
          <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-            
+
             {/* Table Header Area */}
             <div className="bg-[#0e2a6d] text-white px-4 py-2 flex items-center justify-between shrink-0">
                <div className="flex flex-col">
@@ -430,7 +454,7 @@ function GuestCheckInSuite() {
                            </td>
                         </tr>
                      )}
-                     
+
                      {/* We now fallback to dummy rooms so the table is never completely empty if they selected mock rooms */}
                      {fetchError && (
                         <tr>
@@ -442,14 +466,14 @@ function GuestCheckInSuite() {
 
                      {!isFetching && fetchedRooms.map((roomData, idx) => {
                         const roomId = roomData.id;
-                        
+
                         const pricing = roomPricing[roomId];
                         let rentVal = ((roomData.customPrice !== null && roomData.customPrice !== undefined) ? roomData.customPrice : (roomData.roomType?.basePrice || 0)) / 100;
                         let discountVal = 0;
                         let gstVal = rentVal * 0.12;
                         let extraVal = 0;
                         let finalRent = rentVal;
-                        
+
                         if (pricing) {
                            rentVal = pricing.baseRate / 100;
                            discountVal = pricing.discountAmount / 100;
@@ -462,11 +486,11 @@ function GuestCheckInSuite() {
                         const gstStr = gstVal.toLocaleString('en-IN', { minimumFractionDigits: 2 });
                         const finalRentStr = finalRent.toLocaleString('en-IN', { minimumFractionDigits: 2 });
                         const extraStr = extraVal.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-                        
-                        const discountDisplay = pricing 
-                          ? `${pricing.discountType === 'PERCENTAGE' ? pricing.discountValue + '%' : '₹' + pricing.discountValue} (₹${discountVal})` 
+
+                        const discountDisplay = pricing
+                          ? `${pricing.discountType === 'PERCENTAGE' ? pricing.discountValue + '%' : '₹' + pricing.discountValue} (₹${discountVal})`
                           : `0% (₹0)`;
-                        
+
                         const guests = roomGuests[roomId] || [];
                         const leadGuest = guests.find(g => g.isLead) || guests[0];
                         const actualAdults = guests.length > 0 ? guests.filter(g => !g.age || Number(g.age) >= 18).length : 1;
@@ -474,7 +498,7 @@ function GuestCheckInSuite() {
                         const hasDocument = leadGuest && (leadGuest.idUrl || leadGuest.idNumber || (leadGuest.idDocuments && leadGuest.idDocuments.length > 0));
                         const isVerified = leadGuest && leadGuest.isVerified === true;
                         const documentType = leadGuest?.documentType || "Aadhaar Card";
-                        
+
                         return (
                            <tr key={roomId} className="hover:bg-gray-50 transition-colors">
                               <td className="px-3 py-4 text-center">
@@ -483,8 +507,8 @@ function GuestCheckInSuite() {
                               <td className="px-3 py-4 text-right text-xs font-medium text-gray-500">₹{rentStr}</td>
                               {columnSettings.discount && (
                                 <td className="px-3 py-4 text-right text-xs font-bold text-orange-500">
-                                  {pricing && pricing.discountAmount > 0 
-                                    ? `${pricing.discountType === 'PERCENTAGE' ? pricing.discountValue + '%' : 'Flat'} (₹${discountDisplay})` 
+                                  {pricing && pricing.discountAmount > 0
+                                    ? `${pricing.discountType === 'PERCENTAGE' ? pricing.discountValue + '%' : 'Flat'} (₹${discountDisplay})`
                                     : `0% (₹0)`}
                                 </td>
                               )}
@@ -492,7 +516,7 @@ function GuestCheckInSuite() {
                               {columnSettings.gst && (
                                 <td className="px-3 py-4 text-right text-xs text-gray-500">₹{gstStr}</td>
                               )}
-                              
+
                               <td className="px-3 py-4 text-center">
                                  {guests.length > 0 ? (
                                    <div className="flex flex-col items-center gap-1">
@@ -500,7 +524,7 @@ function GuestCheckInSuite() {
                                       {guests.length > 1 && <span className="text-[10px] text-gray-500">+{guests.length - 1} more</span>}
                                    </div>
                                  ) : (
-                                   <span 
+                                   <span
                                      onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${(roomData.customPrice ?? roomData.roomType?.basePrice ?? 250000)}&roomNumber=${encodeURIComponent(roomData.roomNumber || roomId.slice(-4))}`)}
                                      className="text-[10px] font-bold text-orange-600 cursor-pointer hover:bg-orange-100 flex items-center justify-center gap-1 bg-orange-50 px-2 py-1 rounded-full border border-orange-200 transition-colors"
                                    >
@@ -508,7 +532,7 @@ function GuestCheckInSuite() {
                                    </span>
                                  )}
                               </td>
-                              
+
                               {columnSettings.adults && (
                                 <td className="px-3 py-4 text-center">
                                    <div className="flex flex-col items-center border border-gray-200 rounded-md bg-white shadow-sm overflow-hidden w-24">
@@ -528,7 +552,7 @@ function GuestCheckInSuite() {
                                    </div>
                                 </td>
                               )}
-                              
+
                               {columnSettings.checkInOut && (
                                 <>
                                   <td className="px-3 py-4 text-center text-xs font-medium text-gray-700">{checkInDate}</td>
@@ -560,22 +584,22 @@ function GuestCheckInSuite() {
                               {columnSettings.extraCharges && (
                                 <td className="px-3 py-4 text-right font-medium text-orange-400">₹{extraStr}</td>
                               )}
-                              
+
                               <td className="px-3 py-4">
                                  <div className="flex items-center justify-center gap-1">
-                                    <button 
+                                    <button
                                       onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${(roomData.customPrice ?? roomData.roomType?.basePrice ?? 250000)}&roomNumber=${encodeURIComponent(roomData.roomNumber || roomId.slice(-4))}`)}
                                       className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[10px] font-bold px-2 py-1.5 rounded-md flex items-center gap-1 shadow-sm transition-colors"
                                     >
                                        <Settings2 size={12} className="text-[#0070f3]" /> Setup
                                     </button>
-                                    <button 
+                                    <button
                                       onClick={() => setChangeRoomId(roomId)}
                                       className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[10px] font-bold px-2 py-1.5 rounded-md flex items-center gap-1 shadow-sm transition-colors"
                                     >
                                        <ArrowLeftRight size={12} className="text-orange-500" /> Change Room
                                     </button>
-                                    <button 
+                                    <button
                                       onClick={() => handleRemoveRoom(roomId)}
                                       className="bg-white border border-red-200 hover:bg-red-50 text-red-600 px-2 py-1.5 rounded-md flex items-center gap-1 shadow-sm transition-colors"
                                     >
@@ -586,7 +610,7 @@ function GuestCheckInSuite() {
                            </tr>
                         );
                      })}
-                     
+
                      {/* Empty State filler if no rooms */}
                      {rooms.length === 0 && (
                         <tr>
@@ -603,13 +627,13 @@ function GuestCheckInSuite() {
          {/* RIGHT PANEL: PAYMENT SUMMARY */}
          <div className="w-80 flex flex-col gap-3 shrink-0">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-               
+
                <div className="bg-[#0e2a6d] text-white px-4 py-2 shrink-0">
                   <span className="font-bold text-sm tracking-wide">3. Finalize Check-in & Payment</span>
                </div>
-               
+
                <div className="p-4 flex flex-col space-y-4 text-sm flex-1 overflow-y-auto">
-                  
+
                   {/* Duration Block */}
                   <div className="bg-blue-50/50 border border-blue-100 rounded-md p-3 flex justify-between items-center">
                      <div>
@@ -651,11 +675,11 @@ function GuestCheckInSuite() {
                            <option>₹ Full</option>
                            <option>Partial</option>
                         </select>
-                        <input 
-                           type="number" 
+                        <input
+                           type="number"
                            value={advancePaid}
                            onChange={(e) => setAdvancePaid(e.target.value)}
-                           className="border border-gray-300 rounded text-gray-900 text-right text-xs font-bold px-2 py-1.5 flex-1 min-w-0 outline-none focus:ring-1 focus:ring-blue-500" 
+                           className="border border-gray-300 rounded text-gray-900 text-right text-xs font-bold px-2 py-1.5 flex-1 min-w-0 outline-none focus:ring-1 focus:ring-blue-500"
                         />
                      </div>
                   </div>
@@ -690,7 +714,7 @@ function GuestCheckInSuite() {
                   <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 border rounded hover:bg-gray-50 text-xs font-bold text-gray-700 w-full justify-center">
                      <Printer size={12} /> Print Registration Card (GRC)
                   </button>
-                  
+
                   <div className="grid grid-cols-2 gap-2 mt-1">
                      <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1"><Download size={10}/> Download Folio</button>
                      <button className="bg-[#0e2a6d] hover:bg-[#091a42] text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1"><CheckCircle size={10}/> Quick Check-in</button>
@@ -702,9 +726,9 @@ function GuestCheckInSuite() {
             {/* Webcam / Receptionist View Placeholder */}
             <div className="bg-black rounded-lg overflow-hidden h-32 shrink-0 border-2 border-gray-800 relative shadow-md">
                {/* Mock image representing the webcam feed */}
-               <img 
-                 src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80" 
-                 alt="Webcam View" 
+               <img
+                 src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80"
+                 alt="Webcam View"
                  className="w-full h-full object-cover opacity-80"
                />
                <div className="absolute top-2 left-2 bg-red-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow flex items-center gap-1 animate-pulse">
@@ -722,7 +746,7 @@ function GuestCheckInSuite() {
 
       {/* Render Column Settings Modal */}
       {showColumnSettings && (
-        <ColumnSettingsModal 
+        <ColumnSettingsModal
           settings={columnSettings}
           onChange={(key) => setColumnSettings(prev => ({ ...prev, [key]: !(prev as any)[key] }))}
           onClose={() => setShowColumnSettings(false)}
@@ -743,6 +767,10 @@ function GuestCheckInSuite() {
       {showReceipt && receiptData && (
         <CheckInReceiptModal
           bookingData={receiptData}
+          canPrintReceipt={canPrintReceipt}
+          canPrintA4={canPrintA4}
+          canPrint80mm={canPrint80mm}
+          canPrint58mm={canPrint58mm}
           onClose={() => {
             setShowReceipt(false);
             router.push("/dashboard");

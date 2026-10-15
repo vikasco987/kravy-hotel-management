@@ -7,20 +7,89 @@ import { useSearchParams } from 'next/navigation';
 function InvoiceContent({ stayId }: { stayId: string }) {
   const searchParams = useSearchParams();
   const [data, setData] = useState<any>(null);
-  
+
   const initialFormat = (searchParams.get('format')?.toUpperCase() as 'A4' | '80MM' | '58MM') || 'A4';
   const [format, setFormat] = useState<'A4' | '80MM' | '58MM'>(initialFormat);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [reloadIndex, setReloadIndex] = useState<number>(0);
 
   useEffect(() => {
-    fetch(`/api/hotel/invoice-data/${stayId}`)
-      .then(res => res.json())
-      .then(d => {
-        if (d.success) setData(d.data);
-      })
-      .catch(console.error);
-  }, [stayId]);
+    let isCancelled = false;
 
-  if (!data) return <div className="p-8">Loading Invoice Data...</div>;
+    fetch(`/api/hotel/invoice-data/${stayId}?format=${format}`)
+      .then(async res => {
+        let json: any = null;
+        try {
+          json = await res.json();
+        } catch (parseErr) {
+          throw new Error('Received unexpected non-JSON response from server.');
+        }
+
+        if (isCancelled) return;
+
+        if (!res.ok || !json?.success) {
+          setErrorMessage(json?.error || 'Failed to load invoice data. You may lack permission to print invoices/receipts.');
+        } else {
+          setData(json.data);
+          setErrorMessage(null);
+        }
+      })
+      .catch(err => {
+        if (isCancelled) return;
+        console.error(err);
+        setErrorMessage(err.message || 'Network error while loading invoice data.');
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [stayId, format, reloadIndex]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 max-w-sm shadow-md flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
+          <h2 className="text-base font-bold text-gray-900 mb-1">Loading Invoice Data...</h2>
+          <p className="text-xs text-gray-500">Preparing invoice format: {format}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (errorMessage || !data) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-white border border-rose-200 rounded-2xl p-8 max-w-md shadow-lg">
+          <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-4 font-bold text-xl">
+            ✕
+          </div>
+          <h2 className="text-lg font-black text-gray-900 mb-2">Unable to Load Invoice</h2>
+          <p className="text-xs text-gray-600 mb-6">{errorMessage || 'Invoice data could not be found or loaded.'}</p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => setReloadIndex(prev => prev + 1)}
+              className="px-4 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => { if (window.history.length > 1 && document.referrer) { window.history.back(); } else { window.close(); } }}
+              className="px-4 py-2.5 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition"
+            >
+              Close Window
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const { stay, hotel, guest, leadStayRoom, invoice, businessProfile } = data;
 
@@ -34,7 +103,7 @@ function InvoiceContent({ stayId }: { stayId: string }) {
 
   return (
     <div className="bg-gray-100 min-h-screen p-8 print:p-0 print:bg-white flex flex-col items-center">
-      
+
       {/* Controls (Hidden in Print) */}
       <div className="mb-6 flex gap-4 print:hidden bg-white p-4 rounded-lg shadow w-full max-w-4xl justify-between items-center">
          <div className="flex items-center gap-4">
@@ -61,7 +130,7 @@ function InvoiceContent({ stayId }: { stayId: string }) {
       {/* -------------------- A4 FORMAT -------------------- */}
       {format === 'A4' && (
         <div className="bg-white text-black w-full max-w-4xl p-12 shadow-xl print:shadow-none print:w-full print:max-w-none print:p-8">
-           
+
            <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
               <div>
                  <h1 className="text-3xl font-black uppercase tracking-wider">
@@ -163,7 +232,7 @@ function InvoiceContent({ stayId }: { stayId: string }) {
       {/* -------------------- 80MM / 58MM THERMAL FORMAT -------------------- */}
       {(format === '80MM' || format === '58MM') && (
         <div className="bg-white p-4 shadow-xl font-mono text-sm leading-tight text-black print:shadow-none" style={{ width: format === '58MM' ? '58mm' : '80mm', minHeight: '100mm', margin: '0 auto' }}>
-           
+
            <div className="text-center border-b border-dashed border-gray-400 pb-3 mb-3">
               <h1 className="text-lg font-black uppercase">{businessProfile?.businessName || hotel.name}</h1>
               {businessProfile?.businessAddress && <p className="text-[10px]">{businessProfile.businessAddress}</p>}
@@ -231,7 +300,7 @@ function InvoiceContent({ stayId }: { stayId: string }) {
 
 export default function InvoicePrintPage({ params }: { params: Promise<{ stayId: string }> }) {
   const { stayId } = use(params);
-  
+
   return (
     <Suspense fallback={<div className="p-8">Loading Print Setup...</div>}>
       <InvoiceContent stayId={stayId} />

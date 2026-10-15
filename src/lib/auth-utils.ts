@@ -36,12 +36,15 @@ export async function getEffectiveClerkId(): Promise<string | null> {
 
 export type AuthUser = {
     id: string;
-    type: 'ADMIN' | 'SELLER' | 'STAFF' | 'OWNER' | 'USER'; 
+    type: 'ADMIN' | 'SELLER' | 'STAFF' | 'OWNER' | 'USER';
     businessId: string;
+    hotelId?: string;
     permissions: string[];
     name?: string;
     email?: string;
-    role?: string; 
+    role?: string;
+    isStaff?: boolean;
+    status?: string;
 }
 
 /**
@@ -58,12 +61,17 @@ export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
             const userId = decoded.userId || decoded.staffId;
 
             // 🔍 ALWAYS FETCH LATEST DATA FROM DB (Sync Fix)
-            const user = await prisma.user.findUnique({ 
+            const user = await prisma.user.findUnique({
                 where: { id: userId },
-                select: { id: true, role: true, ownerId: true, clerkId: true, allowedPaths: true, name: true, email: true, privateMetadata: true, businessId: true }
+                select: { id: true, role: true, ownerId: true, clerkId: true, allowedPaths: true, name: true, email: true, privateMetadata: true, businessId: true, isDisabled: true }
             });
-            
+
             if (user) {
+                // If user account is disabled, deny
+                if (user.isDisabled) {
+                    return null;
+                }
+
                 // 🛑 Enforce session revocation via jtiHash for immediate logout
                 if (decoded.jtiHash) {
                     const refreshTokens = (user.privateMetadata as any)?.refreshTokens || [];
@@ -76,7 +84,7 @@ export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
                 // Fallback global revocation check
                 const revokedAt = (user.privateMetadata as any)?.sessionsRevokedAt;
                 if (revokedAt && decoded.iat && (decoded.iat * 1000) < revokedAt) {
-                    return null; 
+                    return null;
                 }
 
                 return {
@@ -86,16 +94,34 @@ export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
                     permissions: user.allowedPaths,
                     name: user.name,
                     email: user.email,
-                    role: user.role
+                    role: user.role,
+                    isStaff: false,
+                    status: 'active'
                 };
             }
 
-            // Fallback for legacy staff model if not in User table
-            const staff = await prisma.staff.findUnique({ 
+            // Fallback for staff model
+            const staff = await prisma.staff.findUnique({
                 where: { id: userId },
-                select: { id: true, accessType: true, businessId: true, permissions: true, name: true, email: true, privateMetadata: true }
+                select: {
+                    id: true,
+                    hotelId: true,
+                    role: true,
+                    accessType: true,
+                    businessId: true,
+                    permissions: true,
+                    name: true,
+                    email: true,
+                    status: true,
+                    privateMetadata: true
+                }
             });
             if (staff) {
+                // Enforce active status
+                if (staff.status !== 'active') {
+                    return null;
+                }
+
                 if (decoded.jtiHash) {
                     const refreshTokens = (staff.privateMetadata as any)?.refreshTokens || [];
                     const activeToken = refreshTokens.find((t: any) => t.jtiHash === decoded.jtiHash);
@@ -106,17 +132,20 @@ export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
 
                 const revokedAt = (staff.privateMetadata as any)?.sessionsRevokedAt;
                 if (revokedAt && decoded.iat && (decoded.iat * 1000) < revokedAt) {
-                    return null; 
+                    return null;
                 }
 
                 return {
                     id: staff.id,
-                    type: (staff.accessType as any) || 'STAFF',
+                    type: 'STAFF',
                     businessId: staff.businessId || "",
+                    hotelId: staff.hotelId,
                     permissions: staff.permissions || [],
                     name: staff.name,
                     email: staff.email || undefined,
-                    role: 'STAFF'
+                    role: staff.role || 'STAFF',
+                    isStaff: true,
+                    status: staff.status
                 };
             }
         } catch (err) {

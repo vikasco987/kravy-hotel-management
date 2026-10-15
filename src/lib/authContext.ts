@@ -9,6 +9,21 @@ export const getAuthContext = cache(async () => {
     return null;
   }
 
+  // For staff accounts, derive hotel and business directly from trusted staff.hotelId in DB
+  if (authUser.isStaff && authUser.hotelId) {
+    const hotel = await prisma.hotel.findUnique({
+      where: { id: authUser.hotelId }
+    });
+    if (!hotel) return null;
+
+    const business = await prisma.business.findUnique({
+      where: { id: hotel.businessId }
+    });
+    if (!business) return null;
+
+    return { user: authUser, business, hotel };
+  }
+
   let business;
   if (authUser.businessId && authUser.businessId.length === 24) {
     try {
@@ -22,7 +37,7 @@ export const getAuthContext = cache(async () => {
     business = await prisma.business.findFirst({ where: { createdBy: authUser.id } });
     if (!business) {
       business = await prisma.business.create({
-        data: { 
+        data: {
           name: `${authUser.name || 'User'}'s Business`,
           createdBy: authUser.id
         }

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-  Search, X, Check, Banknote, Smartphone, CreditCard, Printer, MessageCircle, 
+import {
+  Search, X, Check, Banknote, Smartphone, CreditCard, Printer, MessageCircle,
   MapPin, Link2, Download, Settings, Trash2, Plus, BedDouble, FileText
 } from 'lucide-react';
 import dayjs from 'dayjs';
@@ -23,7 +23,7 @@ function CheckoutSuite() {
   const [selectedStayRoomIds, setSelectedStayRoomIds] = useState<string[]>([]);
   const [paymentMode, setPaymentMode] = useState<'CASH' | 'UPI' | 'CARD' | 'MPAY'>('CASH');
   const [amountReceived, setAmountReceived] = useState<string>('');
-  
+
   const [isSettling, setIsSettling] = useState(false);
   const [settledInvoice, setSettledInvoice] = useState<any>(null);
 
@@ -40,7 +40,7 @@ function CheckoutSuite() {
       console.error(err);
     }
   };
-  
+
   useEffect(() => {
     fetchServices();
   }, []);
@@ -93,25 +93,25 @@ function CheckoutSuite() {
 
   // --- Calculations based on selected rooms ---
   const selectedRooms = data.linkedRooms.filter((r: any) => selectedStayRoomIds.includes(r.stayRoomId));
-  
+
   const roomTariffSubtotal = selectedRooms.reduce((sum: number, r: any) => sum + r.tariff, 0);
   const taxesSubtotal = selectedRooms.reduce((sum: number, r: any) => sum + (r.taxAmount || 0), 0);
-  
+
   // For simplicity, all extra charges are included. In reality, they should be filtered by room.
   const extraServicesSubtotal = selectedRooms.reduce((sum: number, r: any) => sum + (r.extraChargesAmount || 0), 0);
-  
+
   const currentRoomsSubtotal = roomTariffSubtotal + extraServicesSubtotal;
   const combinedGrandTotal = selectedRooms.reduce((sum: number, r: any) => sum + (r.finalAmount || 0), 0);
-  
+
   // Advance Paid
   const advancePaid = data.advancePaid || 0;
-  
+
   const remainingBalanceDue = Math.max(0, combinedGrandTotal - advancePaid);
   const changeToGuest = Math.max(0, (parseFloat(amountReceived) * 100 || 0) - remainingBalanceDue);
 
   const handleToggleRoom = (stayRoomId: string) => {
-    setSelectedStayRoomIds(prev => 
-      prev.includes(stayRoomId) 
+    setSelectedStayRoomIds(prev =>
+      prev.includes(stayRoomId)
         ? prev.filter(id => id !== stayRoomId)
         : [...prev, stayRoomId]
     );
@@ -119,7 +119,7 @@ function CheckoutSuite() {
 
   const handleCheckOut = async () => {
     if (selectedStayRoomIds.length === 0) return alert('Select at least one room to checkout');
-    
+
     const amt = parseFloat(amountReceived) * 100 || 0;
     if (amt < remainingBalanceDue) {
       return alert(`Insufficient payment. Need ₹${(remainingBalanceDue / 100).toFixed(2)}`);
@@ -158,7 +158,7 @@ function CheckoutSuite() {
     try {
       const primaryStayRoom = data.linkedRooms.find((r: any) => r.roomId === roomId);
       if (!primaryStayRoom) throw new Error('Could not identify primary stay room');
-      
+
       const res = await fetch('/api/hotel/checkout/add-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,7 +175,7 @@ function CheckoutSuite() {
         const errJson = await res.json();
         throw new Error(errJson.error || 'Failed to add service');
       }
-      
+
       // Refresh the context to get updated data and totals
       const refreshRes = await fetch(`/api/hotel/checkout?roomId=${roomId}`);
       const refreshedJson = await refreshRes.json();
@@ -194,7 +194,7 @@ function CheckoutSuite() {
     try {
       const p = parseFloat(csPrice);
       if (isNaN(p) || p < 0) throw new Error('Invalid price');
-      
+
       const payload: any = {
         name: csName,
         price: Math.round(p * 100),
@@ -212,14 +212,14 @@ function CheckoutSuite() {
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to save service');
-      
+
       setIsCreateServiceOpen(false);
       setIsServicesModalOpen(true);
-      
+
       const svcsRes = await fetch('/api/hotel/services', { cache: 'no-store' });
       const svcs = await svcsRes.json();
       if (Array.isArray(svcs)) setAvailableServices(svcs.filter((s: any) => s.isActive));
-      
+
     } catch(err: any) {
       setCsError(err.message);
     }
@@ -254,7 +254,7 @@ function CheckoutSuite() {
   return (
     <div className="min-h-screen bg-[#f4ece1] p-4 flex justify-center overflow-x-hidden font-sans">
       <div className="w-full max-w-[1400px] bg-white rounded-xl shadow-2xl overflow-hidden border border-[#e5dfd3] flex flex-col h-[calc(100vh-2rem)]">
-        
+
         {/* TOP BAR */}
         <div className="bg-teal-700 text-white px-4 py-3 flex items-center justify-between shrink-0">
            <div className="flex items-center gap-4">
@@ -278,10 +278,10 @@ function CheckoutSuite() {
 
         {/* MAIN SPLIT */}
         <div className="flex flex-1 overflow-hidden">
-           
+
            {/* LEFT COLUMN: Setup & Details */}
            <div className="flex-1 border-r border-gray-200 overflow-y-auto p-4 bg-[#fdfaf5] space-y-4">
-              
+
               <div className="bg-white text-gray-800 px-0 py-2 flex justify-between items-center text-sm font-black mb-2">
                  <span className="flex items-center gap-2"><div className="bg-teal-700 text-white p-1 rounded-md"><BedDouble size={14} /></div> 1. Room Occupants & Extra Services Setup</span>
                  <button className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-600 text-[10px] font-bold px-3 py-1.5 rounded-md flex items-center gap-1 shadow-sm"><Link2 size={12} className="rotate-45"/> Choose Another Room</button>
@@ -303,18 +303,18 @@ function CheckoutSuite() {
 
                  <div>
                     <div className="text-xs font-bold text-gray-800 mb-3 flex items-center gap-1"><Link2 size={12} className="text-gray-400"/> Linked Rooms in this Group <span className="text-teal-600 font-medium text-[11px]">(Select rooms to check out):</span></div>
-                    
+
                     <div className="flex flex-wrap gap-4 items-center">
                        {data.linkedRooms.map((r: any, idx: number) => {
                           const isSelected = selectedStayRoomIds.includes(r.stayRoomId);
-                          
+
                           let badgeConfig = { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' };
                           if (r.status === 'OCCUPIED') badgeConfig = { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-200' };
                           if (r.status === 'CLEANING') badgeConfig = { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' };
 
                           return (
                              <React.Fragment key={r.stayRoomId}>
-                               <div 
+                               <div
                                  onClick={() => handleToggleRoom(r.stayRoomId)}
                                  className={`flex items-center gap-3 p-2.5 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-teal-600 bg-teal-50/20 shadow-sm' : 'border-gray-200 bg-gray-50 opacity-60 hover:opacity-100'}`}
                                >
@@ -343,7 +343,7 @@ function CheckoutSuite() {
                     </div>
                  </div>
                  <div className="mt-4 pt-4 border-t border-gray-100 text-[10px] text-gray-500 flex items-center gap-1.5 italic">
-                    <div className="w-3.5 h-3.5 rounded-full border border-gray-400 flex items-center justify-center font-serif text-[8px] not-italic text-gray-400">i</div> 
+                    <div className="w-3.5 h-3.5 rounded-full border border-gray-400 flex items-center justify-center font-serif text-[8px] not-italic text-gray-400">i</div>
                     Map Insight: Selecting multiple rooms will merge their balance into a single combined invoice.
                  </div>
               </div>
@@ -421,7 +421,7 @@ function CheckoutSuite() {
                                  return guestsList.map((guest: any, gIdx: number) => {
                                     rowCounter++;
                                     const isLead = guest.isLead || gIdx === 0;
-                                    
+
                                     let photoIdText = "None";
                                     const hasPhoto = !!guest.photoUrl;
                                     const hasId = !!(guest.idUrl || (guest.idUrls && guest.idUrls.length > 0) || (guest.idDocuments && guest.idDocuments.length > 0) || guest.idNumber);
@@ -478,7 +478,7 @@ function CheckoutSuite() {
                           {data.extraCharges.map((c: any) => (
                              <tr key={c.id} className="hover:bg-gray-50">
                                 <td className="px-3 py-2 font-bold text-gray-800">
-      [{c.type || 'Custom'}] {c.description} 
+      [{c.type || 'Custom'}] {c.description}
       {c.stayRoomId && <span className="text-[9px] font-normal text-teal-600 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded ml-2">Added to Rm</span>}
     </td>
                                 <td className="px-3 py-2 text-gray-600">Service</td>
@@ -504,12 +504,12 @@ function CheckoutSuite() {
               </div>
 
               <div className="p-5 overflow-y-auto flex-1 space-y-5">
-                 
+
                  {/* Breakdown Box */}
                  <div className="border border-teal-100 bg-blue-50/20 rounded-lg p-4 shadow-sm">
                     <h3 className="text-xs font-black text-teal-700 mb-3">Room Tariff Breakdown</h3>
                     <div className="text-[10px] text-gray-600 mb-2">Total {selectedRooms.length} Rooms Combined (Group)</div>
-                    
+
                     <div className="space-y-2 text-xs border-b border-gray-200 pb-3 mb-3">
                        <div className="flex justify-between font-medium">
                           <span className="text-gray-600">Room Tariff (Selected Rooms):</span>
@@ -564,9 +564,9 @@ function CheckoutSuite() {
                      <div className="space-y-3">
                         <div className="flex justify-between items-center bg-gray-50 border border-gray-200 rounded-lg p-1">
                            <label className="text-xs font-bold text-gray-700 pl-3">Amount Received (₹):</label>
-                           <input 
-                             type="number" 
-                             value={amountReceived} 
+                           <input
+                             type="number"
+                             value={amountReceived}
                              onChange={(e) => setAmountReceived(e.target.value)}
                              className="w-32 bg-white border border-gray-300 rounded text-gray-900 text-right px-2 py-1.5 font-bold text-sm outline-none focus:border-blue-500"
                            />
@@ -590,16 +590,22 @@ function CheckoutSuite() {
                           Checkout Successful! Invoice: {settledInvoice.invoiceNumber}
                        </div>
                     )}
-                    
-                    <button disabled={!settledInvoice} onClick={() => window.open(`/dashboard/print/invoice/${data.stayId}?format=80mm`, "_blank")} className="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
-                       <Printer size={16} /> 3 Inch (80mm) Print
-                    </button>
-                    <button disabled={!settledInvoice} onClick={() => window.open(`/dashboard/print/invoice/${data.stayId}?format=58mm`, "_blank")} className="w-full bg-[#1b3a4b] hover:bg-[#122e3b] text-white font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
-                       <Printer size={16} /> 2 Inch (58mm) Print
-                    </button>
-                    <button disabled={!settledInvoice} onClick={() => window.open(`/dashboard/print/invoice/${data.stayId}?format=A4`, "_blank")} className="w-full bg-[#0e2a6d] hover:bg-[#091a42] text-white font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
-                       <FileText size={16} /> Print A4 Invoice
-                    </button>
+
+                    {(data.canPrint80mm ?? true) && (
+                       <button disabled={!settledInvoice} onClick={() => window.open(`/dashboard/print/invoice/${data.stayId}?format=80mm`, "_blank")} className="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
+                          <Printer size={16} /> 3 Inch (80mm) Print
+                       </button>
+                    )}
+                    {(data.canPrint58mm ?? true) && (
+                       <button disabled={!settledInvoice} onClick={() => window.open(`/dashboard/print/invoice/${data.stayId}?format=58mm`, "_blank")} className="w-full bg-[#1b3a4b] hover:bg-[#122e3b] text-white font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
+                          <Printer size={16} /> 2 Inch (58mm) Print
+                       </button>
+                    )}
+                    {(data.canPrintA4 ?? true) && (
+                       <button disabled={!settledInvoice} onClick={() => window.open(`/dashboard/print/invoice/${data.stayId}?format=A4`, "_blank")} className="w-full bg-[#0e2a6d] hover:bg-[#091a42] text-white font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
+                          <FileText size={16} /> Print A4 Invoice
+                       </button>
+                    )}
                     <button disabled={!settledInvoice} className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3 rounded-lg shadow flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
                        <MessageCircle size={18} /> Send WhatsApp Invoice
                     </button>
@@ -623,7 +629,7 @@ function CheckoutSuite() {
                   <div className="text-center text-[13px] text-slate-500 py-10 px-4">
                      <p className="font-semibold text-slate-700">No extra services available yet.</p>
                      <p className="mt-1 mb-5">Create your first service to add it to this check-out.</p>
-                     <button 
+                     <button
                        onClick={openCreateService}
                        className="inline-flex items-center gap-2 bg-teal-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-teal-700 shadow-md transition-colors"
                      >
@@ -640,7 +646,7 @@ function CheckoutSuite() {
                               }}>
                                  <div className="flex items-center gap-2">
                                     <span className="text-[13px] font-bold text-slate-800 group-hover:text-teal-800">{service.name}</span>
-                                    <button 
+                                    <button
                                       onClick={(e) => { e.stopPropagation(); openEditService(service); }}
                                       className="text-blue-500 hover:text-blue-700 text-[10px] font-semibold bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
                                     >
@@ -652,7 +658,7 @@ function CheckoutSuite() {
                                     <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{service.description}</div>
                                  )}
                               </div>
-                              <button 
+                              <button
                                 disabled={isAddingService}
                                 onClick={() => handleAddCheckoutService(service.name, service.price, 1)}
                                 className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ml-3 shrink-0 bg-teal-100 text-teal-700 hover:bg-teal-600 hover:text-white disabled:opacity-50"
@@ -687,17 +693,17 @@ function CheckoutSuite() {
                 <X size={16} />
               </button>
             </div>
-            
+
             <form onSubmit={handleCreateOrEditService} className="p-5 space-y-4">
               {csError && (
                 <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs font-semibold border border-red-100">
                   {csError}
                 </div>
               )}
-              
+
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Service Name *</label>
-                <input 
+                <input
                   required
                   value={csName}
                   onChange={e => setCsName(e.target.value)}
@@ -705,10 +711,10 @@ function CheckoutSuite() {
                   placeholder="e.g. Breakfast, Laundry"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Price (₹) *</label>
-                <input 
+                <input
                   required
                   type="number"
                   step="0.01"
@@ -722,7 +728,7 @@ function CheckoutSuite() {
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Description (Optional)</label>
-                <textarea 
+                <textarea
                   value={csDescription}
                   onChange={e => setCsDescription(e.target.value)}
                   className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none resize-none h-20"
@@ -732,7 +738,7 @@ function CheckoutSuite() {
 
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-2">
-                  <input 
+                  <input
                     type="checkbox"
                     id="csIsActive"
                     checked={csIsActive}

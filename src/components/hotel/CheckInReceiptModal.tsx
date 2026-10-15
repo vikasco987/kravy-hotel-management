@@ -46,11 +46,24 @@ interface CheckInReceiptModalProps {
     hotelPhone?: string;
     hotelEmail?: string;
   };
+  canPrintReceipt?: boolean;
+  canPrintA4?: boolean;
+  canPrint80mm?: boolean;
+  canPrint58mm?: boolean;
+  canPrintGRC?: boolean;
 }
 
-export default function CheckInReceiptModal({ onClose, bookingData }: CheckInReceiptModalProps) {
+export default function CheckInReceiptModal({
+  onClose,
+  bookingData,
+  canPrintReceipt = true,
+  canPrintA4,
+  canPrint80mm,
+  canPrint58mm,
+  canPrintGRC
+}: CheckInReceiptModalProps) {
   const [printMode, setPrintMode] = useState<'80mm' | '58mm' | 'A4' | null>(null);
-  
+
   // Format currency
   const formatAmt = (amt: number) => amt.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 });
   const d = bookingData;
@@ -92,16 +105,16 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
 
     return `
       @media print {
-        @page { 
-          margin: 0 !important; 
+        @page {
+          margin: 0 !important;
           size: ${pageSize} !important;
         }
-        body { 
-          margin: 0 !important; 
-          padding: 0 !important; 
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
           background: white !important;
         }
-        
+
         /* Overlay the print modal on top of everything else */
         .receipt-modal-root {
           position: absolute !important;
@@ -149,12 +162,12 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
 
   return (
     <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm receipt-modal-root print:p-0 print:bg-white print:items-start print:justify-start">
-      
+
       {/* Dynamic Print CSS Injection */}
       <style dangerouslySetInnerHTML={{ __html: getDynamicCss() }} />
 
       <div className="bg-gray-100 rounded-xl shadow-2xl overflow-hidden w-full max-w-5xl flex flex-col h-[90vh] print:h-auto print:overflow-visible print:shadow-none print:rounded-none">
-        
+
         {/* Header - No Print */}
         <div className="bg-[#0e2a6d] text-white p-3 flex justify-between items-center shrink-0 no-print">
           <h3 className="font-bold flex items-center gap-2 text-sm">
@@ -167,10 +180,10 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
 
         {/* Scrollable Receipt Area */}
         <div className="flex-1 overflow-auto p-6 bg-gray-100 relative print:overflow-visible print:p-0 print:bg-white">
-          
+
           {/* This wrapper becomes the print container */}
           <div className="receipt-print-wrapper bg-white shadow-md mx-auto max-w-4xl border border-gray-200 p-8 rounded-sm thermal-safe text-gray-900 print:shadow-none print:border-none">
-            
+
             {/* 1. Header Area */}
             <div className="flex justify-between items-start border-b border-gray-200 pb-4 mb-6 thermal-stack">
               <div className="flex items-center gap-3">
@@ -194,7 +207,7 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
 
             {/* 2. Middle Box (Guest & Stay Dates) */}
             <div className="flex flex-col md:flex-row gap-4 mb-6 border border-gray-200 rounded-xl p-4 bg-gray-50/50 thermal-stack thermal-hide">
-              
+
               {/* Guest Profile Box */}
               <div className="flex-1 flex gap-4">
                 <div className="w-20 h-24 bg-gray-200 rounded-md overflow-hidden shrink-0 border border-gray-300">
@@ -209,7 +222,7 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
                   <div className="text-xs text-gray-600 mt-2 space-y-1">
                     <div className="flex items-center gap-2"><span className="opacity-75">📞 Mobile:</span> {leadGuest.guestMobile || '---'}</div>
                     <div className="flex items-center gap-2">
-                      <span className="opacity-75">🪪 ID Proof:</span> 
+                      <span className="opacity-75">🪪 ID Proof:</span>
                       {leadGuest.guestIdNumber ? (
                         leadGuest.isVerified ? `${leadGuest.idDocumentType || 'Aadhaar Card'} (Verified)` : `${leadGuest.idDocumentType || 'Aadhaar Card'} (Not Verified)`
                       ) : (
@@ -287,7 +300,7 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
 
             {/* 4. Footer Summary Box */}
             <div className="flex flex-col md:flex-row justify-between items-end gap-6 thermal-stack">
-              
+
               {/* Payment Info */}
               <div className="w-full md:w-auto text-xs space-y-1 border-t border-gray-200 pt-4 md:border-0 md:pt-0">
                 <div><b>Payment Mode:</b> <span className="uppercase">{d.paymentMode}</span></div>
@@ -314,7 +327,7 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
                     <span>{formatAmt(d.subtotal)}</span>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between font-black text-gray-900 text-base">
                     <span>Grand Total:</span>
@@ -332,7 +345,7 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
               </div>
 
             </div>
-            
+
             {/* End of receipt wrapper */}
           </div>
         </div>
@@ -345,15 +358,21 @@ export default function CheckInReceiptModal({ onClose, bookingData }: CheckInRec
           <button className="bg-[#25D366] hover:bg-[#128C7E] text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
             <Share2 size={16} /> WhatsApp Welcome
           </button>
-          <button onClick={() => handlePrint('80mm')} className="bg-[#00875a] hover:bg-[#006f4a] text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
-            <Printer size={16} /> 3 Inch (80mm) Print
-          </button>
-          <button onClick={() => handlePrint('58mm')} className="bg-[#1b3a4b] hover:bg-[#122e3b] text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
-            <Printer size={16} /> 2 Inch (58mm) Print
-          </button>
-          <button onClick={() => handlePrint('A4')} className="bg-[#0e2a6d] hover:bg-[#091a42] text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
-            <FileText size={16} /> Print A4 Invoice
-          </button>
+          {(canPrint80mm ?? canPrintReceipt) && (
+            <button onClick={() => handlePrint('80mm')} className="bg-[#00875a] hover:bg-[#006f4a] text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
+              <Printer size={16} /> 3 Inch (80mm) Print
+            </button>
+          )}
+          {(canPrint58mm ?? canPrintReceipt) && (
+            <button onClick={() => handlePrint('58mm')} className="bg-[#1b3a4b] hover:bg-[#122e3b] text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
+              <Printer size={16} /> 2 Inch (58mm) Print
+            </button>
+          )}
+          {(canPrintA4 ?? canPrintReceipt) && (
+            <button onClick={() => handlePrint('A4')} className="bg-[#0e2a6d] hover:bg-[#091a42] text-white px-5 py-2.5 rounded shadow-sm text-sm font-bold flex items-center gap-2">
+              <FileText size={16} /> Print A4 Invoice
+            </button>
+          )}
         </div>
 
       </div>

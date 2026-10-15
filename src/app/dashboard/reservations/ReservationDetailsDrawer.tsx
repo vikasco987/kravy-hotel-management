@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, Calendar, User, Phone, MapPin, 
+import {
+  ArrowLeft, Calendar, User, Phone, MapPin,
   CreditCard, Receipt, Building, CheckCircle2,
   Clock, AlertCircle, Home, Mail, FileText, ChevronRight, ChevronDown, Printer, Edit2, Info
 } from 'lucide-react';
@@ -80,25 +80,25 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
 
   const { reservation, roomDetails } = data;
   const stay = reservation.stay;
-  
+
   // Computations
   const isCheckedIn = reservation.status === 'CHECKED_IN';
   const isCheckedOut = reservation.status === 'CHECKED_OUT';
   const totalPaid = stay?.payments?.reduce((acc: number, p: any) => acc + p.amount, 0) || reservation.advanceAmount || 0;
-  
+
   const activeRooms = stay?.stayRooms?.length ? stay.stayRooms : (reservation.rooms || []);
-  
+
   let totalTaxable = 0;
   let totalCgst = 0;
   let totalSgst = 0;
   let totalTax = 0;
   let totalRoomGross = 0;
-  
+
   activeRooms.forEach((r: any) => {
     const rate = r.appliedRate || r.baseRate || 0;
     const n = Math.max(1, r.nights || (r.checkInDate && r.checkOutDate ? dayjs(r.checkOutDate).diff(dayjs(r.checkInDate), 'day') : 1));
     const gross = r.grossAmount || (rate * n);
-    
+
     totalRoomGross += gross;
     totalTaxable += (r.taxableAmount || 0);
     totalCgst += (r.cgstAmount || 0);
@@ -117,11 +117,11 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
   const sgstAmount = stay?.invoice?.sgstAmount || totalSgst || 0;
   const taxMode = activeRooms[0]?.taxMode || '';
   const taxRate = activeRooms[0]?.taxRate || 0;
-  
-  const roomChargesSubtotal = stay?.invoice?.subtotal 
+
+  const roomChargesSubtotal = stay?.invoice?.subtotal
       ? Math.max(0, stay.invoice.subtotal - extraServicesTotal)
       : totalRoomGross;
-  
+
   const totalAmount = stay?.invoice?.totalAmount || (roomChargesSubtotal + extraServicesTotal + taxAmount);
   const balance = totalAmount - totalPaid;
 
@@ -129,12 +129,12 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
   const expectedCheckIn = firstRoom?.checkInDate ? dayjs(firstRoom.checkInDate) : null;
   let expectedCheckOut = firstRoom?.checkOutDate ? dayjs(firstRoom.checkOutDate) : null;
   let nights: number | string = firstRoom ? Math.max(1, dayjs(firstRoom.checkOutDate).diff(dayjs(firstRoom.checkInDate), 'day')) : '-';
-  
+
   let isOverdue = false;
   if (firstRoom) {
      const today = dayjs().startOf('day');
      const exp = dayjs(firstRoom.checkOutDate).startOf('day');
-     
+
      if (isCheckedOut) {
          const firstStayRoom = stay?.stayRooms?.find((sr: any) => sr.roomId === firstRoom.roomId) || stay?.stayRooms?.[0];
          if (firstStayRoom && firstStayRoom.checkOutDate) {
@@ -147,7 +147,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
          nights = Math.max(1, today.diff(dayjs(firstRoom.checkInDate).startOf('day'), 'day'));
      }
   }
-  
+
   const guestName = reservation.guest?.name || 'Walk-in Guest';
   const guestInitial = guestName.charAt(0).toUpperCase();
 
@@ -156,7 +156,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
       <div className="fixed inset-0 bg-black/30 z-[100] backdrop-blur-sm transition-opacity" onClick={onClose}></div>
       <div className="fixed top-0 right-0 h-full w-[650px] max-w-full bg-[#F4F6F9] z-[101] shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-in-out border-l border-gray-200">
         <div className="min-h-screen pb-20 bg-white">
-          
+
           {/* Header */}
           <div className="bg-white border-b border-gray-100 sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
             <div>
@@ -171,7 +171,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                 Created on {dayjs(reservation.createdAt).format('DD MMM YYYY, hh:mm A')}
               </p>
             </div>
-            
+
             <div className="flex items-center gap-2">
               {isCheckedIn && (
                 <button onClick={() => {
@@ -187,47 +187,55 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
               )}
               {isCheckedOut && (
                 <div className="flex items-center gap-2 relative">
-                  <button 
-                    onClick={() => {
-                      if (!stay?.id) return alert('Stay ID not found for this reservation.');
-                      window.open(`/dashboard/print/invoice/${stay.id}?format=A4`, "_blank");
-                    }} 
-                    className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 transition shadow-sm flex items-center gap-2"
-                  >
-                    <Printer size={14} /> Print Invoice
-                  </button>
-                  <div className="relative">
-                    <button 
-                      onClick={() => setReceiptMenuOpen(!receiptMenuOpen)} 
+                  {(data?.canPrintInvoice ?? true) && (
+                    <button
+                      onClick={() => {
+                        if (!stay?.id) return alert('Stay ID not found for this reservation.');
+                        window.open(`/dashboard/print/invoice/${stay.id}?format=A4`, "_blank");
+                      }}
                       className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 transition shadow-sm flex items-center gap-2"
                     >
-                      Receipt <ChevronDown size={14} />
+                      <Printer size={14} /> Print Invoice
                     </button>
-                    {receiptMenuOpen && (
-                      <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden text-left">
-                        <button 
-                          onClick={() => {
-                            setReceiptMenuOpen(false);
-                            if (!stay?.id) return alert('Stay ID not found for this reservation.');
-                            window.open(`/dashboard/print/invoice/${stay.id}?format=80mm`, "_blank");
-                          }} 
-                          className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                        >
-                          3 Inch (80mm)
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setReceiptMenuOpen(false);
-                            if (!stay?.id) return alert('Stay ID not found for this reservation.');
-                            window.open(`/dashboard/print/invoice/${stay.id}?format=58mm`, "_blank");
-                          }} 
-                          className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                        >
-                          2 Inch (58mm)
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  )}
+                  {((data?.canPrint80mm ?? data?.canPrintReceipt ?? true) || (data?.canPrint58mm ?? data?.canPrintReceipt ?? true)) && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setReceiptMenuOpen(!receiptMenuOpen)}
+                        className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 transition shadow-sm flex items-center gap-2"
+                      >
+                        Receipt <ChevronDown size={14} />
+                      </button>
+                      {receiptMenuOpen && (
+                        <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden text-left">
+                          {(data?.canPrint80mm ?? data?.canPrintReceipt ?? true) && (
+                            <button
+                              onClick={() => {
+                                setReceiptMenuOpen(false);
+                                if (!stay?.id) return alert('Stay ID not found for this reservation.');
+                                window.open(`/dashboard/print/invoice/${stay.id}?format=80mm`, "_blank");
+                              }}
+                              className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                            >
+                              3 Inch (80mm)
+                            </button>
+                          )}
+                          {(data?.canPrint58mm ?? data?.canPrintReceipt ?? true) && (
+                            <button
+                              onClick={() => {
+                                setReceiptMenuOpen(false);
+                                if (!stay?.id) return alert('Stay ID not found for this reservation.');
+                                window.open(`/dashboard/print/invoice/${stay.id}?format=58mm`, "_blank");
+                              }}
+                              className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                            >
+                              2 Inch (58mm)
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg ml-1">
@@ -250,7 +258,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                   </div>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-4">
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Reservation Type</p>
@@ -269,19 +277,19 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
 
             {/* Tabs Navigation */}
             <div className="flex items-center border-b border-gray-200 mb-6">
-              <button 
+              <button
                 onClick={() => setActiveTab('INFO')}
                 className={`flex-1 pb-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors ${activeTab === 'INFO' ? 'border-[#4338ca] text-[#4338ca]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 <Calendar size={16} /> Reservation Info
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('GUEST')}
                 className={`flex-1 pb-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors ${activeTab === 'GUEST' ? 'border-[#4338ca] text-[#4338ca]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 <User size={16} /> Guest Details
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('BILLING')}
                 className={`flex-1 pb-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors ${activeTab === 'BILLING' ? 'border-[#4338ca] text-[#4338ca]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
@@ -289,12 +297,12 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
               </button>
             </div>
           </div>
-          
+
           <div className="px-6">
             {/* TAB CONTENT: RESERVATION INFO */}
             {activeTab === 'INFO' && (
               <div className="space-y-6">
-                
+
                 {/* Stay Overview */}
                 <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                   <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
@@ -357,7 +365,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                         const roomRecord = roomDetails?.find((r: any) => r.id === roomInfo.roomId);
                         const roomNameStr = roomRecord ? roomRecord.roomNumber : (roomInfo.roomName || 'Unassigned');
                         const roomTypeStr = roomRecord?.roomType?.name || 'Standard';
-                        
+
                         let rNts = Math.max(1, dayjs(roomInfo.checkOutDate).diff(dayjs(roomInfo.checkInDate), 'day'));
                         let rCheckOut = dayjs(roomInfo.checkOutDate);
                         let rOverdue = false;
@@ -378,7 +386,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
 
                         const rate = roomInfo.appliedRate || roomInfo.baseRate;
                         const total = rate * rNts;
-                        
+
                         return (
                           <tr key={idx} className="bg-white">
                             <td className="px-5 py-3 text-xs font-bold text-gray-900">{roomNameStr}</td>
@@ -455,14 +463,14 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                     </div>
                   </div>
                 </div>
-                
+
               </div>
             )}
 
             {/* TAB CONTENT: GUEST DETAILS */}
             {activeTab === 'GUEST' && (
               <div className="space-y-6">
-                
+
                 {/* Lead Guest */}
                 <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                   <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
@@ -513,7 +521,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                             <div>
                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Gender / Age</p>
                               <p className="text-sm font-bold text-gray-900">
-                                {g.gender ? g.gender.charAt(0).toUpperCase() + g.gender.slice(1) : '-'} 
+                                {g.gender ? g.gender.charAt(0).toUpperCase() + g.gender.slice(1) : '-'}
                                 {g.age ? `, ${g.age} yrs` : ''}
                               </p>
                             </div>
@@ -527,14 +535,14 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                     </div>
                   </div>
                 )}
-                
+
               </div>
             )}
 
             {/* TAB CONTENT: BILLING & PAYMENTS */}
             {activeTab === 'BILLING' && (
               <div className="space-y-6">
-                
+
                 {/* Items Summary (Room Charges) */}
                 <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                   <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
@@ -559,7 +567,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                         const nts = Math.max(1, roomInfo.nights || (roomInfo.checkInDate && roomInfo.checkOutDate ? dayjs(roomInfo.checkOutDate).diff(dayjs(roomInfo.checkInDate), 'day') : 1));
                         const rate = roomInfo.appliedRate || roomInfo.baseRate;
                         const total = roomInfo.grossAmount || (rate * nts);
-                        
+
                         return (
                           <tr key={idx} className="bg-white">
                             <td className="px-5 py-3 text-xs font-bold text-gray-900">{roomNameStr}</td>
@@ -690,21 +698,21 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                         <span className="font-bold text-gray-900">₹{(taxAmount/100).toLocaleString()}</span>
                       </div>
                     )}
-                    
+
                     <div className="h-px bg-gray-100 my-2"></div>
-                    
+
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-bold text-gray-900">Total Amount</span>
                       <span className="text-base font-black text-[#4338ca]">₹{(totalAmount/100).toLocaleString()}</span>
                     </div>
-                    
+
                     <div className="flex justify-between items-center text-xs pt-1">
                       <span className="font-medium text-gray-500">Total Paid (Advance)</span>
                       <span className="font-bold text-emerald-600">₹{(totalPaid/100).toLocaleString()}</span>
                     </div>
-                    
+
                     <div className="h-px bg-gray-100 my-2"></div>
-                    
+
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-bold text-gray-900">Balance Due</span>
                       <span className={`text-base font-black ${balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
@@ -716,7 +724,7 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
 
               </div>
             )}
-            
+
           </div>
 
         </div>

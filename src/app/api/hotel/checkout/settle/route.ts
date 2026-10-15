@@ -4,6 +4,7 @@ import { PricingService } from '@/lib/pricing/PricingService';
 import { getAuthContext } from '@/lib/authContext';
 import { randomBytes } from 'crypto';
 import { getStandardChecklistJson, isChecklistEmpty } from '@/lib/housekeeping';
+import { requirePermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
@@ -12,6 +13,11 @@ export async function POST(req: Request) {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:checkout:settle_payment');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const body = await req.json();
@@ -185,7 +191,7 @@ export async function POST(req: Request) {
       // 6. Generate or Update Invoice (Handle DRAFT and PAID for partial checkouts)
       const existingInvoice = await tx.invoice.findUnique({ where: { stayId: stay.id } });
       let invoice;
-      
+
       if (existingInvoice) {
         if (existingInvoice.status === 'DRAFT') {
           // Overwrite draft invoice with actual checkout values
@@ -245,7 +251,7 @@ export async function POST(req: Request) {
           data: { status: 'CHECKED_OUT' }
         });
       } else {
-        // Since we consumed the advance payment for this partial checkout invoice, 
+        // Since we consumed the advance payment for this partial checkout invoice,
         // we should deduct it from the reservation to prevent double-applying it.
         if (advanceAvailable > 0) {
           await tx.reservation.update({

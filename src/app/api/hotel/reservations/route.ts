@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission, hasPermission } from '@/lib/permissions';
 
 export async function GET(req: Request) {
   try {
@@ -9,13 +10,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const authCheck = requirePermission(authContext.user, 'page:reservations');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
+    }
+
     const hotelId = authContext.hotel.id;
     const url = new URL(req.url);
-    
+
     // Pagination parameters
     const page = parseInt(url.searchParams.get('page') || '1', 10);
     const limit = parseInt(url.searchParams.get('limit') || '10', 10);
-    
+
     // Filter parameters
     const search = url.searchParams.get('search') || '';
     const statusFilter = url.searchParams.get('status') || '';
@@ -35,10 +41,10 @@ export async function GET(req: Request) {
       prisma.reservation.count({ where: { hotelId } })
     ]);
 
-    let checkedIn = checkedInCount;
-    let checkedOut = checkedOutCount;
-    let upcomingCheckIns = upcomingCheckInsCount;
-    let upcomingCheckOuts = upcomingCheckOutsCount;
+    const checkedIn = checkedInCount;
+    const checkedOut = checkedOutCount;
+    const upcomingCheckIns = upcomingCheckInsCount;
+    const upcomingCheckOuts = upcomingCheckOutsCount;
 
     // 2. Build Prisma Where Clause for actual data fetching
     const whereClause: any = { hotelId };
@@ -87,7 +93,7 @@ export async function GET(req: Request) {
       const end = new Date(start.getTime() + 86400000);
       whereClause.rooms = { ...(whereClause.rooms || {}), some: { ...(whereClause.rooms?.some || {}), checkInDate: { gte: start, lt: end } } };
     }
-    
+
     if (checkOutDate) {
       const start = new Date(checkOutDate); start.setHours(0,0,0,0);
       const end = new Date(start.getTime() + 86400000);
@@ -136,20 +142,20 @@ export async function GET(req: Request) {
       let minCheckIn: Date | null = null;
       let maxCheckOut: Date | null = null;
       let totalNights = 0;
-      let roomNames: string[] = [];
+      const roomNames: string[] = [];
       let totalGuests = 0;
 
       for (const rr of res.rooms) {
          if (!minCheckIn || new Date(rr.checkInDate) < minCheckIn) minCheckIn = new Date(rr.checkInDate);
          if (!maxCheckOut || new Date(rr.checkOutDate) > maxCheckOut) maxCheckOut = new Date(rr.checkOutDate);
-         
+
          if (rr.roomId && roomMap.has(rr.roomId)) {
            const rObj = roomMap.get(rr.roomId);
            roomNames.push(`Room ${rObj.roomNumber} (${rObj.roomType.name})`);
          } else {
            roomNames.push(`Unassigned`);
          }
-         
+
          if (rr.guestsCount != null) {
             totalGuests += rr.guestsCount;
          } else if (rr.guestsData && Array.isArray(rr.guestsData)) {
@@ -215,7 +221,12 @@ export async function GET(req: Request) {
         limit,
         totalPages
       },
-      isAdmin: authContext.user.type === 'ADMIN' || authContext.user.type === 'OWNER' || authContext.business?.createdBy === authContext.user.id
+      isAdmin: authContext.user.type === 'ADMIN' || authContext.user.type === 'OWNER' || authContext.business?.createdBy === authContext.user.id,
+      canCreateReservation: authContext.user.type !== 'STAFF' || (Array.isArray(authContext.user.permissions) && authContext.user.permissions.includes('action:reservations:create')),
+      canPrintInvoice: hasPermission(authContext.user, 'action:printing:invoice_a4'),
+      canPrintReceipt: hasPermission(authContext.user, 'action:printing:invoice_80mm') || hasPermission(authContext.user, 'action:printing:invoice_58mm') || hasPermission(authContext.user, 'action:printing:payment_receipt'),
+      canPrint80mm: hasPermission(authContext.user, 'action:printing:invoice_80mm'),
+      canPrint58mm: hasPermission(authContext.user, 'action:printing:invoice_58mm')
     });
   } catch (error: any) {
     console.error('Failed to fetch reservations:', error);
@@ -231,9 +242,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const authCheck = requirePermission(authContext.user, 'action:reservations:create');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
+    }
+
     const hotelId = authContext.hotel.id;
     const body = await req.json();
-    const { 
+    const {
       guestName, guestPhone, guestEmail, guestAddress,
       checkInDate, checkOutDate, nights,
       rooms, // Array of { roomId, baseRate, guestsData }
@@ -286,7 +302,7 @@ export async function POST(req: Request) {
                ]
             }
          });
-         
+
          if (existing) {
              throw new Error(`Room ${room.roomId} is already booked for these dates.`);
          }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
@@ -9,6 +10,16 @@ export async function GET(req: Request) {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Available rooms data is consumed by check-in, booking, reservation creation, and rooms directory
+    const hasCheckin = requirePermission(authContext.user, 'page:checkin').authorized;
+    const hasReservations = requirePermission(authContext.user, 'page:reservations').authorized;
+    const hasRooms = requirePermission(authContext.user, 'page:rooms').authorized;
+
+    if (!hasCheckin && !hasReservations && !hasRooms) {
+      const authCheck = requirePermission(authContext.user, 'page:checkin');
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const hotelId = authContext.hotel.id;

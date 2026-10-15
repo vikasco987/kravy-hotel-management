@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   LogOut
 } from 'lucide-react';
+import { ROUTE_PAGE_PERMISSION_MAP } from '@/lib/permissions';
 
 const MENU_ITEMS = [
   { name: 'Dashboard', icon: Home, href: '/dashboard' },
@@ -70,10 +71,10 @@ export default function Sidebar() {
     if (confirm("Are you sure you want to sign out?")) {
       try {
         await fetch('/api/auth/logout', { method: 'POST' });
-        router.push('/auth/login');
-        router.refresh();
+        window.location.href = '/auth/custom';
       } catch (err) {
         console.error("Logout failed", err);
+        window.location.href = '/auth/custom';
       }
     }
   };
@@ -93,10 +94,21 @@ export default function Sidebar() {
     setOptimisticPath(href);
   };
 
-  // Hide sidebar completely on specific pages like invoice print
-  if (pathname.includes('/print/invoice') || pathname === '/dashboard/checkout' || pathname === '/dashboard/book' || pathname.startsWith('/auth')) {
+  // Hide sidebar completely on specific pages like invoice print or no-access
+  if (pathname.includes('/print/invoice') || pathname === '/dashboard/checkout' || pathname === '/dashboard/book' || pathname.startsWith('/auth') || pathname === '/dashboard/no-access') {
     return null;
   }
+
+  // Filter menu items: Admin/Owner sees all, staff only sees pages they have explicit permission for
+  const isStaff = !!user?.isStaff;
+  const userPermissions: string[] = Array.isArray(user?.permissions) ? user.permissions : [];
+
+  const visibleMenuItems = MENU_ITEMS.filter((item) => {
+    if (!isStaff) return true; // Admin/Owner full visibility
+    const requiredPerm = ROUTE_PAGE_PERMISSION_MAP[item.href];
+    if (!requiredPerm) return false;
+    return userPermissions.includes(requiredPerm);
+  });
 
   return (
     <aside className="w-[264px] bg-[#070814] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1d1238]/60 via-[#0a0a1a] to-[#04050d] text-slate-300 h-screen flex flex-col shrink-0 border-r border-[#1e1b38]/60 shadow-[8px_0_30px_-10px_rgba(0,0,0,0.8)] select-none">
@@ -138,7 +150,7 @@ export default function Sidebar() {
 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto px-3.5 py-3.5 space-y-1.5 scrollbar-thin scrollbar-thumb-purple-950/40 scrollbar-track-transparent">
-        {MENU_ITEMS.map((item) => {
+        {visibleMenuItems.map((item) => {
           const isActive = optimisticPath === item.href || (item.href !== '/dashboard' && optimisticPath.startsWith(item.href));
 
           return (
@@ -232,10 +244,10 @@ export default function Sidebar() {
             </div>
             <div className="min-w-0">
               <div className="text-white text-xs font-bold truncate">
-                {user?.name || "System Administrator"}
+                {user?.name || (isStaff ? "Staff Member" : "System Administrator")}
               </div>
               <div className="text-[10px] text-slate-400 truncate">
-                Full Access & Settings
+                {isStaff ? `${user?.role || "Staff"} • Assigned Permissions` : "Full Access & Settings"}
               </div>
             </div>
           </div>

@@ -34,6 +34,23 @@ export async function POST() {
                             }
                         }
                     });
+                } else {
+                    const staff = await prisma.staff.findUnique({ where: { id: userId } });
+                    if (staff) {
+                        const currentMeta = (staff.privateMetadata as any) || {};
+                        const existingTokens = Array.isArray(currentMeta.refreshTokens) ? currentMeta.refreshTokens : [];
+                        const updatedTokens = existingTokens.filter((t: any) => t.jtiHash !== hashedJti);
+
+                        await prisma.staff.update({
+                            where: { id: staff.id },
+                            data: {
+                                privateMetadata: {
+                                    ...currentMeta,
+                                    refreshTokens: updatedTokens
+                                }
+                            }
+                        });
+                    }
                 }
             }
         } catch (err) {

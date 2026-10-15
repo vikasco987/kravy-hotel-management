@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
@@ -9,6 +10,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:rooms:delete');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { hotel } = authContext;
@@ -29,8 +35,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
     await prisma.room.update({
       where: { id: room.id },
-      data: { 
-        isActive: false, 
+      data: {
+        isActive: false,
         status: 'BLOCKED',
         roomNumber: `${room.roomNumber}_deleted_${Date.now()}`
       }
@@ -57,6 +63,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const { id } = await params;
     const body = await req.json();
     const { floorId, roomTypeName, roomNumber, status, basePrice } = body;
+
+    // Distinguish between pure room-status change vs. editing room properties
+    const isStatusOnlyChange = status !== undefined && floorId === undefined && roomTypeName === undefined && roomNumber === undefined && basePrice === undefined;
+    const requiredAction = isStatusOnlyChange ? 'action:rooms:change_status' : 'action:rooms:edit';
+
+    const authCheck = requirePermission(authContext.user, requiredAction);
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
+    }
 
     const room = await prisma.room.findFirst({
       where: { id, hotelId: hotel.id },

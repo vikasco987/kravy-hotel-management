@@ -2,15 +2,62 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import dayjs from 'dayjs';
-import { Check, Sun, ArrowUp, ArrowDown, Clock3, Building2, Sparkles, Plus, Wrench, CircleCheck, BedDouble, Droplets, X, ChevronRight, Hotel, Users, IndianRupee, Snowflake, Wifi, Tv, Bath, Mountain, UserRound, ChevronDown, UserCheck, CalendarDays, UtensilsCrossed, MessageCircle, BarChart3, Wallet, Settings, MoreVertical, Layers, FileText, LogOut, Lock, Edit, Trash2, Code } from "lucide-react";
+import dayjs from "dayjs";
+import {
+  Check,
+  Sun,
+  ArrowUp,
+  ArrowDown,
+  Clock3,
+  Building2,
+  Sparkles,
+  Plus,
+  Wrench,
+  CircleCheck,
+  BedDouble,
+  Droplets,
+  X,
+  ChevronRight,
+  Hotel,
+  Users,
+  IndianRupee,
+  Snowflake,
+  Wifi,
+  Tv,
+  Bath,
+  Mountain,
+  UserRound,
+  ChevronDown,
+  UserCheck,
+  CalendarDays,
+  UtensilsCrossed,
+  MessageCircle,
+  BarChart3,
+  Wallet,
+  Settings,
+  MoreVertical,
+  Layers,
+  FileText,
+  LogOut,
+  Lock,
+  Edit,
+  Trash2,
+  Code,
+} from "lucide-react";
 import { GuestDetailsModal } from "@/components/hotel/GuestDetailsModal";
 import { AddRoomModal } from "@/components/hotel/AddRoomModal";
 import { EditFloorModal } from "@/components/hotel/EditFloorModal";
 import { ApiJsonDebugger } from "@/components/ui/ApiJsonDebugger";
 
-
-type RoomStatus = 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'DIRTY' | 'CLEANING' | 'INSPECTED' | 'MAINTENANCE' | 'BLOCKED';
+type RoomStatus =
+  | "AVAILABLE"
+  | "RESERVED"
+  | "OCCUPIED"
+  | "DIRTY"
+  | "CLEANING"
+  | "INSPECTED"
+  | "MAINTENANCE"
+  | "BLOCKED";
 
 interface GuestInfo {
   name: string;
@@ -76,54 +123,144 @@ const AMENITIES_LIST = [
   "Wi-Fi",
   "TV",
   "Attached Bathroom / Geyser",
-  "Balcony View"
+  "Balcony View",
 ];
 
 // ----------------------------------------------------------------------
 // NEW UI COMPONENTS
 // ----------------------------------------------------------------------
 
-const STATUS_COLORS: Record<string, { bg: string, text: string, border: string, dot: string, label: string }> = {
-  AVAILABLE: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-100', dot: 'bg-emerald-500', label: 'Available' },
-  OCCUPIED: { bg: 'bg-indigo-50/70', text: 'text-indigo-700', border: 'border-indigo-100/50', dot: 'bg-indigo-500', label: 'Occupied' },
-  DIRTY: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-100', dot: 'bg-rose-500', label: 'Dirty' },
-  MAINTENANCE: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', dot: 'bg-amber-500', label: 'Maintenance' },
-  BLOCKED: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-500', label: 'Blocked' },
-  RESERVED: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-100', dot: 'bg-violet-500', label: 'Reserved' },
-  CLEANING: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-100', dot: 'bg-yellow-500', label: 'Cleaning' },
-  INSPECTED: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-100', dot: 'bg-teal-500', label: 'Inspected' },
+const STATUS_COLORS: Record<
+  string,
+  { bg: string; text: string; border: string; dot: string; label: string }
+> = {
+  AVAILABLE: {
+    bg: "bg-emerald-50",
+    text: "text-emerald-700",
+    border: "border-emerald-100",
+    dot: "bg-emerald-500",
+    label: "Available",
+  },
+  OCCUPIED: {
+    bg: "bg-indigo-50/70",
+    text: "text-indigo-700",
+    border: "border-indigo-100/50",
+    dot: "bg-indigo-500",
+    label: "Occupied",
+  },
+  DIRTY: {
+    bg: "bg-rose-50",
+    text: "text-rose-700",
+    border: "border-rose-100",
+    dot: "bg-rose-500",
+    label: "Dirty",
+  },
+  MAINTENANCE: {
+    bg: "bg-amber-50",
+    text: "text-amber-700",
+    border: "border-amber-100",
+    dot: "bg-amber-500",
+    label: "Maintenance",
+  },
+  BLOCKED: {
+    bg: "bg-gray-100",
+    text: "text-gray-700",
+    border: "border-gray-200",
+    dot: "bg-gray-500",
+    label: "Blocked",
+  },
+  RESERVED: {
+    bg: "bg-violet-50",
+    text: "text-violet-700",
+    border: "border-violet-100",
+    dot: "bg-violet-500",
+    label: "Reserved",
+  },
+  CLEANING: {
+    bg: "bg-yellow-50",
+    text: "text-yellow-700",
+    border: "border-yellow-100",
+    dot: "bg-yellow-500",
+    label: "Cleaning",
+  },
+  INSPECTED: {
+    bg: "bg-teal-50",
+    text: "text-teal-700",
+    border: "border-teal-100",
+    dot: "bg-teal-500",
+    label: "Inspected",
+  },
 };
 
-function FilterBadge({ statusKey, count, isActive, onClick }: { statusKey: string, count: number, isActive: boolean, onClick: () => void }) {
-  if (statusKey === 'ALL') {
+function FilterBadge({
+  statusKey,
+  count,
+  isActive,
+  onClick,
+}: {
+  statusKey: string;
+  count: number;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  if (statusKey === "ALL") {
     return (
-      <button onClick={onClick} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${isActive ? 'bg-indigo-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
-        <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-white' : 'bg-gray-400'}`}></div>
-        ALL <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${isActive ? 'bg-white/20' : 'bg-gray-100'}`}>{count}</span>
+      <button
+        onClick={onClick}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${isActive ? "bg-indigo-500 text-white shadow-sm" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}
+      >
+        <div
+          className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-white" : "bg-gray-400"}`}
+        ></div>
+        ALL{" "}
+        <span
+          className={`px-1.5 py-0.5 rounded-md text-[10px] ${isActive ? "bg-white/20" : "bg-gray-100"}`}
+        >
+          {count}
+        </span>
       </button>
     );
   }
   const config = STATUS_COLORS[statusKey] || STATUS_COLORS.AVAILABLE;
   return (
-    <button onClick={onClick} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${isActive ? `ring-2 ring-offset-1 ring-${config.dot.split('-')[1]}-300 shadow-sm` : 'border border-transparent hover:border-gray-200'} ${config.bg} ${config.text}`}>
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${isActive ? `ring-2 ring-offset-1 ring-${config.dot.split("-")[1]}-300 shadow-sm` : "border border-transparent hover:border-gray-200"} ${config.bg} ${config.text}`}
+    >
       <div className={`w-1.5 h-1.5 rounded-full ${config.dot}`}></div>
-      {config.label} <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-white/60">{count}</span>
+      {config.label}{" "}
+      <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-white/60">
+        {count}
+      </span>
     </button>
   );
 }
 
-function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlightedRoomId, onRoomClick, onEditFloor, onDeleteFloor }: any) {
+function FloorRow({
+  floor,
+  floorIndex,
+  selectedRooms,
+  focusedRoomId,
+  highlightedRoomId,
+  onRoomClick,
+  onEditFloor,
+  onDeleteFloor,
+}: any) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const availableCount = floor.rooms.filter((r: any) => r.status === 'AVAILABLE').length;
+  const availableCount = floor.rooms.filter(
+    (r: any) => r.status === "AVAILABLE",
+  ).length;
 
   const floorNum = floorIndex + 1;
   const badgeText = `F${floorNum}`;
-  const floorName = `Floor ${floorNum.toString().padStart(2, '0')}`;
+  const floorName = `Floor ${floorNum.toString().padStart(2, "0")}`;
 
   const handleDeleteClick = () => {
     if (floor.rooms.length > 0) {
-      alert("Cannot delete floor: There are rooms assigned to this floor. Please delete or move the rooms first.");
+      alert(
+        "Cannot delete floor: There are rooms assigned to this floor. Please delete or move the rooms first.",
+      );
       return;
     }
     setShowDeleteConfirm(true);
@@ -142,12 +279,23 @@ function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlighted
     <div className="flex flex-col sm:flex-row bg-white rounded-[20px] p-4 items-center shadow-sm border border-gray-100 w-full mb-4 gap-4 sm:gap-6 relative">
       <div className="flex items-center w-full sm:w-[220px] shrink-0 border-b sm:border-b-0 sm:border-r border-gray-100 pb-4 sm:pb-0 sm:pr-6">
         <div className="flex flex-col items-center justify-center w-[52px] h-[52px] rounded-[14px] bg-blue-50/80 text-blue-600 border border-blue-100 mr-4 shrink-0">
-          <span className="text-[15px] font-black leading-none">{badgeText}</span>
-          <span className="text-[9px] font-bold uppercase tracking-widest text-blue-400 mt-1">Floor</span>
+          <span className="text-[15px] font-black leading-none">
+            {badgeText}
+          </span>
+          <span className="text-[9px] font-bold uppercase tracking-widest text-blue-400 mt-1">
+            Floor
+          </span>
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="font-extrabold text-[15px] text-gray-900 truncate" title={floor.name}>{floorName}</span>
-          <span className="text-[11px] font-medium text-gray-400 mt-1">{floor.rooms.length} rooms &middot; {availableCount} free</span>
+          <span
+            className="font-extrabold text-[15px] text-gray-900 truncate"
+            title={floor.name}
+          >
+            {floorName}
+          </span>
+          <span className="text-[11px] font-medium text-gray-400 mt-1">
+            {floor.rooms.length} rooms &middot; {availableCount} free
+          </span>
         </div>
       </div>
 
@@ -157,7 +305,7 @@ function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlighted
           const isFocused = focusedRoomId === room.id;
           const isHighlighted = highlightedRoomId === room.id;
           const config = STATUS_COLORS[room.status] || STATUS_COLORS.AVAILABLE;
-          const roomLabel = room.roomNumber || room.number || 'N/A';
+          const roomLabel = room.roomNumber || room.number || "N/A";
 
           return (
             <div
@@ -165,38 +313,60 @@ function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlighted
               id={`room-${roomLabel}`}
               onClick={() => onRoomClick(room.id)}
               title={`Room ${roomLabel}\nStatus: ${config.label}`}
-              className={`relative px-4 w-[76px] h-[48px] shrink-0 flex flex-col items-center justify-center rounded-[14px] cursor-pointer transition-all duration-200 ${config.bg} ${config.text} ${isSelectedForBooking ? 'ring-2 ring-indigo-500 shadow-md scale-[1.02]' : 'border border-transparent hover:border-gray-200'} ${isFocused ? 'ring-2 ring-indigo-400 shadow-lg scale-105 z-10' : 'hover:scale-[1.02] hover:-translate-y-0.5'} ${isHighlighted ? 'ring-4 ring-indigo-400 ring-opacity-50 animate-pulse' : ''}`}
+              className={`relative px-4 w-[76px] h-[48px] shrink-0 flex flex-col items-center justify-center rounded-[14px] cursor-pointer transition-all duration-200 ${config.bg} ${config.text} ${isSelectedForBooking ? "ring-2 ring-indigo-500 shadow-md scale-[1.02]" : "border border-transparent hover:border-gray-200"} ${isFocused ? "ring-2 ring-indigo-400 shadow-lg scale-105 z-10" : "hover:scale-[1.02] hover:-translate-y-0.5"} ${isHighlighted ? "ring-4 ring-indigo-400 ring-opacity-50 animate-pulse" : ""}`}
             >
               {isSelectedForBooking && (
                 <div className="absolute -top-1.5 -right-1.5 bg-indigo-600 text-white rounded-full p-1 shadow-sm z-20">
                   <Check size={10} strokeWidth={4} />
                 </div>
               )}
-              <span className="font-extrabold text-[14px] tracking-tight">{roomLabel}</span>
-              <div className={`w-1.5 h-1.5 rounded-full mt-1 ${config.dot}`}></div>
+              <span className="font-extrabold text-[14px] tracking-tight">
+                {roomLabel}
+              </span>
+              <div
+                className={`w-1.5 h-1.5 rounded-full mt-1 ${config.dot}`}
+              ></div>
             </div>
           );
         })}
       </div>
       <div className="relative shrink-0 flex items-center justify-center">
         <div
-          onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsMenuOpen(!isMenuOpen);
+          }}
           className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-50 cursor-pointer transition-colors text-gray-400"
         >
           <MoreVertical size={18} />
         </div>
         {isMenuOpen && (
           <>
-            <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); }}></div>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMenuOpen(false);
+              }}
+            ></div>
             <div className="absolute right-0 top-10 w-36 bg-white border border-gray-100 shadow-lg rounded-xl overflow-hidden z-50 py-1">
               <button
-                onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); if (onEditFloor) onEditFloor(floor); else alert("Edit not implemented"); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(false);
+                  if (onEditFloor) onEditFloor(floor);
+                  else alert("Edit not implemented");
+                }}
                 className="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Edit Floor
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); handleDeleteClick(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(false);
+                  handleDeleteClick();
+                }}
                 className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
               >
                 Delete Floor
@@ -207,13 +377,31 @@ function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlighted
       </div>
 
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
-            <h2 className="text-xl font-black text-slate-900 tracking-tight mb-2">Delete Floor?</h2>
-            <p className="text-sm text-slate-500 mb-6 font-medium">Are you sure you want to delete {floorName}? This action cannot be undone.</p>
+            <h2 className="text-xl font-black text-slate-900 tracking-tight mb-2">
+              Delete Floor?
+            </h2>
+            <p className="text-sm text-slate-500 mb-6 font-medium">
+              Are you sure you want to delete {floorName}? This action cannot be
+              undone.
+            </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={confirmDelete} className="flex-1 px-4 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-colors shadow-sm shadow-rose-500/20">Delete Floor</button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-colors shadow-sm shadow-rose-500/20"
+              >
+                Delete Floor
+              </button>
             </div>
           </div>
         </div>
@@ -222,42 +410,78 @@ function FloorRow({ floor, floorIndex, selectedRooms, focusedRoomId, highlighted
   );
 }
 
-function QuickActionCard({ title, subtitle, icon: Icon, onClick, colorTheme }: any) {
+function QuickActionCard({
+  title,
+  subtitle,
+  icon: Icon,
+  onClick,
+  colorTheme,
+  disabled,
+}: any) {
   return (
-    <button onClick={onClick} className="flex items-center justify-between p-3.5 rounded-[18px] border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 bg-white w-full text-left group">
+    <button
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      title={
+        disabled
+          ? "Access Denied: You do not have permission for this section"
+          : title
+      }
+      className={`flex items-center justify-between p-3.5 rounded-[18px] border border-gray-100 shadow-sm transition-all duration-300 bg-white w-full text-left group ${
+        disabled
+          ? "opacity-40 cursor-not-allowed hover:shadow-none"
+          : "hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+      }`}
+    >
       <div className="flex items-center gap-3.5 min-w-0">
-        <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${colorTheme.bg} ${colorTheme.text}`}>
+        <div
+          className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${colorTheme.bg} ${colorTheme.text}`}
+        >
           <Icon size={20} strokeWidth={2.5} />
         </div>
         <div className="min-w-0">
-          <div className="text-[13px] font-extrabold text-gray-900 truncate mb-0.5">{title}</div>
-          <div className="text-[10px] font-semibold text-gray-400 truncate">{subtitle}</div>
+          <div className="text-[13px] font-extrabold text-gray-900 truncate mb-0.5">
+            {title}
+          </div>
+          <div className="text-[10px] font-semibold text-gray-400 truncate">
+            {subtitle}
+          </div>
         </div>
       </div>
-      <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-400 shrink-0" />
+      <ChevronRight
+        size={16}
+        className={`shrink-0 ${disabled ? "text-gray-200" : "text-gray-300 group-hover:text-gray-400"}`}
+      />
     </button>
   );
 }
 function DashboardContent() {
-
-
-
-
   const [data, setData] = useState<DashboardData | null>(null);
   const [filter, setFilter] = useState("ALL");
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("search") || "";
-  const [highlightedRoomId, setHighlightedRoomId] = useState<string | null>(null);
+  const [highlightedRoomId, setHighlightedRoomId] = useState<string | null>(
+    null,
+  );
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
 
   const [apiRequests, setApiRequests] = useState<any[]>([]);
   const [isApiJsonOpen, setIsApiJsonOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canCreateRoom, setCanCreateRoom] = useState(true);
+  const [canEditRoom, setCanEditRoom] = useState(true);
+  const [canDeleteRoom, setCanDeleteRoom] = useState(true);
+  const [canChangeStatus, setCanChangeStatus] = useState(true);
+  const [canCheckin, setCanCheckin] = useState(true);
+  const [canCreateReservation, setCanCreateReservation] = useState(true);
+  const [canManageFloors, setCanManageFloors] = useState(true);
+  const [canSettlePayment, setCanSettlePayment] = useState(true);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
 
   const trackedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const startTime = Date.now();
-    const url = typeof input === 'string' ? input : input.toString();
-    const method = init?.method || 'GET';
+    const url = typeof input === "string" ? input : input.toString();
+    const method = init?.method || "GET";
     try {
       const response = await window.fetch(input, init);
       const cloned = response.clone();
@@ -265,27 +489,37 @@ function DashboardContent() {
       const responseTimeMs = Date.now() - startTime;
       const text = await cloned.text();
       let d;
-      try { d = JSON.parse(text); } catch(e) { d = text; }
-      
-      setApiRequests(prev => [...prev, {
-        url,
-        method,
-        status,
-        responseTimeMs,
-        timestamp: new Date().toISOString(),
-        response: d
-      }]);
-      
+      try {
+        d = JSON.parse(text);
+      } catch (e) {
+        d = text;
+      }
+
+      setApiRequests((prev) => [
+        ...prev,
+        {
+          url,
+          method,
+          status,
+          responseTimeMs,
+          timestamp: new Date().toISOString(),
+          response: d,
+        },
+      ]);
+
       return response;
     } catch (e: any) {
-      setApiRequests(prev => [...prev, {
-        url,
-        method,
-        status: 'ERROR',
-        responseTimeMs: Date.now() - startTime,
-        timestamp: new Date().toISOString(),
-        response: { error: String(e) }
-      }]);
+      setApiRequests((prev) => [
+        ...prev,
+        {
+          url,
+          method,
+          status: "ERROR",
+          responseTimeMs: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+          response: { error: String(e) },
+        },
+      ]);
       throw e;
     }
   };
@@ -299,20 +533,22 @@ function DashboardContent() {
   };
 
   const handleToggleRoomBooking = (roomId: string) => {
-    setSelectedRooms(prev =>
-      prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+    setSelectedRooms((prev) =>
+      prev.includes(roomId)
+        ? prev.filter((id) => id !== roomId)
+        : [...prev, roomId],
     );
   };
 
-
-  const [quickStatusRoomId, setQuickStatusRoomId] = useState<string>('');
+  const [quickStatusRoomId, setQuickStatusRoomId] = useState<string>("");
   const [isStatusChanging, setIsStatusChanging] = useState(false);
   const [statusModalRoom, setStatusModalRoom] = useState<any | null>(null);
 
-
   const handleToggleRoom = (roomId: string) => {
-    setSelectedRooms(prev =>
-      prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+    setSelectedRooms((prev) =>
+      prev.includes(roomId)
+        ? prev.filter((id) => id !== roomId)
+        : [...prev, roomId],
     );
   };
 
@@ -320,12 +556,12 @@ function DashboardContent() {
     try {
       // Ensure the room is marked DIRTY / has an unresolved Housekeeping task with standard checklist
       await trackedFetch(`/api/hotel/rooms/${roomId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'DIRTY' })
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DIRTY" }),
       });
     } catch (e) {
-      console.warn('Proceeding to housekeeping workflow:', e);
+      console.warn("Proceeding to housekeeping workflow:", e);
     }
     router.push(`/dashboard/housekeeping?roomId=${roomId}`);
   };
@@ -333,26 +569,25 @@ function DashboardContent() {
   const handleStatusChange = async (roomId: string, newStatus: string) => {
     try {
       const res = await trackedFetch(`/api/hotel/rooms/${roomId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || 'Failed to update status');
+        throw new Error(errJson.error || "Failed to update status");
       }
 
-      const refreshRes = await trackedFetch('/api/hotel/dashboard');
+      const refreshRes = await trackedFetch("/api/hotel/dashboard");
       if (refreshRes.ok) {
         const newData = await refreshRes.json();
         setData(newData);
       }
     } catch (error: any) {
       console.error(error);
-      alert(error.message || 'Failed to update room status');
+      alert(error.message || "Failed to update room status");
     }
   };
-
 
   // Modal States
   const [isAddFloorOpen, setIsAddFloorOpen] = useState(false);
@@ -398,7 +633,8 @@ function DashboardContent() {
     setEditingRoom({
       ...room,
       floorId,
-      basePrice: typeof room.price === 'number' ? Math.round(room.price / 100) : 1500,
+      basePrice:
+        typeof room.price === "number" ? Math.round(room.price / 100) : 1500,
     });
     setNewRoomNumber(room.roomNumber || room.number || "");
     setNewRoomFloorId(floorId);
@@ -414,25 +650,43 @@ function DashboardContent() {
   };
 
   useEffect(() => {
-    trackedFetch(`/api/hotel/dashboard?t=${Date.now()}`, { cache: 'no-store' })
-    .then(async res => {
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Dashboard API Error:", text);
-        throw new Error("API failed");
-      }
-      return res.json();
-    })
-    .then(fetchedData => {
-      setData(fetchedData);
-      if (fetchedData.isAdmin !== undefined) setIsAdmin(fetchedData.isAdmin);
-      if (fetchedData.floors && fetchedData.floors.length > 0) {
-        setNewRoomFloorId(fetchedData.floors[0].id);
-      }
-    })
-    .catch(err => {
-      console.error("Failed to fetch dashboard:", err);
-    });
+    trackedFetch(`/api/hotel/dashboard?t=${Date.now()}`, { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("Dashboard API Error:", text);
+          throw new Error("API failed");
+        }
+        return res.json();
+      })
+      .then((fetchedData) => {
+        setData(fetchedData);
+        if (fetchedData.isAdmin !== undefined) setIsAdmin(fetchedData.isAdmin);
+        if (fetchedData.canCreateRoom !== undefined)
+          setCanCreateRoom(fetchedData.canCreateRoom);
+        if (fetchedData.canEditRoom !== undefined)
+          setCanEditRoom(fetchedData.canEditRoom);
+        if (fetchedData.canDeleteRoom !== undefined)
+          setCanDeleteRoom(fetchedData.canDeleteRoom);
+        if (fetchedData.canChangeStatus !== undefined)
+          setCanChangeStatus(fetchedData.canChangeStatus);
+        if (fetchedData.canCheckin !== undefined)
+          setCanCheckin(fetchedData.canCheckin);
+        if (fetchedData.canCreateReservation !== undefined)
+          setCanCreateReservation(fetchedData.canCreateReservation);
+        if (fetchedData.canManageFloors !== undefined)
+          setCanManageFloors(fetchedData.canManageFloors);
+        if (fetchedData.canSettlePayment !== undefined)
+          setCanSettlePayment(fetchedData.canSettlePayment);
+        if (Array.isArray(fetchedData.permissions))
+          setUserPermissions(fetchedData.permissions);
+        if (fetchedData.floors && fetchedData.floors.length > 0) {
+          setNewRoomFloorId(fetchedData.floors[0].id);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch dashboard:", err);
+      });
   }, []);
 
   const handleAddFloor = async (e: React.FormEvent) => {
@@ -440,15 +694,15 @@ function DashboardContent() {
     if (!data || !newFloorName.trim()) return;
 
     try {
-      const res = await trackedFetch('/api/hotel/floors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newFloorName })
+      const res = await trackedFetch("/api/hotel/floors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newFloorName }),
       });
 
       if (!res.ok) {
         const errData = await res.json();
-        alert(errData.error || 'Failed to create floor');
+        alert(errData.error || "Failed to create floor");
         return;
       }
 
@@ -456,12 +710,12 @@ function DashboardContent() {
       const newFloor: Floor = {
         id: createdFloor.id,
         name: createdFloor.name,
-        rooms: []
+        rooms: [],
       };
 
       setData({
         ...data,
-        floors: [...data.floors, newFloor]
+        floors: [...data.floors, newFloor],
       });
 
       setNewFloorName("");
@@ -469,48 +723,56 @@ function DashboardContent() {
       if (!newRoomFloorId) setNewRoomFloorId(newFloor.id);
     } catch (error) {
       console.error(error);
-      alert('Network error while creating floor');
+      alert("Network error while creating floor");
     }
   };
 
-  
   const handleDeleteFloor = async (floorId: string) => {
     if (!data) return;
     try {
       const res = await trackedFetch(`/api/hotel/floors/${floorId}`, {
-        method: 'DELETE'
+        method: "DELETE",
       });
 
       if (!res.ok) {
         const errData = await res.json();
-        alert(errData.error || 'Failed to delete floor');
+        alert(errData.error || "Failed to delete floor");
         return;
       }
 
       setData({
         ...data,
-        floors: data.floors.filter(f => f.id !== floorId)
+        floors: data.floors.filter((f) => f.id !== floorId),
       });
     } catch (error) {
       console.error(error);
-      alert('Network error while deleting floor');
+      alert("Network error while deleting floor");
     }
   };
 
-  const handleDeleteRoom = async (roomId: string, status: string, hasGuest: boolean) => {
-    if (status === 'OCCUPIED' && hasGuest) {
+  const handleDeleteRoom = async (
+    roomId: string,
+    status: string,
+    hasGuest: boolean,
+  ) => {
+    if (status === "OCCUPIED" && hasGuest) {
       alert("This room cannot be deleted while it has an active stay.");
       return;
     }
-    if (!confirm('Are you sure you want to delete this room? This action cannot be undone.')) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete this room? This action cannot be undone.",
+      )
+    )
+      return;
     try {
       const res = await trackedFetch(`/api/hotel/rooms/${roomId}`, {
-        method: 'DELETE'
+        method: "DELETE",
       });
 
       if (!res.ok) {
         const errData = await res.json();
-        alert(errData.error || 'Failed to delete room');
+        alert(errData.error || "Failed to delete room");
         return;
       }
 
@@ -519,7 +781,7 @@ function DashboardContent() {
 
         const newFloors = prev.floors.map((f: any) => ({
           ...f,
-          rooms: f.rooms.filter((r: any) => r.id !== roomId)
+          rooms: f.rooms.filter((r: any) => r.id !== roomId),
         }));
 
         const newRooms: Record<string, number> = {
@@ -530,7 +792,7 @@ function DashboardContent() {
           dirty: 0,
           cleaning: 0,
           maintenance: 0,
-          blocked: 0
+          blocked: 0,
         };
 
         let newTotal = 0;
@@ -544,25 +806,33 @@ function DashboardContent() {
           });
         });
         newRooms.total = newTotal;
-        const occ = newTotal > 0 ? Math.round(((newRooms.occupied + newRooms.reserved) / newTotal) * 100) : 0;
+        const occ =
+          newTotal > 0
+            ? Math.round(
+                ((newRooms.occupied + newRooms.reserved) / newTotal) * 100,
+              )
+            : 0;
 
         return {
           ...prev,
           floors: newFloors,
           rooms: newRooms,
-          occupancy: occ
+          occupancy: occ,
         };
       });
       setFocusedRoomId(null);
 
-      const refreshRes = await trackedFetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' });
+      const refreshRes = await trackedFetch(
+        "/api/hotel/dashboard?t=" + Date.now(),
+        { cache: "no-store" },
+      );
       if (refreshRes.ok) {
         const newData = await refreshRes.json();
         setData(newData);
       }
     } catch (error) {
       console.error(error);
-      alert('Network error while deleting room');
+      alert("Network error while deleting room");
     }
   };
 
@@ -573,10 +843,10 @@ function DashboardContent() {
   };
 
   const toggleAmenity = (amenity: string) => {
-    setNewRoomAmenities(prev =>
+    setNewRoomAmenities((prev) =>
       prev.includes(amenity)
-        ? prev.filter(a => a !== amenity)
-        : [...prev, amenity]
+        ? prev.filter((a) => a !== amenity)
+        : [...prev, amenity],
     );
   };
 
@@ -585,28 +855,36 @@ function DashboardContent() {
     if (!data || !newRoomNumber.trim() || !newRoomFloorId) return;
 
     try {
-      const method = editingRoomId ? 'PATCH' : 'POST';
-      const url = editingRoomId ? `/api/hotel/rooms/${editingRoomId}` : '/api/hotel/rooms';
+      const method = editingRoomId ? "PATCH" : "POST";
+      const url = editingRoomId
+        ? `/api/hotel/rooms/${editingRoomId}`
+        : "/api/hotel/rooms";
 
       const res = await trackedFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           floorId: newRoomFloorId,
           roomTypeName: newRoomType,
           roomNumber: newRoomNumber,
           status: newRoomStatus,
-          basePrice: newRoomPrice
-        })
+          basePrice: newRoomPrice,
+        }),
       });
 
       if (!res.ok) {
         const errData = await res.json();
-        alert(errData.error || `Failed to ${editingRoomId ? 'update' : 'create'} room`);
+        alert(
+          errData.error ||
+            `Failed to ${editingRoomId ? "update" : "create"} room`,
+        );
         return;
       }
 
-      const refreshRes = await trackedFetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' });
+      const refreshRes = await trackedFetch(
+        "/api/hotel/dashboard?t=" + Date.now(),
+        { cache: "no-store" },
+      );
       if (refreshRes.ok) {
         const newData = await refreshRes.json();
         setData(newData);
@@ -616,16 +894,15 @@ function DashboardContent() {
       resetRoomForm();
     } catch (error) {
       console.error(error);
-      alert(`Network error while ${editingRoomId ? 'updating' : 'creating'} room`);
+      alert(
+        `Network error while ${editingRoomId ? "updating" : "creating"} room`,
+      );
     }
   };
 
-
   // Derived Data
 
   // Derived Data
-
-
 
   // Global search effect
   useEffect(() => {
@@ -640,8 +917,11 @@ function DashboardContent() {
     let foundRoomNum = null;
     for (const floor of data.floors) {
       for (const r of floor.rooms) {
-        const num = r.roomNumber || r.number || '';
-        if (num.toLowerCase().includes(term) || (r.guest && r.guest.toLowerCase().includes(term))) {
+        const num = r.roomNumber || r.number || "";
+        if (
+          num.toLowerCase().includes(term) ||
+          (r.guest && r.guest.toLowerCase().includes(term))
+        ) {
           foundRoomId = r.id;
           foundRoomNum = num;
           break;
@@ -654,7 +934,7 @@ function DashboardContent() {
       setHighlightedRoomId(foundRoomId);
       const el = document.getElementById(`room-${foundRoomNum}`);
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     } else {
       setHighlightedRoomId(null);
@@ -663,29 +943,41 @@ function DashboardContent() {
 
   // Derived Data
   const totalRooms = data?.rooms?.total || 0;
-  const focusedRoom = data ? data.floors.flatMap(f => f.rooms).find(r => r.id === focusedRoomId) : null;
+  const focusedRoom = data
+    ? data.floors.flatMap((f) => f.rooms).find((r) => r.id === focusedRoomId)
+    : null;
 
-  if (!data) return <div className="min-h-screen flex items-center justify-center bg-[#F7F8FC] text-gray-500 font-bold">Loading Dashboard...</div>;
+  if (!data)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F8FC] text-gray-500 font-bold">
+        Loading Dashboard...
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-[#F7F8FC] font-sans flex overflow-hidden">
-
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen overflow-y-auto relative bg-[#F4F6F9]">
-
         <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-8">
-
           {/* HERO BANNER */}
           <div className="relative w-full h-[140px] rounded-2xl overflow-hidden flex items-center shadow-sm">
-            <img src="/images/hero-hotel.jpg" className="absolute inset-0 w-full h-full object-cover object-center brightness-[0.85]" alt="Hotel Banner" />
+            <img
+              src="/images/hero-hotel.jpg"
+              className="absolute inset-0 w-full h-full object-cover object-center brightness-[0.85]"
+              alt="Hotel Banner"
+            />
             <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 via-blue-900/60 to-transparent"></div>
 
             <div className="relative z-10 flex w-full items-center justify-between px-8">
               <div className="flex items-center gap-4">
                 <Sun size={48} className="text-yellow-400 fill-yellow-400" />
                 <div>
-                  <h1 className="text-3xl font-bold text-white tracking-tight">Good Afternoon, System Administrator</h1>
-                  <p className="text-blue-100 text-sm mt-1">Here&apos;s what&apos;s happening at Grand Plaza today.</p>
+                  <h1 className="text-3xl font-bold text-white tracking-tight">
+                    Good Afternoon, System Administrator
+                  </h1>
+                  <p className="text-blue-100 text-sm mt-1">
+                    Here&apos;s what&apos;s happening at Grand Plaza today.
+                  </p>
                 </div>
               </div>
 
@@ -695,8 +987,12 @@ function DashboardContent() {
                   <BedDouble size={24} />
                 </div>
                 <div>
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Occupancy</div>
-                  <div className="text-3xl font-black text-gray-900 leading-none mt-1">{data.occupancy}%</div>
+                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Total Occupancy
+                  </div>
+                  <div className="text-3xl font-black text-gray-900 leading-none mt-1">
+                    {data.occupancy}%
+                  </div>
                   <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 mt-1">
                     <ArrowUp size={12} strokeWidth={3} /> +5% vs. yesterday
                   </div>
@@ -707,49 +1003,190 @@ function DashboardContent() {
 
           {/* QUICK ACTIONS GRID */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <QuickActionCard title="Guest Check-in" subtitle="New arrivals" icon={UserRound} onClick={() => router.push('/dashboard/book')} colorTheme={{ bg: 'bg-blue-50', text: 'text-blue-600' }} />
-            <QuickActionCard title="Guest Check-out" subtitle="Departures today" icon={UserCheck} onClick={() => router.push('/dashboard/checkout')} colorTheme={{ bg: 'bg-purple-50', text: 'text-purple-600' }} />
-            <QuickActionCard title="Reservations" subtitle="Manage bookings" icon={CalendarDays} onClick={() => router.push('/dashboard/reservations')} colorTheme={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }} />
-            <QuickActionCard title="Housekeeping" subtitle="Room cleaning" icon={Sparkles} onClick={() => router.push('/dashboard/housekeeping')} colorTheme={{ bg: 'bg-amber-50', text: 'text-amber-600' }} />
-            <QuickActionCard title="Restaurant" subtitle="View orders" icon={UtensilsCrossed} onClick={() => { }} colorTheme={{ bg: 'bg-rose-50', text: 'text-rose-600' }} />
-            <QuickActionCard title="WhatsApp" subtitle="Guest messaging" icon={MessageCircle} onClick={() => { }} colorTheme={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }} />
+            <QuickActionCard
+              title="Guest Check-in"
+              subtitle="New arrivals"
+              icon={UserRound}
+              onClick={() => router.push("/dashboard/book")}
+              disabled={
+                !isAdmin &&
+                !canCheckin &&
+                !userPermissions.includes("page:checkin")
+              }
+              colorTheme={{ bg: "bg-blue-50", text: "text-blue-600" }}
+            />
+            <QuickActionCard
+              title="Guest Check-out"
+              subtitle="Departures today"
+              icon={UserCheck}
+              onClick={() => router.push("/dashboard/checkout")}
+              disabled={
+                !isAdmin &&
+                !canSettlePayment &&
+                !userPermissions.includes("page:checkin")
+              }
+              colorTheme={{ bg: "bg-purple-50", text: "text-purple-600" }}
+            />
+            <QuickActionCard
+              title="Reservations"
+              subtitle="Manage bookings"
+              icon={CalendarDays}
+              onClick={() => router.push("/dashboard/reservations")}
+              disabled={
+                !isAdmin && !userPermissions.includes("page:reservations")
+              }
+              colorTheme={{ bg: "bg-indigo-50", text: "text-indigo-600" }}
+            />
+            <QuickActionCard
+              title="Housekeeping"
+              subtitle="Room cleaning"
+              icon={Sparkles}
+              onClick={() => router.push("/dashboard/housekeeping")}
+              disabled={
+                !isAdmin && !userPermissions.includes("page:housekeeping")
+              }
+              colorTheme={{ bg: "bg-amber-50", text: "text-amber-600" }}
+            />
+            <QuickActionCard
+              title="Restaurant"
+              subtitle="View orders"
+              icon={UtensilsCrossed}
+              onClick={() => router.push("/dashboard/restaurant")}
+              disabled={
+                !isAdmin && !userPermissions.includes("page:restaurant")
+              }
+              colorTheme={{ bg: "bg-rose-50", text: "text-rose-600" }}
+            />
+            <QuickActionCard
+              title="WhatsApp"
+              subtitle="Guest messaging"
+              icon={MessageCircle}
+              onClick={() => router.push("/dashboard/whatsapp")}
+              disabled={!isAdmin && !userPermissions.includes("page:whatsapp")}
+              colorTheme={{ bg: "bg-emerald-50", text: "text-emerald-600" }}
+            />
 
-            <QuickActionCard title="Rooms" subtitle="Room inventory" icon={BedDouble} onClick={() => { }} colorTheme={{ bg: 'bg-sky-50', text: 'text-sky-600' }} />
-            <QuickActionCard title="Staff" subtitle="Manage staff" icon={Users} onClick={() => router.push('/dashboard/staff')} colorTheme={{ bg: 'bg-cyan-50', text: 'text-cyan-600' }} />
-            <QuickActionCard title="Floors" subtitle="Floor overview" icon={Building2} onClick={() => router.push('/dashboard/floors')} colorTheme={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }} />
-            <QuickActionCard title="Reports" subtitle="Analytics & reports" icon={BarChart3} onClick={() => { }} colorTheme={{ bg: 'bg-amber-50', text: 'text-amber-600' }} />
-            <QuickActionCard title="Settings" subtitle="System settings" icon={Settings} onClick={() => { }} colorTheme={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }} />
-            <QuickActionCard title="Expenses & P&L" subtitle="Financial reports" icon={Wallet} onClick={() => { }} colorTheme={{ bg: 'bg-rose-50', text: 'text-rose-600' }} />
+            <QuickActionCard
+              title="Rooms"
+              subtitle="Room inventory"
+              icon={BedDouble}
+              onClick={() => router.push("/dashboard/rooms")}
+              disabled={!isAdmin && !userPermissions.includes("page:rooms")}
+              colorTheme={{ bg: "bg-sky-50", text: "text-sky-600" }}
+            />
+            <QuickActionCard
+              title="Staff"
+              subtitle="Manage staff"
+              icon={Users}
+              onClick={() => router.push("/dashboard/staff")}
+              disabled={!isAdmin && !userPermissions.includes("page:staff")}
+              colorTheme={{ bg: "bg-cyan-50", text: "text-cyan-600" }}
+            />
+            <QuickActionCard
+              title="Floors"
+              subtitle="Floor overview"
+              icon={Building2}
+              onClick={() => router.push("/dashboard/floors")}
+              disabled={!isAdmin && !userPermissions.includes("page:floors")}
+              colorTheme={{ bg: "bg-emerald-50", text: "text-emerald-600" }}
+            />
+            <QuickActionCard
+              title="Reports"
+              subtitle="Analytics & reports"
+              icon={BarChart3}
+              onClick={() => router.push("/dashboard/reports")}
+              disabled={!isAdmin && !userPermissions.includes("page:reports")}
+              colorTheme={{ bg: "bg-amber-50", text: "text-amber-600" }}
+            />
+            <QuickActionCard
+              title="Settings"
+              subtitle="System settings"
+              icon={Settings}
+              onClick={() => router.push("/dashboard/settings")}
+              disabled={!isAdmin && !userPermissions.includes("page:settings")}
+              colorTheme={{ bg: "bg-indigo-50", text: "text-indigo-600" }}
+            />
+            <QuickActionCard
+              title="Expenses & P&L"
+              subtitle="Financial reports"
+              icon={Wallet}
+              onClick={() => router.push("/dashboard/expenses")}
+              disabled={!isAdmin && !userPermissions.includes("page:expenses")}
+              colorTheme={{ bg: "bg-rose-50", text: "text-rose-600" }}
+            />
           </div>
 
           {/* LOWER SECTION: FLOORS (LEFT) AND WIDGETS (RIGHT) */}
           <div className="flex flex-col xl:flex-row gap-8">
-
             {/* LEFT: FLOORS */}
             <div className="flex-1 min-w-0">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
                 <div className="flex items-center gap-6 flex-wrap">
-                  <h2 className="text-[14px] font-black text-gray-900 uppercase tracking-widest">Floors & Rooms</h2>
+                  <h2 className="text-[14px] font-black text-gray-900 uppercase tracking-widest">
+                    Floors & Rooms
+                  </h2>
                   <div className="flex flex-wrap gap-2">
-                    <FilterBadge statusKey="ALL" count={totalRooms} isActive={filter === 'ALL'} onClick={() => setFilter('ALL')} />
-                    <FilterBadge statusKey="AVAILABLE" count={data.rooms.available || 0} isActive={filter === 'AVAILABLE'} onClick={() => setFilter('AVAILABLE')} />
-                    <FilterBadge statusKey="OCCUPIED" count={data.rooms.occupied || 0} isActive={filter === 'OCCUPIED'} onClick={() => setFilter('OCCUPIED')} />
-                    <FilterBadge statusKey="DIRTY" count={data.rooms.dirty || 0} isActive={filter === 'DIRTY'} onClick={() => setFilter('DIRTY')} />
-                    <FilterBadge statusKey="MAINTENANCE" count={data.rooms.maintenance || 0} isActive={filter === 'MAINTENANCE'} onClick={() => setFilter('MAINTENANCE')} />
-                    <FilterBadge statusKey="BLOCKED" count={data.rooms.blocked || 0} isActive={filter === 'BLOCKED'} onClick={() => setFilter('BLOCKED')} />
+                    <FilterBadge
+                      statusKey="ALL"
+                      count={totalRooms}
+                      isActive={filter === "ALL"}
+                      onClick={() => setFilter("ALL")}
+                    />
+                    <FilterBadge
+                      statusKey="AVAILABLE"
+                      count={data.rooms.available || 0}
+                      isActive={filter === "AVAILABLE"}
+                      onClick={() => setFilter("AVAILABLE")}
+                    />
+                    <FilterBadge
+                      statusKey="OCCUPIED"
+                      count={data.rooms.occupied || 0}
+                      isActive={filter === "OCCUPIED"}
+                      onClick={() => setFilter("OCCUPIED")}
+                    />
+                    <FilterBadge
+                      statusKey="DIRTY"
+                      count={data.rooms.dirty || 0}
+                      isActive={filter === "DIRTY"}
+                      onClick={() => setFilter("DIRTY")}
+                    />
+                    <FilterBadge
+                      statusKey="MAINTENANCE"
+                      count={data.rooms.maintenance || 0}
+                      isActive={filter === "MAINTENANCE"}
+                      onClick={() => setFilter("MAINTENANCE")}
+                    />
+                    <FilterBadge
+                      statusKey="BLOCKED"
+                      count={data.rooms.blocked || 0}
+                      isActive={filter === "BLOCKED"}
+                      onClick={() => setFilter("BLOCKED")}
+                    />
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
                   {isAdmin && (
-                    <button onClick={() => setIsApiJsonOpen(true)} className="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl font-bold text-[11px] flex items-center gap-1.5 shadow-sm transition whitespace-nowrap">
+                    <button
+                      onClick={() => setIsApiJsonOpen(true)}
+                      className="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl font-bold text-[11px] flex items-center gap-1.5 shadow-sm transition whitespace-nowrap"
+                    >
                       <Code size={14} strokeWidth={2.5} /> API JSON
                     </button>
                   )}
-                  <button onClick={() => { resetRoomForm(); setIsAddRoomOpen(true); }} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20">
+                  <button
+                    onClick={() => {
+                      resetRoomForm();
+                      setIsAddRoomOpen(true);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20"
+                  >
                     <Plus size={14} strokeWidth={3} /> Add Room
                   </button>
-                  <button onClick={() => setIsAddFloorOpen(true)} className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-[11px] flex items-center gap-1.5 hover:bg-gray-50 transition-colors shadow-sm">
+                  <button
+                    onClick={() => setIsAddFloorOpen(true)}
+                    className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-[11px] flex items-center gap-1.5 hover:bg-gray-50 transition-colors shadow-sm"
+                  >
                     <Plus size={14} strokeWidth={3} /> Add Floor
                   </button>
                 </div>
@@ -757,14 +1194,27 @@ function DashboardContent() {
 
               <div className="space-y-4 pb-10">
                 {data.floors.map((floor, index) => {
-                  const visibleRooms = filter === 'ALL' ? floor.rooms : floor.rooms.filter((r: any) => r.status === filter);
-                  if (visibleRooms.length === 0 && filter !== 'ALL') return null;
+                  const visibleRooms =
+                    filter === "ALL"
+                      ? floor.rooms
+                      : floor.rooms.filter((r: any) => r.status === filter);
+                  if (visibleRooms.length === 0 && filter !== "ALL")
+                    return null;
 
-                  const sortedRooms = [...visibleRooms].sort((a: any, b: any) => {
-                    const numA = String(a.roomNumber || a.number || '').trim();
-                    const numB = String(b.roomNumber || b.number || '').trim();
-                    return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
-                  });
+                  const sortedRooms = [...visibleRooms].sort(
+                    (a: any, b: any) => {
+                      const numA = String(
+                        a.roomNumber || a.number || "",
+                      ).trim();
+                      const numB = String(
+                        b.roomNumber || b.number || "",
+                      ).trim();
+                      return numA.localeCompare(numB, undefined, {
+                        numeric: true,
+                        sensitivity: "base",
+                      });
+                    },
+                  );
 
                   return (
                     <FloorRow
@@ -785,42 +1235,102 @@ function DashboardContent() {
 
             {/* RIGHT: WIDGETS */}
             <div className="w-full xl:w-[280px] shrink-0 space-y-6">
-
               {/* Occupancy Widget */}
               <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
                 <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2 text-indigo-500 bg-indigo-50 p-2 rounded-lg"><BedDouble size={16} /></div>
-                  <h3 className="text-[11px] font-black text-gray-800 uppercase tracking-widest flex-1 ml-3">Room Occupancy</h3>
+                  <div className="flex items-center gap-2 text-indigo-500 bg-indigo-50 p-2 rounded-lg">
+                    <BedDouble size={16} />
+                  </div>
+                  <h3 className="text-[11px] font-black text-gray-800 uppercase tracking-widest flex-1 ml-3">
+                    Room Occupancy
+                  </h3>
                 </div>
 
                 <div className="flex flex-col items-center gap-8">
-                  <div className="relative w-36 h-36 cursor-pointer transition-transform hover:scale-105" title="Click to view all rooms" onClick={() => setFilter('ALL')}>
-                    <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
-                      <path className="text-gray-100" strokeWidth="6" stroke="currentColor" fill="none" d="M18 3 a 15 15 0 0 1 0 30 a 15 15 0 0 1 0 -30" />
-                      <path className="text-blue-600" strokeDasharray={`${data.occupancy}, 100`} strokeWidth="6" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 3 a 15 15 0 0 1 0 30 a 15 15 0 0 1 0 -30" />
+                  <div
+                    className="relative w-36 h-36 cursor-pointer transition-transform hover:scale-105"
+                    title="Click to view all rooms"
+                    onClick={() => setFilter("ALL")}
+                  >
+                    <svg
+                      viewBox="0 0 36 36"
+                      className="w-full h-full transform -rotate-90"
+                    >
+                      <path
+                        className="text-gray-100"
+                        strokeWidth="6"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 3 a 15 15 0 0 1 0 30 a 15 15 0 0 1 0 -30"
+                      />
+                      <path
+                        className="text-blue-600"
+                        strokeDasharray={`${data.occupancy}, 100`}
+                        strokeWidth="6"
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 3 a 15 15 0 0 1 0 30 a 15 15 0 0 1 0 -30"
+                      />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl font-black text-gray-900 leading-none">{data.occupancy}%</span>
-                      <span className="text-[10px] font-bold text-gray-400 mt-1">{data.rooms.occupied || 0} / {totalRooms} Rooms</span>
+                      <span className="text-3xl font-black text-gray-900 leading-none">
+                        {data.occupancy}%
+                      </span>
+                      <span className="text-[10px] font-bold text-gray-400 mt-1">
+                        {data.rooms.occupied || 0} / {totalRooms} Rooms
+                      </span>
                     </div>
                   </div>
 
                   <div className="w-full space-y-3">
-                    <button onClick={() => setFilter('AVAILABLE')} className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-3 text-gray-600"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>Available</div>
-                      <span className="text-gray-900">{data.rooms.available || 0}</span>
+                    <button
+                      onClick={() => setFilter("AVAILABLE")}
+                      className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 text-gray-600">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                        Available
+                      </div>
+                      <span className="text-gray-900">
+                        {data.rooms.available || 0}
+                      </span>
                     </button>
-                    <button onClick={() => setFilter('OCCUPIED')} className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-3 text-gray-600"><div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>Occupied</div>
-                      <span className="text-gray-900">{data.rooms.occupied || 0}</span>
+                    <button
+                      onClick={() => setFilter("OCCUPIED")}
+                      className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 text-gray-600">
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
+                        Occupied
+                      </div>
+                      <span className="text-gray-900">
+                        {data.rooms.occupied || 0}
+                      </span>
                     </button>
-                    <button onClick={() => setFilter('DIRTY')} className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-3 text-gray-600"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>Dirty</div>
-                      <span className="text-gray-900">{data.rooms.dirty || 0}</span>
+                    <button
+                      onClick={() => setFilter("DIRTY")}
+                      className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 text-gray-600">
+                        <div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
+                        Dirty
+                      </div>
+                      <span className="text-gray-900">
+                        {data.rooms.dirty || 0}
+                      </span>
                     </button>
-                    <button onClick={() => setFilter('MAINTENANCE')} className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-3 text-gray-600"><div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>Maintenance</div>
-                      <span className="text-gray-900">{data.rooms.maintenance || 0}</span>
+                    <button
+                      onClick={() => setFilter("MAINTENANCE")}
+                      className="w-full flex justify-between items-center text-[13px] font-bold p-1 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 text-gray-600">
+                        <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                        Maintenance
+                      </div>
+                      <span className="text-gray-900">
+                        {data.rooms.maintenance || 0}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -830,48 +1340,108 @@ function DashboardContent() {
               <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
-                    <h3 className="text-[11px] font-black text-gray-800 uppercase tracking-widest">Quick Alerts</h3>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 text-indigo-500"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                    </svg>
+                    <h3 className="text-[11px] font-black text-gray-800 uppercase tracking-widest">
+                      Quick Alerts
+                    </h3>
                   </div>
-                  <span className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer">View all</span>
+                  <span className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer">
+                    View all
+                  </span>
                 </div>
 
                 <div className="space-y-4">
-                  {(!data.rooms.dirty && !data.rooms.maintenance) ? (
+                  {!data.rooms.dirty && !data.rooms.maintenance ? (
                     <>
                       <div className="w-full bg-emerald-50/70 p-4 rounded-xl border border-emerald-100/50 flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5"><Check size={14} strokeWidth={3} /></div>
+                        <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <Check size={14} strokeWidth={3} />
+                        </div>
                         <div>
-                          <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-1">All clear</div>
-                          <div className="text-[11px] font-medium text-emerald-600">No dirty or maintenance rooms</div>
+                          <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-1">
+                            All clear
+                          </div>
+                          <div className="text-[11px] font-medium text-emerald-600">
+                            No dirty or maintenance rooms
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 mt-2 pl-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" /><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" /></svg>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 text-emerald-600"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+                          <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+                        </svg>
                         <div>
-                          <div className="text-[11px] font-bold text-gray-800">Everything looks good!</div>
-                          <div className="text-[10px] text-gray-500 font-medium">Keep up the great work!</div>
+                          <div className="text-[11px] font-bold text-gray-800">
+                            Everything looks good!
+                          </div>
+                          <div className="text-[10px] text-gray-500 font-medium">
+                            Keep up the great work!
+                          </div>
                         </div>
                       </div>
                     </>
                   ) : (
                     <>
                       {data.rooms.dirty > 0 && (
-                        <button onClick={() => setFilter('DIRTY')} className="w-full bg-rose-50/70 p-4 rounded-xl border border-rose-100 flex items-center justify-between cursor-pointer hover:bg-rose-50 transition-all group">
+                        <button
+                          onClick={() => setFilter("DIRTY")}
+                          className="w-full bg-rose-50/70 p-4 rounded-xl border border-rose-100 flex items-center justify-between cursor-pointer hover:bg-rose-50 transition-all group"
+                        >
                           <div>
-                            <div className="text-[11px] font-bold text-rose-600 uppercase mb-1 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"></div>Dirty</div>
-                            <div className="text-[11px] font-medium text-rose-700/80 leading-none">{data.rooms.dirty} rooms need cleaning</div>
+                            <div className="text-[11px] font-bold text-rose-600 uppercase mb-1 flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+                              Dirty
+                            </div>
+                            <div className="text-[11px] font-medium text-rose-700/80 leading-none">
+                              {data.rooms.dirty} rooms need cleaning
+                            </div>
                           </div>
-                          <ChevronRight size={16} className="text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <ChevronRight
+                            size={16}
+                            className="text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                          />
                         </button>
                       )}
                       {data.rooms.maintenance > 0 && (
-                        <button onClick={() => setFilter('MAINTENANCE')} className="w-full bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between cursor-pointer hover:bg-amber-100 transition-all group">
+                        <button
+                          onClick={() => setFilter("MAINTENANCE")}
+                          className="w-full bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between cursor-pointer hover:bg-amber-100 transition-all group"
+                        >
                           <div>
-                            <div className="text-[11px] font-bold text-amber-600 uppercase mb-1 flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div>Maintenance</div>
-                            <div className="text-[11px] font-medium text-amber-700/80 leading-none">{data.rooms.maintenance} rooms under repair</div>
+                            <div className="text-[11px] font-bold text-amber-600 uppercase mb-1 flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                              Maintenance
+                            </div>
+                            <div className="text-[11px] font-medium text-amber-700/80 leading-none">
+                              {data.rooms.maintenance} rooms under repair
+                            </div>
                           </div>
-                          <ChevronRight size={16} className="text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <ChevronRight
+                            size={16}
+                            className="text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                          />
                         </button>
                       )}
                     </>
@@ -879,11 +1449,11 @@ function DashboardContent() {
 
                   {/* Subtle footer */}
                   <div className="pt-6 text-[10px] text-gray-400 font-medium text-center italic flex items-center justify-center gap-1">
-                    <span className="text-amber-500">✧</span> &ldquo;Great hospitality creates lasting memories.&rdquo;
+                    <span className="text-amber-500">✧</span> &ldquo;Great
+                    hospitality creates lasting memories.&rdquo;
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
@@ -891,277 +1461,430 @@ function DashboardContent() {
 
       {/* ROOM DETAIL RIGHT SIDE DRAWER */}
       <div
-        className={`fixed top-0 right-0 w-[440px] max-w-full h-screen bg-slate-50 shadow-2xl border-l border-slate-200/60 transform transition-transform duration-300 ease-out z-[60] flex flex-col ${focusedRoomId ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 w-[440px] max-w-full h-screen bg-slate-50 shadow-2xl border-l border-slate-200/60 transform transition-transform duration-300 ease-out z-[60] flex flex-col ${focusedRoomId ? "translate-x-0" : "translate-x-full"}`}
       >
-        {focusedRoom && (() => {
-          const conf = STATUS_COLORS[focusedRoom.status] || STATUS_COLORS.AVAILABLE;
-          const isSelectedForBooking = selectedRooms.includes(focusedRoom.id);
-          const floor = data.floors.find(f => f.rooms.some(r => r.id === focusedRoom.id));
-          
-          return (
-            <>
-              {/* Premium Image Header */}
-              <div className="relative h-64 bg-[#0a0f1d] shrink-0 overflow-hidden">
-                {/* Background Image with Blur */}
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=800&auto=format&fit=crop')] bg-cover bg-center opacity-60 blur-[3px] scale-105"></div>
-                
-                {/* Dark Navy/Black Overlay & Gradient */}
-                <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f1d]/90 via-[#0a0f1d]/50 to-transparent"></div>
-                
-                {/* Smooth Fade to Content Area */}
-                <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-slate-50 via-slate-50/80 to-transparent"></div>
-                
-                {/* Close Button */}
-                <button 
-                  onClick={() => setFocusedRoomId(null)} 
-                  className="absolute top-5 right-5 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-xl text-white transition-all shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_15px_rgba(0,0,0,0.2)] z-20"
-                >
-                  <X size={18} />
-                </button>
+        {focusedRoom &&
+          (() => {
+            const conf =
+              STATUS_COLORS[focusedRoom.status] || STATUS_COLORS.AVAILABLE;
+            const isSelectedForBooking = selectedRooms.includes(focusedRoom.id);
+            const floor = data.floors.find((f) =>
+              f.rooms.some((r) => r.id === focusedRoom.id),
+            );
 
-                <div className="relative h-full p-6 flex flex-col justify-end z-10 pb-6">
-                  <div className="flex items-center gap-4 mb-3">
-                    {/* Glass/Neon Room Icon */}
-                    <div className="w-14 h-14 rounded-2xl bg-indigo-600/30 backdrop-blur-md flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.4)] border border-indigo-400/50">
-                      <BedDouble size={28} className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
-                    </div>
-                    <div>
-                      {/* Strong White Typography */}
-                      <h2 className="text-[32px] font-black tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] leading-none mb-2">
-                        Room {focusedRoom.roomNumber || focusedRoom.number || 'N/A'}
-                      </h2>
-                      {/* Status Badge */}
-                      <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(0,0,0,0.2)] border ${conf.border} ${conf.bg} ${conf.text} bg-opacity-80 backdrop-blur-md`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${conf.dot} animate-pulse drop-shadow-md`}></div>
-                        {conf.label}
+            return (
+              <>
+                {/* Premium Image Header */}
+                <div className="relative h-64 bg-[#0a0f1d] shrink-0 overflow-hidden">
+                  {/* Background Image with Blur */}
+                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=800&auto=format&fit=crop')] bg-cover bg-center opacity-60 blur-[3px] scale-105"></div>
+
+                  {/* Dark Navy/Black Overlay & Gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f1d]/90 via-[#0a0f1d]/50 to-transparent"></div>
+
+                  {/* Smooth Fade to Content Area */}
+                  <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-slate-50 via-slate-50/80 to-transparent"></div>
+
+                  {/* Close Button */}
+                  <button
+                    onClick={() => setFocusedRoomId(null)}
+                    className="absolute top-5 right-5 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-xl text-white transition-all shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_15px_rgba(0,0,0,0.2)] z-20"
+                  >
+                    <X size={18} />
+                  </button>
+
+                  <div className="relative h-full p-6 flex flex-col justify-end z-10 pb-6">
+                    <div className="flex items-center gap-4 mb-3">
+                      {/* Glass/Neon Room Icon */}
+                      <div className="w-14 h-14 rounded-2xl bg-indigo-600/30 backdrop-blur-md flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.4)] border border-indigo-400/50">
+                        <BedDouble
+                          size={28}
+                          className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]"
+                        />
+                      </div>
+                      <div>
+                        {/* Strong White Typography */}
+                        <h2 className="text-[32px] font-black tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] leading-none mb-2">
+                          Room{" "}
+                          {focusedRoom.roomNumber ||
+                            focusedRoom.number ||
+                            "N/A"}
+                        </h2>
+                        {/* Status Badge */}
+                        <div
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(0,0,0,0.2)] border ${conf.border} ${conf.bg} ${conf.text} bg-opacity-80 backdrop-blur-md`}
+                        >
+                          <div
+                            className={`w-1.5 h-1.5 rounded-full ${conf.dot} animate-pulse drop-shadow-md`}
+                          ></div>
+                          {conf.label}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  {/* Glass Pill Breadcrumb */}
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-white/90 drop-shadow-md mt-1 bg-white/10 backdrop-blur-md w-fit px-3 py-1.5 rounded-full border border-white/20 shadow-[0_2px_10px_rgba(0,0,0,0.1)] uppercase tracking-wider">
-                    <Layers size={12} className="opacity-80" /> {floor?.name || 'Floor 01'} <ChevronRight size={10} className="opacity-40" /> Room {focusedRoom.roomNumber || focusedRoom.number}
+                    {/* Glass Pill Breadcrumb */}
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-white/90 drop-shadow-md mt-1 bg-white/10 backdrop-blur-md w-fit px-3 py-1.5 rounded-full border border-white/20 shadow-[0_2px_10px_rgba(0,0,0,0.1)] uppercase tracking-wider">
+                      <Layers size={12} className="opacity-80" />{" "}
+                      {floor?.name || "Floor 01"}{" "}
+                      <ChevronRight size={10} className="opacity-40" /> Room{" "}
+                      {focusedRoom.roomNumber || focusedRoom.number}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto px-6 pb-8 space-y-5 custom-scrollbar bg-slate-50">
-                
-                {/* Select for Booking */}
-                {!['OCCUPIED', 'MAINTENANCE', 'BLOCKED'].includes(focusedRoom.status) && (
-                  <div className="bg-white border border-indigo-50/50 p-4 rounded-[20px] flex items-center justify-between shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-50/50 flex items-center justify-center text-indigo-500 border border-indigo-100/50">
-                        <CalendarDays size={18} />
-                      </div>
-                      <div>
-                        <div className="text-[13px] font-black text-slate-800">Select for Booking</div>
-                        <div className="text-[10px] font-medium text-slate-400 mt-0.5">Add to current bulk selection</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleToggleRoomBooking(focusedRoom.id)}
-                      className={`relative w-11 h-6 rounded-full transition-colors duration-300 shadow-inner ${isSelectedForBooking ? 'bg-indigo-500' : 'bg-slate-200'}`}
-                    >
-                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${isSelectedForBooking ? 'translate-x-6' : 'translate-x-1'}`}></div>
-                    </button>
-                  </div>
-                )}
-
-                {/* Guest Information */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3 px-1">
-                    <UserRound size={16} className="text-indigo-600" />
-                    <h4 className="text-[12px] font-black text-slate-800 tracking-tight">Guest Information</h4>
-                    {!focusedRoom.guestInfo && <span className="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-slate-200/50"><div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div> Unoccupied</span>}
-                  </div>
-                  
-                  {focusedRoom.guestInfo ? (
-                    <div className="bg-white rounded-[20px] p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] border border-indigo-50/50 cursor-pointer hover:border-indigo-200 transition-all" onClick={() => setIsGuestModalOpen(true)}>
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex gap-4">
-                          <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-lg border border-indigo-100">
-                            {focusedRoom.guestInfo.name.substring(0, 2).toUpperCase()}
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto px-6 pb-8 space-y-5 custom-scrollbar bg-slate-50">
+                  {/* Select for Booking */}
+                  {!["OCCUPIED", "MAINTENANCE", "BLOCKED"].includes(
+                    focusedRoom.status,
+                  ) && (
+                    <div className="bg-white border border-indigo-50/50 p-4 rounded-[20px] flex items-center justify-between shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50/50 flex items-center justify-center text-indigo-500 border border-indigo-100/50">
+                          <CalendarDays size={18} />
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-black text-slate-800">
+                            Select for Booking
                           </div>
-                          <div>
-                            <div className="text-[14px] font-black text-slate-800">{focusedRoom.guestInfo.name}</div>
-                            <div className="text-[11px] font-medium text-slate-500 mt-0.5">{focusedRoom.guestInfo.phone || 'No phone'}</div>
+                          <div className="text-[10px] font-medium text-slate-400 mt-0.5">
+                            Add to current bulk selection
                           </div>
                         </div>
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50/70 rounded-xl border border-slate-100/50 mb-4">
-                        <div>
-                          <div className="text-[9px] uppercase font-bold text-slate-400 mb-1">Check-in</div>
-                          <div className="text-[11px] font-bold text-slate-700">{dayjs(focusedRoom.guestInfo.checkInDate).format('DD MMM, hh:mm A')}</div>
-                        </div>
-                        <div>
-                          <div className="text-[9px] uppercase font-bold text-slate-400 mb-1">Check-out</div>
-                          <div className="text-[11px] font-bold text-slate-700">{focusedRoom.guestInfo.expectedCheckOutDate ? dayjs(focusedRoom.guestInfo.expectedCheckOutDate).format('DD MMM, hh:mm A') : 'Not Set'}</div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between items-center px-1 border-t border-dashed border-slate-200 pt-3">
-                        <div>
-                          <div className="text-[9px] font-bold text-slate-400 uppercase">Room Rate</div>
-                          <div className="text-[13px] font-black text-slate-800">₹{((focusedRoom.guestInfo.roomRate || focusedRoom.price || 0) / 100).toLocaleString('en-IN')}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-[9px] font-bold text-slate-400 uppercase">Balance</div>
-                          <div className={`text-[13px] font-black ${focusedRoom.guestInfo.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>₹{(focusedRoom.guestInfo.balance / 100).toLocaleString('en-IN')}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-white rounded-[20px] p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] border border-indigo-50/50 flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 text-slate-300 flex items-center justify-center">
-                        <UserRound size={20} />
-                      </div>
-                      <div>
-                        <div className="text-[14px] font-black text-slate-800">No guest</div>
-                        <div className="text-[11px] font-medium text-slate-400 mt-0.5">Room is currently unoccupied</div>
-                      </div>
+                      <button
+                        onClick={() => handleToggleRoomBooking(focusedRoom.id)}
+                        className={`relative w-11 h-6 rounded-full transition-colors duration-300 shadow-inner ${isSelectedForBooking ? "bg-indigo-500" : "bg-slate-200"}`}
+                      >
+                        <div
+                          className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${isSelectedForBooking ? "translate-x-6" : "translate-x-1"}`}
+                        ></div>
+                      </button>
                     </div>
                   )}
+
+                  {/* Guest Information */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 px-1">
+                      <UserRound size={16} className="text-indigo-600" />
+                      <h4 className="text-[12px] font-black text-slate-800 tracking-tight">
+                        Guest Information
+                      </h4>
+                      {!focusedRoom.guestInfo && (
+                        <span className="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-slate-200/50">
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>{" "}
+                          Unoccupied
+                        </span>
+                      )}
+                    </div>
+
+                    {focusedRoom.guestInfo ? (
+                      <div
+                        className="bg-white rounded-[20px] p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] border border-indigo-50/50 cursor-pointer hover:border-indigo-200 transition-all"
+                        onClick={() => setIsGuestModalOpen(true)}
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex gap-4">
+                            <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-lg border border-indigo-100">
+                              {focusedRoom.guestInfo.name
+                                .substring(0, 2)
+                                .toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="text-[14px] font-black text-slate-800">
+                                {focusedRoom.guestInfo.name}
+                              </div>
+                              <div className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                {focusedRoom.guestInfo.phone || "No phone"}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50/70 rounded-xl border border-slate-100/50 mb-4">
+                          <div>
+                            <div className="text-[9px] uppercase font-bold text-slate-400 mb-1">
+                              Check-in
+                            </div>
+                            <div className="text-[11px] font-bold text-slate-700">
+                              {dayjs(focusedRoom.guestInfo.checkInDate).format(
+                                "DD MMM, hh:mm A",
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[9px] uppercase font-bold text-slate-400 mb-1">
+                              Check-out
+                            </div>
+                            <div className="text-[11px] font-bold text-slate-700">
+                              {focusedRoom.guestInfo.expectedCheckOutDate
+                                ? dayjs(
+                                    focusedRoom.guestInfo.expectedCheckOutDate,
+                                  ).format("DD MMM, hh:mm A")
+                                : "Not Set"}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center px-1 border-t border-dashed border-slate-200 pt-3">
+                          <div>
+                            <div className="text-[9px] font-bold text-slate-400 uppercase">
+                              Room Rate
+                            </div>
+                            <div className="text-[13px] font-black text-slate-800">
+                              ₹
+                              {(
+                                (focusedRoom.guestInfo.roomRate ||
+                                  focusedRoom.price ||
+                                  0) / 100
+                              ).toLocaleString("en-IN")}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[9px] font-bold text-slate-400 uppercase">
+                              Balance
+                            </div>
+                            <div
+                              className={`text-[13px] font-black ${focusedRoom.guestInfo.balance > 0 ? "text-rose-600" : "text-emerald-600"}`}
+                            >
+                              ₹
+                              {(
+                                focusedRoom.guestInfo.balance / 100
+                              ).toLocaleString("en-IN")}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-[20px] p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] border border-indigo-50/50 flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 text-slate-300 flex items-center justify-center">
+                          <UserRound size={20} />
+                        </div>
+                        <div>
+                          <div className="text-[14px] font-black text-slate-800">
+                            No guest
+                          </div>
+                          <div className="text-[11px] font-medium text-slate-400 mt-0.5">
+                            Room is currently unoccupied
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Room Details Grid */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 px-1">
+                      <FileText size={16} className="text-indigo-600" />
+                      <h4 className="text-[12px] font-black text-slate-800 tracking-tight">
+                        Room Details
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-indigo-50/40 p-4 rounded-2xl flex flex-col justify-center border border-indigo-50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <BedDouble size={14} className="text-indigo-500" />
+                          <span className="text-[10px] font-bold text-slate-500">
+                            Room Type
+                          </span>
+                        </div>
+                        <div className="text-[13px] font-black text-slate-800 ml-5.5">
+                          {focusedRoom.roomType ||
+                            focusedRoom.type ||
+                            "Standard"}
+                        </div>
+                      </div>
+                      <div className="bg-rose-50/40 p-4 rounded-2xl flex flex-col justify-center border border-rose-50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <IndianRupee size={14} className="text-rose-500" />
+                          <span className="text-[10px] font-bold text-slate-500">
+                            Price
+                          </span>
+                        </div>
+                        <div className="text-[13px] font-black text-slate-800 ml-5.5">
+                          ₹
+                          {((focusedRoom.price || 0) / 100).toLocaleString(
+                            "en-IN",
+                          )}{" "}
+                          <span className="text-[8px] font-bold text-slate-400 uppercase">
+                            / night
+                          </span>
+                        </div>
+                      </div>
+                      <div className="bg-emerald-50/40 p-4 rounded-2xl flex flex-col justify-center border border-emerald-50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <Users size={14} className="text-emerald-500" />
+                          <span className="text-[10px] font-bold text-slate-500">
+                            Capacity
+                          </span>
+                        </div>
+                        <div className="text-[13px] font-black text-slate-800 ml-5.5">
+                          {focusedRoom.capacity || 2}{" "}
+                          <span className="text-[8px] font-bold text-slate-400 uppercase">
+                            Guests
+                          </span>
+                        </div>
+                      </div>
+                      <div className="bg-amber-50/40 p-4 rounded-2xl flex flex-col justify-center border border-amber-50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <Clock3 size={14} className="text-amber-500" />
+                          <span className="text-[10px] font-bold text-slate-500">
+                            Last Cleaned
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-black text-slate-800 ml-5.5">
+                          {focusedRoom.lastCleaned
+                            ? dayjs(focusedRoom.lastCleaned).format(
+                                "DD MMM, HH:mm",
+                              )
+                            : "Not recorded"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions Grid */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 px-1 mt-2">
+                      <Settings size={16} className="text-indigo-600" />
+                      <h4 className="text-[12px] font-black text-slate-800 tracking-tight">
+                        Room Actions
+                      </h4>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {focusedRoom.status === "OCCUPIED" &&
+                      focusedRoom.guestInfo
+                        ? canSettlePayment && (
+                            <button
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/checkout?roomId=${focusedRoom.id}`,
+                                )
+                              }
+                              className="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl flex items-center gap-3 shadow-sm border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all font-bold text-[12px]"
+                            >
+                              <LogOut size={16} /> Check-out
+                            </button>
+                          )
+                        : canCheckin && (
+                            <button
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/book?rooms=${focusedRoom.id}`,
+                                )
+                              }
+                              className="p-3.5 bg-emerald-50/80 text-emerald-600 rounded-[14px] flex items-center gap-2.5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all font-black text-[12px] shadow-sm"
+                            >
+                              <UserCheck size={16} className="opacity-90" />{" "}
+                              Check-in Guest
+                            </button>
+                          )}
+
+                      {canChangeStatus &&
+                        (focusedRoom.housekeepingStatus === "DIRTY" ||
+                        focusedRoom.status === "DIRTY" ? (
+                          <button
+                            onClick={() => handleSetClean(focusedRoom.id)}
+                            className="p-3.5 bg-emerald-50/80 text-emerald-600 rounded-[14px] flex items-center gap-2.5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all font-black text-[12px] shadow-sm"
+                          >
+                            <Sparkles size={16} className="opacity-90" /> Set
+                            Clean
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              handleStatusChange(focusedRoom.id, "DIRTY")
+                            }
+                            className="p-3.5 bg-rose-50/80 text-rose-600 rounded-[14px] flex items-center gap-2.5 border border-rose-100 hover:bg-rose-100 hover:border-rose-200 transition-all font-black text-[12px] shadow-sm"
+                          >
+                            <Sun size={16} className="opacity-90" /> Set Dirty
+                          </button>
+                        ))}
+
+                      {canChangeStatus &&
+                        (focusedRoom.status === "MAINTENANCE" ? (
+                          <button
+                            onClick={() =>
+                              handleStatusChange(focusedRoom.id, "AVAILABLE")
+                            }
+                            className="p-3.5 bg-emerald-50/80 text-emerald-600 rounded-[14px] flex items-center gap-2.5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all font-black text-[12px] shadow-sm"
+                          >
+                            <Check size={16} className="opacity-90" /> Set
+                            Available
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              handleStatusChange(focusedRoom.id, "MAINTENANCE")
+                            }
+                            disabled={focusedRoom.status === "OCCUPIED"}
+                            className={`p-3.5 bg-amber-50 text-amber-600 rounded-[14px] flex items-center gap-2.5 border border-amber-100 hover:bg-amber-100 hover:border-amber-200 transition-all font-black text-[12px] shadow-sm ${focusedRoom.status === "OCCUPIED" ? "opacity-40 cursor-not-allowed" : ""}`}
+                          >
+                            <Wrench size={16} className="opacity-90" />{" "}
+                            Maintenance
+                          </button>
+                        ))}
+
+                      {canChangeStatus &&
+                        (focusedRoom.status === "BLOCKED" ? (
+                          <button
+                            onClick={() =>
+                              handleStatusChange(focusedRoom.id, "AVAILABLE")
+                            }
+                            className="p-3.5 bg-blue-50 text-blue-600 rounded-[14px] flex items-center gap-2.5 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 transition-all font-black text-[12px] shadow-sm"
+                          >
+                            <Check size={16} className="opacity-90" /> Unblock
+                            Room
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              handleStatusChange(focusedRoom.id, "BLOCKED")
+                            }
+                            disabled={focusedRoom.status === "OCCUPIED"}
+                            className={`p-3.5 bg-blue-50/80 text-blue-600 rounded-[14px] flex items-center gap-2.5 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 transition-all font-black text-[12px] shadow-sm ${focusedRoom.status === "OCCUPIED" ? "opacity-40 cursor-not-allowed" : ""}`}
+                          >
+                            <Lock size={16} className="opacity-90" /> Block Room
+                          </button>
+                        ))}
+
+                      {canEditRoom && (
+                        <button
+                          onClick={() => {
+                            const floor = data.floors.find((f) =>
+                              f.rooms.some((r) => r.id === focusedRoom.id),
+                            );
+                            if (floor) {
+                              openEditRoom(focusedRoom, floor.id);
+                            }
+                          }}
+                          className="p-3.5 bg-purple-50/80 text-purple-600 rounded-[14px] flex items-center gap-2.5 border border-purple-100 hover:bg-purple-100 hover:border-purple-200 transition-all font-black text-[12px] shadow-sm"
+                        >
+                          <Edit size={16} className="opacity-90" /> Edit Room
+                        </button>
+                      )}
+
+                      {canDeleteRoom && (
+                        <button
+                          onClick={() =>
+                            handleDeleteRoom(
+                              focusedRoom.id,
+                              focusedRoom.status,
+                              !!focusedRoom.guestInfo,
+                            )
+                          }
+                          className="p-3.5 bg-red-50/80 text-red-600 rounded-[14px] flex items-center gap-2.5 border border-red-100 hover:bg-red-100 hover:border-red-200 transition-all font-black text-[12px] shadow-sm"
+                        >
+                          <Trash2 size={16} className="opacity-90" /> Delete
+                          Room
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-
-                {/* Room Details Grid */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3 px-1">
-                    <FileText size={16} className="text-indigo-600" />
-                    <h4 className="text-[12px] font-black text-slate-800 tracking-tight">Room Details</h4>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-indigo-50/40 p-4 rounded-2xl flex flex-col justify-center border border-indigo-50">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <BedDouble size={14} className="text-indigo-500" />
-                        <span className="text-[10px] font-bold text-slate-500">Room Type</span>
-                      </div>
-                      <div className="text-[13px] font-black text-slate-800 ml-5.5">{focusedRoom.roomType || focusedRoom.type || 'Standard'}</div>
-                    </div>
-                    <div className="bg-rose-50/40 p-4 rounded-2xl flex flex-col justify-center border border-rose-50">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <IndianRupee size={14} className="text-rose-500" />
-                        <span className="text-[10px] font-bold text-slate-500">Price</span>
-                      </div>
-                      <div className="text-[13px] font-black text-slate-800 ml-5.5">₹{((focusedRoom.price || 0) / 100).toLocaleString('en-IN')} <span className="text-[8px] font-bold text-slate-400 uppercase">/ night</span></div>
-                    </div>
-                    <div className="bg-emerald-50/40 p-4 rounded-2xl flex flex-col justify-center border border-emerald-50">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <Users size={14} className="text-emerald-500" />
-                        <span className="text-[10px] font-bold text-slate-500">Capacity</span>
-                      </div>
-                      <div className="text-[13px] font-black text-slate-800 ml-5.5">{focusedRoom.capacity || 2} <span className="text-[8px] font-bold text-slate-400 uppercase">Guests</span></div>
-                    </div>
-                    <div className="bg-amber-50/40 p-4 rounded-2xl flex flex-col justify-center border border-amber-50">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <Clock3 size={14} className="text-amber-500" />
-                        <span className="text-[10px] font-bold text-slate-500">Last Cleaned</span>
-                      </div>
-                      <div className="text-[11px] font-black text-slate-800 ml-5.5">{focusedRoom.lastCleaned ? dayjs(focusedRoom.lastCleaned).format('DD MMM, HH:mm') : 'Not recorded'}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions Grid */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3 px-1 mt-2">
-                    <Settings size={16} className="text-indigo-600" />
-                    <h4 className="text-[12px] font-black text-slate-800 tracking-tight">Room Actions</h4>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    {focusedRoom.status === 'OCCUPIED' && focusedRoom.guestInfo ? (
-                      <button
-                        onClick={() => router.push(`/dashboard/checkout?roomId=${focusedRoom.id}`)}
-                        className="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl flex items-center gap-3 shadow-sm border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all font-bold text-[12px]"
-                      >
-                        <LogOut size={16} /> Check-out
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => router.push(`/dashboard/book?rooms=${focusedRoom.id}`)} 
-                        className="p-3.5 bg-emerald-50/80 text-emerald-600 rounded-[14px] flex items-center gap-2.5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all font-black text-[12px] shadow-sm"
-                      >
-                        <UserCheck size={16} className="opacity-90" /> Check-in Guest
-                      </button>
-                    )}
-
-                    {focusedRoom.housekeepingStatus === 'DIRTY' || focusedRoom.status === 'DIRTY' ? (
-                      <button 
-                        onClick={() => handleSetClean(focusedRoom.id)}
-                        className="p-3.5 bg-emerald-50/80 text-emerald-600 rounded-[14px] flex items-center gap-2.5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all font-black text-[12px] shadow-sm"
-                      >
-                        <Sparkles size={16} className="opacity-90" /> Set Clean
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => handleStatusChange(focusedRoom.id, 'DIRTY')} 
-                        className="p-3.5 bg-rose-50/80 text-rose-600 rounded-[14px] flex items-center gap-2.5 border border-rose-100 hover:bg-rose-100 hover:border-rose-200 transition-all font-black text-[12px] shadow-sm"
-                      >
-                        <Sun size={16} className="opacity-90" /> Set Dirty
-                      </button>
-                    )}
-
-                    {focusedRoom.status === 'MAINTENANCE' ? (
-                      <button 
-                        onClick={() => handleStatusChange(focusedRoom.id, 'AVAILABLE')} 
-                        className="p-3.5 bg-emerald-50/80 text-emerald-600 rounded-[14px] flex items-center gap-2.5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all font-black text-[12px] shadow-sm"
-                      >
-                        <Check size={16} className="opacity-90" /> Set Available
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => handleStatusChange(focusedRoom.id, 'MAINTENANCE')} 
-                        disabled={focusedRoom.status === 'OCCUPIED'}
-                        className={`p-3.5 bg-amber-50 text-amber-600 rounded-[14px] flex items-center gap-2.5 border border-amber-100 hover:bg-amber-100 hover:border-amber-200 transition-all font-black text-[12px] shadow-sm ${focusedRoom.status === 'OCCUPIED' ? 'opacity-40 cursor-not-allowed' : ''}`}
-                      >
-                        <Wrench size={16} className="opacity-90" /> Maintenance
-                      </button>
-                    )}
-
-                    {focusedRoom.status === 'BLOCKED' ? (
-                      <button 
-                        onClick={() => handleStatusChange(focusedRoom.id, 'AVAILABLE')} 
-                        className="p-3.5 bg-blue-50 text-blue-600 rounded-[14px] flex items-center gap-2.5 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 transition-all font-black text-[12px] shadow-sm"
-                      >
-                        <Check size={16} className="opacity-90" /> Unblock Room
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => handleStatusChange(focusedRoom.id, 'BLOCKED')} 
-                        disabled={focusedRoom.status === 'OCCUPIED'}
-                        className={`p-3.5 bg-blue-50/80 text-blue-600 rounded-[14px] flex items-center gap-2.5 border border-blue-100 hover:bg-blue-100 hover:border-blue-200 transition-all font-black text-[12px] shadow-sm ${focusedRoom.status === 'OCCUPIED' ? 'opacity-40 cursor-not-allowed' : ''}`}
-                      >
-                        <Lock size={16} className="opacity-90" /> Block Room
-                      </button>
-                    )}
-
-                    <button 
-                      onClick={() => {
-                        const floor = data.floors.find(f => f.rooms.some(r => r.id === focusedRoom.id));
-                        if (floor) {
-                          openEditRoom(focusedRoom, floor.id);
-                        }
-                      }}
-                      className="p-3.5 bg-purple-50/80 text-purple-600 rounded-[14px] flex items-center gap-2.5 border border-purple-100 hover:bg-purple-100 hover:border-purple-200 transition-all font-black text-[12px] shadow-sm"
-                    >
-                      <Edit size={16} className="opacity-90" /> Edit Room
-                    </button>
-
-                    <button 
-                      onClick={() => handleDeleteRoom(focusedRoom.id, focusedRoom.status, !!focusedRoom.guestInfo)}
-                      className="p-3.5 bg-red-50/80 text-red-600 rounded-[14px] flex items-center gap-2.5 border border-red-100 hover:bg-red-100 hover:border-red-200 transition-all font-black text-[12px] shadow-sm"
-                    >
-                      <Trash2 size={16} className="opacity-90" /> Delete Room
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-            </>
-          );
-        })()}
+              </>
+            );
+          })()}
       </div>
 
       {/* Drawer Overlay Backdrop */}
@@ -1173,19 +1896,34 @@ function DashboardContent() {
       )}
 
       {/* Floating Book Action */}
-      <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-2 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 ease-out ${selectedRooms.length > 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
-        <div className="flex items-center gap-3 px-4">
-          <span className="bg-indigo-500 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">{selectedRooms.length}</span>
-          <span className="text-sm font-bold">{selectedRooms.length === 1 ? 'Room Selected' : 'Rooms Selected'}</span>
-        </div>
-        <button onClick={() => setSelectedRooms([])} className="text-xs font-bold text-gray-400 hover:text-white px-3 transition-colors">Clear</button>
-        <button
-          onClick={() => router.push('/dashboard/book?rooms=' + selectedRooms.join(','))}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black px-6 py-2.5 rounded-full transition-colors flex items-center gap-2 ml-1"
+      {(canCheckin || canCreateReservation) && (
+        <div
+          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-2 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 ease-out ${selectedRooms.length > 0 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"}`}
         >
-          Book Rooms <ChevronRight size={16} />
-        </button>
-      </div>
+          <div className="flex items-center gap-3 px-4">
+            <span className="bg-indigo-500 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">
+              {selectedRooms.length}
+            </span>
+            <span className="text-sm font-bold">
+              {selectedRooms.length === 1 ? "Room Selected" : "Rooms Selected"}
+            </span>
+          </div>
+          <button
+            onClick={() => setSelectedRooms([])}
+            className="text-xs font-bold text-gray-400 hover:text-white px-3 transition-colors"
+          >
+            Clear
+          </button>
+          <button
+            onClick={() =>
+              router.push("/dashboard/book?rooms=" + selectedRooms.join(","))
+            }
+            className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black px-6 py-2.5 rounded-full transition-colors flex items-center gap-2 ml-1"
+          >
+            Book Rooms <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Add Floor Modal */}
       {/* Add Floor Modal */}
@@ -1196,7 +1934,9 @@ function DashboardContent() {
               <h2 className="text-lg font-bold mb-4">Add New Floor</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Floor Name</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Floor Name
+                  </label>
                   <input
                     type="text"
                     value={newFloorName}
@@ -1208,23 +1948,39 @@ function DashboardContent() {
                 </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsAddFloorOpen(false)} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800">Save Floor</button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddFloorOpen(false)}
+                  className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800"
+                >
+                  Save Floor
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-            {/* Edit Floor Modal */}
+      {/* Edit Floor Modal */}
       <EditFloorModal
         isOpen={isEditFloorOpen}
-        onClose={() => { setIsEditFloorOpen(false); setEditingFloor(null); }}
+        onClose={() => {
+          setIsEditFloorOpen(false);
+          setEditingFloor(null);
+        }}
         floor={editingFloor}
         onSuccess={() => {
-          trackedFetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' })
-            .then(res => res.json())
-            .then(newData => setData(newData));
+          trackedFetch("/api/hotel/dashboard?t=" + Date.now(), {
+            cache: "no-store",
+          })
+            .then((res) => res.json())
+            .then((newData) => setData(newData));
         }}
       />
 
@@ -1243,9 +1999,11 @@ function DashboardContent() {
           setEditingRoomId(null);
           setEditingRoom(null);
           setEditingRoomHasGuest(false);
-          trackedFetch('/api/hotel/dashboard?t=' + Date.now(), { cache: 'no-store' })
-            .then(res => res.json())
-            .then(newData => setData(newData));
+          trackedFetch("/api/hotel/dashboard?t=" + Date.now(), {
+            cache: "no-store",
+          })
+            .then((res) => res.json())
+            .then((newData) => setData(newData));
         }}
         editingRoomId={editingRoomId}
         editingRoomHasGuest={editingRoomHasGuest}
@@ -1258,12 +2016,12 @@ function DashboardContent() {
           room={focusedRoom}
         />
       )}
-      
-      <ApiJsonDebugger 
-        apiRequests={apiRequests} 
-        isOpen={isApiJsonOpen} 
-        onClose={() => setIsApiJsonOpen(false)} 
-        onClear={() => setApiRequests([])} 
+
+      <ApiJsonDebugger
+        apiRequests={apiRequests}
+        isOpen={isApiJsonOpen}
+        onClose={() => setIsApiJsonOpen(false)}
+        onClear={() => setApiRequests([])}
       />
     </div>
   );
@@ -1271,7 +2029,13 @@ function DashboardContent() {
 
 export default function RoomDashboard() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#F7F8FC] text-gray-500 font-bold">Loading Dashboard...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F7F8FC] text-gray-500 font-bold">
+          Loading Dashboard...
+        </div>
+      }
+    >
       <DashboardContent />
     </Suspense>
   );

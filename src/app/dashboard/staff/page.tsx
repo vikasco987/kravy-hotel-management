@@ -18,11 +18,16 @@ import {
   Loader2,
   Power,
   ChevronDown,
+  ChevronUp,
   KeyRound,
-  Code
+  Code,
+  Info,
+  Lock
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { ApiJsonDebugger } from '@/components/ui/ApiJsonDebugger';
+import { StaffPermissionsModal, ACTIVE_MODULE_CONFIG } from '@/components/hotel/StaffPermissionsModal';
+import { PERMISSION_CATALOG, type PermissionDefinition } from '@/lib/permissions';
 
 interface StaffMember {
   id: string;
@@ -31,6 +36,7 @@ interface StaffMember {
   email: string | null;
   phone: string | null;
   status: 'active' | 'inactive';
+  permissions?: string[];
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -95,6 +101,15 @@ export default function StaffManagementPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Permissions Modal State
+  const [permissionsModal, setPermissionsModal] = useState<{
+    isOpen: boolean;
+    staff: StaffMember | null;
+  }>({
+    isOpen: false,
+    staff: null
+  });
+
   // Form Fields
   const [formName, setFormName] = useState('');
   const [formRole, setFormRole] = useState<'HOUSEKEEPING' | 'RECEPTIONIST' | 'MANAGER' | 'STAFF'>('HOUSEKEEPING');
@@ -102,6 +117,9 @@ export default function StaffManagementPage() {
   const [formPhone, setFormPhone] = useState('');
   const [formStatus, setFormStatus] = useState<'active' | 'inactive'>('active');
   const [formPassword, setFormPassword] = useState('');
+  const [formPermissions, setFormPermissions] = useState<string[]>([]);
+  const [formPermissionsExpanded, setFormPermissionsExpanded] = useState(false);
+  const [formExpandedPages, setFormExpandedPages] = useState<Record<string, boolean>>({});
 
   // Confirmation Modal
   const [confirmModal, setConfirmModal] = useState<{
@@ -245,6 +263,38 @@ export default function StaffManagementPage() {
     });
   }, [staffList, activeRoleFilter, activeStatusFilter, searchQuery]);
 
+  // Active Permission Module Groups (Implemented Modules Only)
+  const [formPermissionSearch, setFormPermissionSearch] = useState('');
+
+  const activeModuleGroups = useMemo(() => {
+    const activeModuleKeys = new Set(ACTIVE_MODULE_CONFIG.map(m => m.module));
+    const activeDefs = PERMISSION_CATALOG.filter(p => activeModuleKeys.has(p.module));
+    const q = formPermissionSearch.trim().toLowerCase();
+
+    return ACTIVE_MODULE_CONFIG.map(cfg => {
+      const pagePermission = activeDefs.find(p => p.module === cfg.module && p.type === 'page');
+      let actionPermissions = activeDefs.filter(p => p.module === cfg.module && p.type === 'action');
+
+      if (q) {
+        actionPermissions = actionPermissions.filter(a =>
+          a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q) || a.key.toLowerCase().includes(q)
+        );
+      }
+
+      return {
+        ...cfg,
+        pagePermission,
+        actionPermissions
+      };
+    }).filter(group => {
+      if (!q) return true;
+      const matchesPage = group.label.toLowerCase().includes(q) ||
+        group.description.toLowerCase().includes(q) ||
+        (group.pagePermission && (group.pagePermission.name.toLowerCase().includes(q) || group.pagePermission.description.toLowerCase().includes(q)));
+      return matchesPage || group.actionPermissions.length > 0;
+    });
+  }, [formPermissionSearch]);
+
   // Open Add Modal
   const openAddModal = () => {
     setEditingStaff(null);
@@ -254,6 +304,13 @@ export default function StaffManagementPage() {
     setFormPhone('');
     setFormStatus('active');
     setFormPassword('');
+    setFormPermissions([]);
+    setFormPermissionsExpanded(false);
+    const initialPages: Record<string, boolean> = {};
+    ACTIVE_MODULE_CONFIG.forEach((cfg, idx) => {
+      initialPages[cfg.module] = idx === 0;
+    });
+    setFormExpandedPages(initialPages);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -267,6 +324,18 @@ export default function StaffManagementPage() {
     setFormPhone(member.phone || '');
     setFormStatus(member.status);
     setFormPassword('');
+    const existing = Array.isArray(member.permissions) ? [...member.permissions] : [];
+    setFormPermissions(existing);
+    setFormPermissionsExpanded(false);
+    const initialPages: Record<string, boolean> = {};
+    ACTIVE_MODULE_CONFIG.forEach((cfg, idx) => {
+      const pageKey = `page:${cfg.module}`;
+      const hasAny = existing.some(
+        p => p === pageKey || p.startsWith(`action:${cfg.module}:`)
+      );
+      initialPages[cfg.module] = hasAny || idx === 0;
+    });
+    setFormExpandedPages(initialPages);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -287,7 +356,7 @@ export default function StaffManagementPage() {
       const url = isEditing ? `/api/hotel/staff/${editingStaff.id}` : '/api/hotel/staff';
       const method = isEditing ? 'PATCH' : 'POST';
 
-      const payload: Record<string, string | undefined> = {
+      const payload: Record<string, any> = {
         name: formName.trim(),
         role: formRole,
         email: formEmail.trim() || undefined,
@@ -297,6 +366,11 @@ export default function StaffManagementPage() {
 
       if (formPassword.trim()) {
         payload.password = formPassword.trim();
+      }
+
+      // If creating new staff, include selected permissions (or empty array if none selected)
+      if (!isEditing) {
+        payload.permissions = formPermissions;
       }
 
       const res = await trackedFetch(url, {
@@ -695,6 +769,15 @@ export default function StaffManagementPage() {
                         <td className="px-5 py-4 text-right pr-6">
                           <div className="flex items-center justify-end gap-2">
                             <button
+                              onClick={() => setPermissionsModal({ isOpen: true, staff: member })}
+                              title="Manage individual permissions"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition shadow-xs"
+                            >
+                              <Shield size={13} className="text-indigo-600" />
+                              <span className="hidden sm:inline">Permissions</span>
+                            </button>
+
+                            <button
                               onClick={() => openEditModal(member)}
                               title="Edit staff details"
                               className="p-2 rounded-xl text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-100 transition shadow-xs"
@@ -883,6 +966,300 @@ export default function StaffManagementPage() {
                 </div>
               </div>
 
+              {/* Collapsible Page & Action Permissions Section (Only for new staff creation) */}
+              {!editingStaff && (
+                <div className="pt-2 border-t border-gray-100">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 hover:border-slate-300 transition-colors overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setFormPermissionsExpanded(prev => !prev)}
+                      className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-slate-100/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-2xl transition"
+                    >
+                      {/* Left: Shield icon + Heading + Description + Badge */}
+                      <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                          <Shield size={19} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <h4 className="text-sm font-bold text-slate-900 leading-tight">
+                              Configure Permissions
+                            </h4>
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+                                formPermissions.length > 0
+                                  ? 'bg-indigo-100 text-indigo-700 font-bold border border-indigo-200'
+                                  : 'bg-slate-200/80 text-slate-600 border border-slate-300/60'
+                              }`}
+                            >
+                              {formPermissions.length} selected
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5 leading-normal">
+                            Choose which pages and actions this staff member can access.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right: Configure/Collapse Action + Chevron */}
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 shrink-0 self-center pl-2">
+                        <span className="hidden sm:inline">
+                          {formPermissionsExpanded ? 'Collapse' : 'Configure'}
+                        </span>
+                        <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                          {formPermissionsExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                        </div>
+                      </div>
+                    </button>
+
+                    {formPermissionsExpanded && (
+                      <div className="px-4 pb-4 pt-1 space-y-3.5 border-t border-indigo-100/70 bg-white">
+                        {/* Notice, Search & Quick Actions */}
+                        <div className="space-y-2 pt-2 pb-1 border-b border-gray-100">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-[11px] text-amber-800 font-medium">
+                              <Info size={13} className="shrink-0 text-amber-600" />
+                              <span>Expand each page to configure page access and actions independently.</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const allOpen: Record<string, boolean> = {};
+                                  ACTIVE_MODULE_CONFIG.forEach(cfg => { allOpen[cfg.module] = true; });
+                                  setFormExpandedPages(allOpen);
+                                }}
+                                className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                              >
+                                Expand All
+                              </button>
+                              <span className="text-gray-300">|</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const allClosed: Record<string, boolean> = {};
+                                  ACTIVE_MODULE_CONFIG.forEach(cfg => { allClosed[cfg.module] = false; });
+                                  setFormExpandedPages(allClosed);
+                                }}
+                                className="text-[11px] font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
+                              >
+                                Collapse All
+                              </button>
+                              {formPermissions.length > 0 && (
+                                <>
+                                  <span className="text-gray-300">|</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setFormPermissions([])}
+                                    className="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline shrink-0"
+                                  >
+                                    Clear All ({formPermissions.length})
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <Search size={13} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                            <input
+                              type="text"
+                              value={formPermissionSearch}
+                              onChange={e => setFormPermissionSearch(e.target.value)}
+                              placeholder="Search permissions by name, page, or action..."
+                              className="w-full pl-8 pr-7 py-1.5 rounded-lg border border-gray-200 bg-slate-50/60 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            />
+                            {formPermissionSearch && (
+                              <button
+                                type="button"
+                                onClick={() => setFormPermissionSearch('')}
+                                className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Modules Page-by-Page Accordion */}
+                        <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                          {activeModuleGroups.map((group) => {
+                            const Icon = group.icon;
+                            const pageKey = group.pagePermission?.key;
+                            const isPageChecked = pageKey ? formPermissions.includes(pageKey) : false;
+                            const isExpanded = !!formExpandedPages[group.module];
+
+                            const allModuleKeys: string[] = [];
+                            if (pageKey) allModuleKeys.push(pageKey);
+                            group.actionPermissions.forEach(a => allModuleKeys.push(a.key));
+
+                            const checkedInModule = allModuleKeys.filter(k => formPermissions.includes(k)).length;
+                            const isAllSelected = allModuleKeys.length > 0 && checkedInModule === allModuleKeys.length;
+
+                            return (
+                              <div
+                                key={group.module}
+                                className={`rounded-xl border transition-all ${
+                                  isExpanded
+                                    ? 'border-indigo-200 bg-white shadow-xs'
+                                    : 'border-gray-200 bg-slate-50/50 hover:border-gray-300'
+                                }`}
+                              >
+                                {/* Page Section Header */}
+                                <div
+                                  onClick={() => setFormExpandedPages(prev => ({ ...prev, [group.module]: !prev[group.module] }))}
+                                  className="p-3 flex items-center justify-between gap-2 cursor-pointer select-none rounded-t-xl"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className={`w-7 h-7 rounded-lg ${group.accentColor.bg} ${group.accentColor.text} flex items-center justify-center shrink-0 border ${group.accentColor.border}`}>
+                                      <Icon size={14} />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-xs font-black text-slate-900">{group.label}</span>
+                                        <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-1 py-0.2 rounded">
+                                          {group.routePath}
+                                        </span>
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full ${group.accentColor.badge}`}>
+                                          {checkedInModule} / {allModuleKeys.length}
+                                        </span>
+                                        {isPageChecked && (
+                                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">
+                                            Page Allowed
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (isAllSelected) {
+                                          setFormPermissions(prev => prev.filter(k => !allModuleKeys.includes(k)));
+                                        } else {
+                                          setFormPermissions(prev => Array.from(new Set([...prev, ...allModuleKeys])));
+                                        }
+                                      }}
+                                      className="text-[10px] font-bold text-slate-600 hover:text-indigo-600 bg-white border border-gray-200 px-2 py-0.5 rounded-md hover:bg-slate-50 transition shadow-xs cursor-pointer"
+                                    >
+                                      {isAllSelected ? 'Deselect Page' : 'Select All'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setFormExpandedPages(prev => ({ ...prev, [group.module]: !prev[group.module] }))}
+                                      className="p-1 text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                                      aria-label="Toggle page section"
+                                    >
+                                      {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Expanded Page Content */}
+                                {isExpanded && (
+                                  <div className="p-3 pt-1 space-y-2.5 border-t border-gray-100 bg-white rounded-b-xl animate-in fade-in duration-150">
+                                    {/* Primary Page Access Checkbox */}
+                                    {group.pagePermission && (
+                                      <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-2.5">
+                                        <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                                          <input
+                                            type="checkbox"
+                                            checked={isPageChecked}
+                                            onChange={() => {
+                                              const key = group.pagePermission!.key;
+                                              setFormPermissions(prev =>
+                                                prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+                                              );
+                                            }}
+                                            className="mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                          />
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-[11px] font-bold text-slate-900">
+                                                {group.pagePermission.name} ({group.routePath})
+                                              </span>
+                                              <span className="text-[8px] font-black uppercase px-1 rounded bg-indigo-600 text-white">
+                                                Page Access
+                                              </span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                              {group.pagePermission.description}. When disabled, this page cannot be opened.
+                                            </p>
+                                          </div>
+                                        </label>
+                                      </div>
+                                    )}
+
+                                    {/* Action Permissions */}
+                                    {group.actionPermissions.length > 0 && (
+                                      <div className="pt-0.5">
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 px-0.5">
+                                          Available Actions on this Page
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                          {group.actionPermissions.map((action: PermissionDefinition) => {
+                                            const isActionChecked = formPermissions.includes(action.key);
+                                            const isInspect = action.key === 'action:housekeeping:inspect';
+
+                                            return (
+                                              <label
+                                                key={action.key}
+                                                className={`flex items-start gap-2 p-2 rounded-lg border transition cursor-pointer select-none ${
+                                                  isActionChecked
+                                                    ? isInspect
+                                                      ? 'bg-amber-50/70 border-amber-300 ring-1 ring-amber-300/30'
+                                                      : 'bg-indigo-50/40 border-indigo-200'
+                                                    : 'bg-white border-gray-200 hover:bg-slate-50'
+                                                }`}
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  checked={isActionChecked}
+                                                  onChange={() => {
+                                                    setFormPermissions(prev =>
+                                                      prev.includes(action.key)
+                                                        ? prev.filter(k => k !== action.key)
+                                                        : [...prev, action.key]
+                                                    );
+                                                  }}
+                                                  className={`mt-0.5 h-3.5 w-3.5 rounded border-gray-300 ${
+                                                    isInspect ? 'text-amber-600 focus:ring-amber-500' : 'text-indigo-600 focus:ring-indigo-500'
+                                                  }`}
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-[11px] font-bold text-slate-900 truncate">
+                                                      {action.name}
+                                                    </span>
+                                                    {isInspect && (
+                                                      <span className="text-[8px] font-black uppercase px-1 rounded bg-amber-200 text-amber-900 shrink-0 flex items-center gap-0.5">
+                                                        <Lock size={7} /> Supervisory
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <p className="text-[10px] text-slate-500 line-clamp-2 mt-0.5">
+                                                    {action.description}
+                                                  </p>
+                                                </div>
+                                              </label>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Buttons */}
               <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
                 <button
@@ -957,6 +1334,23 @@ export default function StaffManagementPage() {
           </div>
         </div>
       )}
+
+      {/* INDIVIDUAL STAFF PERMISSIONS MODAL */}
+      <StaffPermissionsModal
+        isOpen={permissionsModal.isOpen}
+        staff={permissionsModal.staff}
+        onClose={() => setPermissionsModal({ isOpen: false, staff: null })}
+        onSuccess={(updatedPermissions) => {
+          showNotification('success', `Permissions updated for ${permissionsModal.staff?.name}`);
+          // Optimistically update the staff member's permissions in staffList
+          if (permissionsModal.staff) {
+            const updatedId = permissionsModal.staff.id;
+            setStaffList(prev =>
+              prev.map(s => (s.id === updatedId ? { ...s, permissions: updatedPermissions } : s))
+            );
+          }
+        }}
+      />
 
       {/* API JSON DEBUGGER MODAL */}
       <ApiJsonDebugger

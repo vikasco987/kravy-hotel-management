@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
@@ -9,6 +10,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:floors:edit');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { hotel } = authContext;
@@ -64,6 +70,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const authCheck = requirePermission(authContext.user, 'action:floors:delete');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
+    }
+
     const { hotel } = authContext;
     const { id } = await params;
 
@@ -71,7 +82,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       where: { id, hotelId: hotel.id },
       include: {
         _count: {
-          select: { 
+          select: {
             rooms: {
               where: { isActive: true }
             }
@@ -90,7 +101,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
     await prisma.floor.update({
       where: { id: floor.id },
-      data: { 
+      data: {
         isActive: false,
         floorNumber: floor.floorNumber + 100000 + Math.floor(Math.random() * 1000) // free up the floor number for reuse
       }

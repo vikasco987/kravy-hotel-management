@@ -115,19 +115,34 @@ export default function CheckinCheckoutPage() {
     const firstRoom = res.roomDetails && res.roomDetails.length > 0 ? res.roomDetails[0] : null;
     const roomId = firstRoom ? firstRoom.id : null;
 
+    const canPerformCheckin = data?.canPerformCheckin ?? true;
+    const canSettlePayment = data?.canSettlePayment ?? true;
+
     if (statusType === 'upcoming') {
       statusBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">Upcoming</span>;
-      actionBtn = <button onClick={() => router.push(`/dashboard/book?resId=${res.id}`)} className="px-3 py-1.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-bold hover:bg-indigo-100 transition shadow-sm opacity-0 group-hover:opacity-100">Check-in</button>;
+      actionBtn = canPerformCheckin ? (
+        <button onClick={() => router.push(`/dashboard/book?resId=${res.id}`)} className="px-3 py-1.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-bold hover:bg-indigo-100 transition shadow-sm opacity-0 group-hover:opacity-100">Check-in</button>
+      ) : (
+        <button onClick={() => router.push(`/dashboard/reservations/${res.id}`)} className="px-3 py-1.5 rounded bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition shadow-sm opacity-0 group-hover:opacity-100">View</button>
+      );
     } else if (statusType === 'checkin') {
       statusBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">Checked In</span>;
       if (res.status === 'CHECKED_OUT') {
          actionBtn = <button onClick={() => router.push(`/dashboard/reservations/${res.id}`)} className="px-3 py-1.5 rounded bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition shadow-sm opacity-0 group-hover:opacity-100">View</button>;
       } else {
-         actionBtn = <button onClick={() => router.push(roomId ? `/dashboard/checkout?roomId=${roomId}` : `/dashboard/checkout`)} className="px-3 py-1.5 rounded bg-rose-50 text-rose-700 border border-rose-100 text-xs font-bold hover:bg-rose-100 transition shadow-sm opacity-0 group-hover:opacity-100">Check-out</button>;
+         actionBtn = canSettlePayment ? (
+           <button onClick={() => router.push(roomId ? `/dashboard/checkout?roomId=${roomId}` : `/dashboard/checkout`)} className="px-3 py-1.5 rounded bg-rose-50 text-rose-700 border border-rose-100 text-xs font-bold hover:bg-rose-100 transition shadow-sm opacity-0 group-hover:opacity-100">Check-out</button>
+         ) : (
+           <button onClick={() => router.push(`/dashboard/reservations/${res.id}`)} className="px-3 py-1.5 rounded bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition shadow-sm opacity-0 group-hover:opacity-100">View</button>
+         );
       }
     } else if (statusType === 'inhouse') {
       statusBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wider">In House</span>;
-      actionBtn = <button onClick={() => router.push(roomId ? `/dashboard/checkout?roomId=${roomId}` : `/dashboard/checkout`)} className="px-3 py-1.5 rounded bg-rose-50 text-rose-700 border border-rose-100 text-xs font-bold hover:bg-rose-100 transition shadow-sm opacity-0 group-hover:opacity-100">Check-out</button>;
+      actionBtn = canSettlePayment ? (
+        <button onClick={() => router.push(roomId ? `/dashboard/checkout?roomId=${roomId}` : `/dashboard/checkout`)} className="px-3 py-1.5 rounded bg-rose-50 text-rose-700 border border-rose-100 text-xs font-bold hover:bg-rose-100 transition shadow-sm opacity-0 group-hover:opacity-100">Check-out</button>
+      ) : (
+        <button onClick={() => router.push(`/dashboard/reservations/${res.id}`)} className="px-3 py-1.5 rounded bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition shadow-sm opacity-0 group-hover:opacity-100">View</button>
+      );
     } else {
       statusBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-100 uppercase tracking-wider">Check-out</span>;
       actionBtn = <button onClick={() => router.push(`/dashboard/reservations/${res.id}`)} className="px-3 py-1.5 rounded bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition shadow-sm opacity-0 group-hover:opacity-100">View</button>;

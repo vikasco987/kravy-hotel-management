@@ -1,12 +1,77 @@
 import React from 'react';
 import { PrismaClient } from '@prisma/client';
 import { notFound } from 'next/navigation';
+import { getAuthContext } from '@/lib/authContext';
+import { isAdminOrOwner, hasPermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
 export default async function GRCPrintPage({ params, searchParams }: { params: Promise<{ stayId: string }>, searchParams?: Promise<{ format?: string }> }) {
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
+
+  const authContext = await getAuthContext();
+  if (!authContext || !authContext.user || !authContext.hotel) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-white border border-rose-200 rounded-2xl p-8 max-w-md shadow-lg">
+          <h2 className="text-lg font-black text-gray-900 mb-2">Unauthorized</h2>
+          <p className="text-xs text-gray-600">Please sign in to access receipt printing.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authContext.user.isStaff && authContext.user.status !== 'active') {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-white border border-rose-200 rounded-2xl p-8 max-w-md shadow-lg">
+          <h2 className="text-lg font-black text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-xs text-gray-600">Your staff account is currently inactive.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const initialFormat = (resolvedSearchParams.format?.toUpperCase() as 'A4' | '80MM' | '58MM') || 'A4';
+
+  // Permission check: Admin/Owner bypasses; Staff must have format-specific centralized printing permissions
+  if (!isAdminOrOwner(authContext.user)) {
+    let canPrint = false;
+    let requiredKey = 'action:printing:guest_registration_card';
+
+    if (initialFormat === 'A4') {
+      // A4 format is Guest Registration Card (GRC)
+      requiredKey = 'action:printing:guest_registration_card';
+      canPrint = hasPermission(authContext.user, 'action:printing:guest_registration_card');
+    } else {
+      // 80mm or 58mm thermal check-in receipt / registration slip:
+      // Accepts format-specific thermal permission OR payment receipt OR guest registration card
+      requiredKey = initialFormat === '58MM' ? 'action:printing:invoice_58mm' : 'action:printing:invoice_80mm';
+      canPrint =
+        hasPermission(authContext.user, 'action:printing:payment_receipt') ||
+        hasPermission(authContext.user, 'action:printing:guest_registration_card') ||
+        (initialFormat === '80MM' && hasPermission(authContext.user, 'action:printing:invoice_80mm')) ||
+        (initialFormat === '58MM' && hasPermission(authContext.user, 'action:printing:invoice_58mm'));
+    }
+
+    if (!canPrint) {
+      return (
+        <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6 text-center">
+          <div className="bg-white border border-rose-200 rounded-2xl p-8 max-w-md shadow-lg">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-4 font-bold text-xl">
+              ✕
+            </div>
+            <h2 className="text-lg font-black text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-xs text-gray-600 mb-6">
+              You lack required printing permission ({requiredKey}) to access this print document.
+            </p>
+          </div>
+        </div>
+      );
+    }
+  }
+
   const stay = await prisma.stay.findUnique({
     where: { id: resolvedParams.stayId },
     include: {
@@ -28,6 +93,11 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
 
   if (!stay) return notFound();
 
+  // Hotel ownership boundary
+  if (stay.reservation.hotelId !== authContext.hotel.id) {
+    return notFound();
+  }
+
    const hotel = stay.reservation.hotel;
   const guest = stay.reservation.guest;
   const leadStayRoom = stay.stayRooms[0];
@@ -37,17 +107,15 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
   expectedOut.setDate(expectedOut.getDate() + leadStayRoom.nights);
   const displayCheckOutDate = leadStayRoom.checkOutDate ? new Date(leadStayRoom.checkOutDate) : expectedOut;
 
-  const initialFormat = (resolvedSearchParams.format?.toUpperCase() as 'A4' | '80MM' | '58MM') || 'A4';
-  
   const totalPaid = stay.payments.reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <div className="bg-gray-100 min-h-screen p-8 print:p-0 print:bg-white flex flex-col items-center">
-      
+
       {/* -------------------- A4 FORMAT -------------------- */}
       {initialFormat === 'A4' && (
       <div className="bg-white text-black max-w-4xl w-full mx-auto border border-gray-300 p-8 shadow-xl print:shadow-none print:w-full print:max-w-none print:border-none print:p-4">
-        
+
         {/* Print Button (Hidden in Print) */}
         <div className="mb-4 text-right print:hidden">
            <button onClick={() => { window.print(); }} className="bg-blue-600 text-white px-4 py-2 rounded font-bold">
@@ -149,7 +217,7 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
         {/* Declarations & Signatures */}
         <div className="mt-12">
            <p className="text-xs text-gray-600 text-justify mb-8">
-             I agree to the hotel rules and regulations. I confirm that my luggage does not contain any illicit or hazardous items. 
+             I agree to the hotel rules and regulations. I confirm that my luggage does not contain any illicit or hazardous items.
              I agree to be held personally liable for the payment of the above charges.
            </p>
 
@@ -176,7 +244,7 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
           }
         `}} />
         <div className="bg-white p-4 shadow-xl font-mono text-sm leading-tight text-black print:shadow-none" style={{ width: initialFormat === '58MM' ? '58mm' : '80mm', minHeight: '100mm', margin: '0 auto' }}>
-           
+
            <div className="text-center border-b border-dashed border-gray-400 pb-3 mb-3">
               <h1 className="text-lg font-black uppercase">{hotel.name}</h1>
               <p className="text-[10px] uppercase mt-1">GUEST REGISTRATION (GRC)</p>
@@ -227,7 +295,7 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
               <span>TOTAL</span>
               <span>₹{(leadStayRoom.finalAmount / 100).toFixed(2)}</span>
            </div>
-           
+
            <div className="flex justify-between text-[11px] font-bold">
               <span>Advance Paid</span>
               <span>₹{(totalPaid / 100).toFixed(2)}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Building2,
   Search,
@@ -22,11 +22,15 @@ import {
   Edit,
   CheckCircle,
   BedDouble,
-  LockKeyhole
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import dayjs from 'dayjs';
-import { STATUS_COLORS, FilterBadge, FloorRow } from "@/components/hotel/RoomComponents";
+  LockKeyhole,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import dayjs from "dayjs";
+import {
+  STATUS_COLORS,
+  FilterBadge,
+  FloorRow,
+} from "@/components/hotel/RoomComponents";
 import { GuestDetailsModal } from "@/components/hotel/GuestDetailsModal";
 import { AddRoomModal } from "@/components/hotel/AddRoomModal";
 import { EditFloorModal } from "@/components/hotel/EditFloorModal";
@@ -50,16 +54,20 @@ interface Floor {
 }
 
 export default function RoomsManagementPage() {
-  const [data, setData] = useState<{ floors: Floor[], rooms: any } | null>(null);
+  const [data, setData] = useState<{ floors: Floor[]; rooms: any } | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
 
   const handleToggleRoomBooking = (roomId: string) => {
-    setSelectedRooms(prev =>
-      prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+    setSelectedRooms((prev) =>
+      prev.includes(roomId)
+        ? prev.filter((id) => id !== roomId)
+        : [...prev, roomId],
     );
   };
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
@@ -72,16 +80,27 @@ export default function RoomsManagementPage() {
   const [editingRoom, setEditingRoom] = useState<any | null>(null);
   const [newFloorNumber, setNewFloorNumber] = useState("");
   const [newFloorName, setNewFloorName] = useState("");
+  const [isSubmittingFloor, setIsSubmittingFloor] = useState(false);
   const router = useRouter();
 
   const [apiRequests, setApiRequests] = useState<any[]>([]);
   const [isApiJsonOpen, setIsApiJsonOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canCreateRoom, setCanCreateRoom] = useState(true);
+  const [canEditRoom, setCanEditRoom] = useState(true);
+  const [canDeleteRoom, setCanDeleteRoom] = useState(true);
+  const [canChangeStatus, setCanChangeStatus] = useState(true);
+  const [canCheckin, setCanCheckin] = useState(true);
+  const [canCreateReservation, setCanCreateReservation] = useState(true);
+  const [canManageFloors, setCanManageFloors] = useState(true);
+  const [canSettlePayment, setCanSettlePayment] = useState(true);
+  const [canViewGuestDetails, setCanViewGuestDetails] = useState(true);
+  const [canBulkBooking, setCanBulkBooking] = useState(true);
 
   const trackedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const startTime = Date.now();
-    const url = typeof input === 'string' ? input : input.toString();
-    const method = init?.method || 'GET';
+    const url = typeof input === "string" ? input : input.toString();
+    const method = init?.method || "GET";
     try {
       const response = await window.fetch(input, init);
       const cloned = response.clone();
@@ -89,40 +108,66 @@ export default function RoomsManagementPage() {
       const responseTimeMs = Date.now() - startTime;
       const text = await cloned.text();
       let d;
-      try { d = JSON.parse(text); } catch(e) { d = text; }
-      
-      setApiRequests(prev => [...prev, {
-        url,
-        method,
-        status,
-        responseTimeMs,
-        timestamp: new Date().toISOString(),
-        response: d
-      }]);
-      
+      try {
+        d = JSON.parse(text);
+      } catch (e) {
+        d = text;
+      }
+
+      setApiRequests((prev) => [
+        ...prev,
+        {
+          url,
+          method,
+          status,
+          responseTimeMs,
+          timestamp: new Date().toISOString(),
+          response: d,
+        },
+      ]);
+
       return response;
     } catch (e: any) {
-      setApiRequests(prev => [...prev, {
-        url,
-        method,
-        status: 'ERROR',
-        responseTimeMs: Date.now() - startTime,
-        timestamp: new Date().toISOString(),
-        response: { error: String(e) }
-      }]);
+      setApiRequests((prev) => [
+        ...prev,
+        {
+          url,
+          method,
+          status: "ERROR",
+          responseTimeMs: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+          response: { error: String(e) },
+        },
+      ]);
       throw e;
     }
   };
 
   useEffect(() => {
-    trackedFetch('/api/hotel/dashboard')
-      .then(res => res.json())
-      .then(d => {
+    trackedFetch("/api/hotel/dashboard")
+      .then((res) => res.json())
+      .then((d) => {
         setData(d);
         if (d.isAdmin !== undefined) setIsAdmin(d.isAdmin);
+        if (d.canCreateRoom !== undefined) setCanCreateRoom(d.canCreateRoom);
+        if (d.canEditRoom !== undefined) setCanEditRoom(d.canEditRoom);
+        if (d.canDeleteRoom !== undefined) setCanDeleteRoom(d.canDeleteRoom);
+        if (d.canChangeStatus !== undefined)
+          setCanChangeStatus(d.canChangeStatus);
+        if (d.canCheckin !== undefined) setCanCheckin(d.canCheckin);
+        if (d.canCreateReservation !== undefined)
+          setCanCreateReservation(d.canCreateReservation);
+        if (d.canManageFloors !== undefined)
+          setCanManageFloors(d.canManageFloors);
+        if (d.canSettlePayment !== undefined)
+          setCanSettlePayment(d.canSettlePayment);
+        if (d.canViewGuestDetails !== undefined)
+          setCanViewGuestDetails(d.canViewGuestDetails);
+        if (d.canBulkBooking !== undefined)
+          setCanBulkBooking(d.canBulkBooking);
         setLoading(false);
       })
-      .catch(e => {
+      .catch((e) => {
         console.error(e);
         setLoading(false);
       });
@@ -134,7 +179,8 @@ export default function RoomsManagementPage() {
     setEditingRoom({
       ...room,
       floorId,
-      basePrice: typeof room.price === 'number' ? Math.round(room.price / 100) : 1500,
+      basePrice:
+        typeof room.price === "number" ? Math.round(room.price / 100) : 1500,
     });
     setIsAddRoomOpen(true);
   };
@@ -143,12 +189,12 @@ export default function RoomsManagementPage() {
     try {
       // Ensure the room is marked DIRTY / has an unresolved Housekeeping task with standard checklist
       await trackedFetch(`/api/hotel/rooms/${roomId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'DIRTY' })
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DIRTY" }),
       });
     } catch (e) {
-      console.warn('Proceeding to housekeeping workflow:', e);
+      console.warn("Proceeding to housekeeping workflow:", e);
     }
     router.push(`/dashboard/housekeeping?roomId=${roomId}`);
   };
@@ -156,16 +202,16 @@ export default function RoomsManagementPage() {
   const handleStatusChange = async (roomId: string, newStatus: string) => {
     try {
       const res = await trackedFetch(`/api/hotel/rooms/${roomId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || 'Failed to update status');
+        throw new Error(errJson.error || "Failed to update status");
       }
 
-      const refreshRes = await trackedFetch('/api/hotel/dashboard');
+      const refreshRes = await trackedFetch("/api/hotel/dashboard");
       if (refreshRes.ok) {
         const newData = await refreshRes.json();
         setData(newData);
@@ -175,39 +221,146 @@ export default function RoomsManagementPage() {
       }
     } catch (error: any) {
       console.error(error);
-      alert(error.message || 'Failed to update room status');
+      alert(error.message || "Failed to update room status");
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500 bg-[#F4F6F9]">Loading...</div>;
+  const handleAddFloor = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newFloorName.trim()) {
+      alert("Floor Name / Description is required");
+      return;
+    }
+
+    if (!canManageFloors && !isAdmin) {
+      alert("Access Denied: You do not have permission to create floors ('action:floors:create'). Please contact your administrator.");
+      return;
+    }
+
+    setIsSubmittingFloor(true);
+    try {
+      const payload: { name: string; floorNumber?: number } = {
+        name: newFloorName.trim(),
+      };
+      if (newFloorNumber.trim()) {
+        const parsed = parseInt(newFloorNumber.trim(), 10);
+        if (!isNaN(parsed)) {
+          payload.floorNumber = parsed;
+        }
+      }
+
+      const res = await trackedFetch("/api/hotel/floors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        if (res.status === 403) {
+          alert(
+            errJson.error ||
+              "Access Denied: You do not have permission to create floors ('action:floors:create'). Please contact your administrator."
+          );
+        } else {
+          alert(errJson.error || "Failed to create floor");
+        }
+        return;
+      }
+
+      // Reset and close modal
+      setNewFloorName("");
+      setNewFloorNumber("");
+      setIsAddFloorOpen(false);
+
+      // Refresh dashboard data
+      const refreshRes = await trackedFetch("/api/hotel/dashboard");
+      if (refreshRes.ok) {
+        const newData = await refreshRes.json();
+        setData(newData);
+      }
+    } catch (error: any) {
+      console.error("Error creating floor:", error);
+      alert("Network error while creating floor. Please try again.");
+    } finally {
+      setIsSubmittingFloor(false);
+    }
+  };
+
+  const handleDeleteFloor = async (floorId: string) => {
+    try {
+      const res = await trackedFetch(`/api/hotel/floors/${floorId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        if (res.status === 403) {
+          alert(
+            errJson.error ||
+              "Access Denied: You do not have permission to delete floors ('action:floors:delete'). Please contact your administrator."
+          );
+        } else {
+          alert(errJson.error || "Failed to delete floor");
+        }
+        return;
+      }
+
+      // Refresh dashboard data
+      const refreshRes = await trackedFetch("/api/hotel/dashboard");
+      if (refreshRes.ok) {
+        const newData = await refreshRes.json();
+        setData(newData);
+      }
+    } catch (error: any) {
+      console.error("Error deleting floor:", error);
+      alert("Network error while deleting floor. Please try again.");
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center font-bold text-gray-500 bg-[#F4F6F9]">
+        Loading...
+      </div>
+    );
 
   const floors = data?.floors || [];
-  const roomStats = data?.rooms || { total: 0, available: 0, occupied: 0, dirty: 0, maintenance: 0, blocked: 0 };
-
-
+  const roomStats = data?.rooms || {
+    total: 0,
+    available: 0,
+    occupied: 0,
+    dirty: 0,
+    maintenance: 0,
+    blocked: 0,
+  };
 
   const getFloorStats = (rooms: Room[]) => {
-    const stats = { available: 0, occupied: 0, dirty: 0, maintenance: 0, blocked: 0 };
-    rooms.forEach(r => {
-      if (r.status === 'AVAILABLE') stats.available++;
-      if (r.status === 'OCCUPIED') stats.occupied++;
-      if (r.status === 'DIRTY') stats.dirty++;
-      if (r.status === 'MAINTENANCE') stats.maintenance++;
-      if (r.status === 'BLOCKED') stats.blocked++;
+    const stats = {
+      available: 0,
+      occupied: 0,
+      dirty: 0,
+      maintenance: 0,
+      blocked: 0,
+    };
+    rooms.forEach((r) => {
+      if (r.status === "AVAILABLE") stats.available++;
+      if (r.status === "OCCUPIED") stats.occupied++;
+      if (r.status === "DIRTY") stats.dirty++;
+      if (r.status === "MAINTENANCE") stats.maintenance++;
+      if (r.status === "BLOCKED") stats.blocked++;
     });
     return stats;
   };
 
   return (
     <div className="min-h-screen bg-[#F4F6F9] font-sans flex">
-
       {/* MAIN CONTENT AREA */}
-      <div className={`flex-1 transition-all duration-300 ${selectedRoom ? 'pr-[440px]' : ''}`}>
-
-
-
+      <div
+        className={`flex-1 transition-all duration-300 ${selectedRoom ? "pr-[440px]" : ""}`}
+      >
         <div className="p-8 max-w-[1400px] mx-auto space-y-6">
-
           {/* TOP STATS */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 md:gap-4">
             <div className="bg-white border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 shadow-sm hover:shadow transition-all duration-200 flex items-center gap-3.5 min-w-0">
@@ -215,8 +368,12 @@ export default function RoomsManagementPage() {
                 <Building2 size={22} strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Total Rooms</div>
-                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.total}</div>
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">
+                  Total Rooms
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">
+                  {roomStats.total}
+                </div>
               </div>
             </div>
 
@@ -225,8 +382,12 @@ export default function RoomsManagementPage() {
                 <CheckCircle size={22} strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Available</div>
-                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.available}</div>
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">
+                  Available
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">
+                  {roomStats.available}
+                </div>
               </div>
             </div>
 
@@ -235,8 +396,12 @@ export default function RoomsManagementPage() {
                 <BedDouble size={22} strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Occupied</div>
-                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.occupied}</div>
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">
+                  Occupied
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">
+                  {roomStats.occupied}
+                </div>
               </div>
             </div>
 
@@ -245,8 +410,12 @@ export default function RoomsManagementPage() {
                 <Sparkles size={22} strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Dirty</div>
-                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.dirty}</div>
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">
+                  Dirty
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">
+                  {roomStats.dirty}
+                </div>
               </div>
             </div>
 
@@ -255,8 +424,12 @@ export default function RoomsManagementPage() {
                 <Wrench size={22} strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Maintenance</div>
-                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.maintenance}</div>
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">
+                  Maintenance
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">
+                  {roomStats.maintenance}
+                </div>
               </div>
             </div>
 
@@ -265,8 +438,12 @@ export default function RoomsManagementPage() {
                 <LockKeyhole size={22} strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">Blocked</div>
-                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{roomStats.blocked}</div>
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">
+                  Blocked
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">
+                  {roomStats.blocked}
+                </div>
               </div>
             </div>
           </div>
@@ -274,7 +451,10 @@ export default function RoomsManagementPage() {
           {/* FILTER BAR */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="relative w-full md:w-[300px]">
-              <Search size={16} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Search
+                size={16}
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+              />
               <input
                 type="text"
                 placeholder="Search rooms..."
@@ -285,23 +465,59 @@ export default function RoomsManagementPage() {
             </div>
 
             <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-hide">
-              {['ALL', 'AVAILABLE', 'OCCUPIED', 'DIRTY', 'MAINTENANCE', 'BLOCKED'].map(statusKey => (
+              {[
+                "ALL",
+                "AVAILABLE",
+                "OCCUPIED",
+                "DIRTY",
+                "MAINTENANCE",
+                "BLOCKED",
+              ].map((statusKey) => (
                 <FilterBadge
                   key={statusKey}
                   statusKey={statusKey}
-                  count={statusKey === 'ALL' ? roomStats.total : roomStats[statusKey.toLowerCase()] || 0}
+                  count={
+                    statusKey === "ALL"
+                      ? roomStats.total
+                      : roomStats[statusKey.toLowerCase()] || 0
+                  }
                   isActive={activeFilter === statusKey}
                   onClick={() => setActiveFilter(statusKey)}
                 />
               ))}
 
               {isAdmin && (
-                <button onClick={() => setIsApiJsonOpen(true)} className="ml-auto flex items-center gap-1.5 bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-full font-bold text-[11px] transition whitespace-nowrap shadow-sm">
+                <button
+                  onClick={() => setIsApiJsonOpen(true)}
+                  className="ml-auto flex items-center gap-1.5 bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-full font-bold text-[11px] transition whitespace-nowrap shadow-sm"
+                >
                   <Code size={14} strokeWidth={2.5} /> API JSON
                 </button>
               )}
-              <button onClick={() => { setEditingRoomId(null); setEditingRoom(null); setEditingRoomHasGuest(false); setIsAddRoomOpen(true); }} className="flex items-center gap-1.5 text-indigo-600 font-bold text-xs hover:bg-indigo-50 px-4 py-2 rounded-full transition whitespace-nowrap">
-                <Plus size={14} strokeWidth={3} /> Add Room
+              {canCreateRoom && (
+                <button
+                  onClick={() => {
+                    setEditingRoomId(null);
+                    setEditingRoom(null);
+                    setEditingRoomHasGuest(false);
+                    setIsAddRoomOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 text-indigo-600 font-bold text-xs hover:bg-indigo-50 px-4 py-2 rounded-full transition whitespace-nowrap"
+                >
+                  <Plus size={14} strokeWidth={3} /> Add Room
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (!canManageFloors && !isAdmin) {
+                    alert("Access Denied: You do not have permission to create floors ('action:floors:create'). Please contact your administrator.");
+                    return;
+                  }
+                  setIsAddFloorOpen(true);
+                }}
+                className="flex items-center gap-1.5 text-slate-700 bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-full font-bold text-xs transition whitespace-nowrap shadow-sm"
+              >
+                <Plus size={14} strokeWidth={3} /> Add Floor
               </button>
             </div>
           </div>
@@ -310,22 +526,36 @@ export default function RoomsManagementPage() {
           <div className="space-y-6">
             {floors.map((floor: any, index: number) => {
               const filteredRooms = floor.rooms.filter((r: any) => {
-                if (activeFilter !== 'ALL' && r.status !== activeFilter) return false;
-                if (searchQuery && !(r.roomNumber || r.number || '').toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                if (activeFilter !== "ALL" && r.status !== activeFilter)
+                  return false;
+                if (
+                  searchQuery &&
+                  !(r.roomNumber || r.number || "")
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase())
+                )
+                  return false;
                 return true;
               });
 
-              if (filteredRooms.length === 0 && (activeFilter !== 'ALL' || searchQuery)) return null;
+              if (
+                filteredRooms.length === 0 &&
+                (activeFilter !== "ALL" || searchQuery)
+              )
+                return null;
 
               const sortedRooms = [...filteredRooms].sort((a: any, b: any) => {
-                const numA = String(a.roomNumber || a.number || '').trim();
-                const numB = String(b.roomNumber || b.number || '').trim();
-                return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+                const numA = String(a.roomNumber || a.number || "").trim();
+                const numB = String(b.roomNumber || b.number || "").trim();
+                return numA.localeCompare(numB, undefined, {
+                  numeric: true,
+                  sensitivity: "base",
+                });
               });
 
               const filteredFloor = {
                 ...floor,
-                rooms: sortedRooms
+                rooms: sortedRooms,
               };
 
               return (
@@ -344,6 +574,7 @@ export default function RoomsManagementPage() {
                     setEditingFloor(f);
                     setIsEditFloorOpen(true);
                   }}
+                  onDeleteFloor={handleDeleteFloor}
                 />
               );
             })}
@@ -351,44 +582,58 @@ export default function RoomsManagementPage() {
             {floors.length === 0 && (
               <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center text-center">
                 <Building2 size={48} className="text-indigo-200 mb-4" />
-                <h2 className="text-lg font-black text-gray-900 tracking-tight">No Floors Found</h2>
-                <p className="text-sm text-gray-500 font-medium mt-1 mb-6">Start by adding your first floor to the property.</p>
-                <button onClick={() => setIsAddFloorOpen(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 transition">
+                <h2 className="text-lg font-black text-gray-900 tracking-tight">
+                  No Floors Found
+                </h2>
+                <p className="text-sm text-gray-500 font-medium mt-1 mb-6">
+                  Start by adding your first floor to the property.
+                </p>
+                <button
+                  onClick={() => {
+                    if (!canManageFloors && !isAdmin) {
+                      alert("Access Denied: You do not have permission to create floors ('action:floors:create'). Please contact your administrator.");
+                      return;
+                    }
+                    setIsAddFloorOpen(true);
+                  }}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 transition"
+                >
                   <Plus size={16} strokeWidth={3} /> Add Floor
                 </button>
               </div>
             )}
-
           </div>
 
           <div className="text-center py-6 flex items-center justify-center gap-2 opacity-50">
             <span className="text-rose-400">♥</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">&ldquo;Great hospitality creates lasting memories.&rdquo;</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+              &ldquo;Great hospitality creates lasting memories.&rdquo;
+            </span>
           </div>
         </div>
       </div>
 
       {/* RIGHT SIDE PANEL (Room Details) */}
       <div
-        className={`fixed top-[72px] right-0 bottom-0 w-[440px] bg-white shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-gray-200 transform transition-transform duration-300 z-40 overflow-y-auto ${selectedRoom ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-[72px] right-0 bottom-0 w-[440px] bg-white shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-gray-200 transform transition-transform duration-300 z-40 overflow-y-auto ${selectedRoom ? "translate-x-0" : "translate-x-full"}`}
       >
         {selectedRoom && (
           <div className="flex flex-col h-full bg-white w-full p-4 overflow-y-auto space-y-4 pb-20">
-            
             {/* Header Card */}
-            <div 
+            <div
               className="relative rounded-3xl overflow-hidden shadow-sm"
               style={{
-                backgroundImage: 'url("https://images.unsplash.com/photo-1611892440504-42a792e24d32?q=80&w=600&auto=format&fit=crop")',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                minHeight: '130px'
+                backgroundImage:
+                  'url("https://images.unsplash.com/photo-1611892440504-42a792e24d32?q=80&w=600&auto=format&fit=crop")',
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                minHeight: "130px",
               }}
             >
               <div className="absolute inset-0 bg-black/40 bg-gradient-to-t from-black/80 to-transparent"></div>
-              
-              <button 
-                onClick={() => setSelectedRoom(null)} 
+
+              <button
+                onClick={() => setSelectedRoom(null)}
                 className="absolute top-3 right-3 p-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white transition-all z-10"
               >
                 <X size={16} />
@@ -404,27 +649,42 @@ export default function RoomsManagementPage() {
                       Room {selectedRoom.roomNumber}
                     </h2>
                     <div className="mt-1">
-                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm ${
-                        selectedRoom.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-700' :
-                        selectedRoom.status === 'OCCUPIED' ? 'bg-indigo-100 text-indigo-700' :
-                        selectedRoom.status === 'DIRTY' ? 'bg-rose-100 text-rose-700' :
-                        selectedRoom.status === 'MAINTENANCE' ? 'bg-amber-100 text-amber-700' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          selectedRoom.status === 'AVAILABLE' ? 'bg-emerald-500' :
-                          selectedRoom.status === 'OCCUPIED' ? 'bg-indigo-500' :
-                          selectedRoom.status === 'DIRTY' ? 'bg-rose-500' :
-                          selectedRoom.status === 'MAINTENANCE' ? 'bg-amber-500' :
-                          'bg-slate-500'
-                        }`}></span>
-                        {selectedRoom.status.replace('_', ' ')}
-                        {selectedRoom.status === 'OCCUPIED' && selectedRoom.housekeepingStatus === 'DIRTY' ? ' + DIRTY' : ''}
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm ${
+                          selectedRoom.status === "AVAILABLE"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : selectedRoom.status === "OCCUPIED"
+                              ? "bg-indigo-100 text-indigo-700"
+                              : selectedRoom.status === "DIRTY"
+                                ? "bg-rose-100 text-rose-700"
+                                : selectedRoom.status === "MAINTENANCE"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            selectedRoom.status === "AVAILABLE"
+                              ? "bg-emerald-500"
+                              : selectedRoom.status === "OCCUPIED"
+                                ? "bg-indigo-500"
+                                : selectedRoom.status === "DIRTY"
+                                  ? "bg-rose-500"
+                                  : selectedRoom.status === "MAINTENANCE"
+                                    ? "bg-amber-500"
+                                    : "bg-slate-500"
+                          }`}
+                        ></span>
+                        {selectedRoom.status.replace("_", " ")}
+                        {selectedRoom.status === "OCCUPIED" &&
+                        selectedRoom.housekeepingStatus === "DIRTY"
+                          ? " + DIRTY"
+                          : ""}
                       </span>
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-2">
                   <div className="bg-white/20 backdrop-blur-md border border-white/10 px-2 py-1 rounded-lg text-[9px] font-bold text-white flex items-center gap-1 shadow-sm">
                     <Layers size={10} /> Floor 01
@@ -442,45 +702,68 @@ export default function RoomsManagementPage() {
                 <div className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center text-indigo-500 mb-1">
                   <Building2 size={12} />
                 </div>
-                <div className="text-[10px] font-bold text-slate-500">Room Type</div>
-                <div className="text-xs font-black text-slate-900">{selectedRoom.roomType}</div>
+                <div className="text-[10px] font-bold text-slate-500">
+                  Room Type
+                </div>
+                <div className="text-xs font-black text-slate-900">
+                  {selectedRoom.roomType}
+                </div>
               </div>
               <div className="bg-[#fff0f4] rounded-2xl p-3 flex flex-col items-start gap-1">
                 <div className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center text-rose-500 mb-1 font-bold text-xs">
                   ₹
                 </div>
-                <div className="text-[10px] font-bold text-slate-500">Price</div>
+                <div className="text-[10px] font-bold text-slate-500">
+                  Price
+                </div>
                 <div className="text-xs font-black text-slate-900 flex items-baseline gap-1">
-                  ₹{selectedRoom.guestInfo?.roomRate ? selectedRoom.guestInfo.roomRate / 100 : selectedRoom.price / 100} 
-                  <span className="text-[8px] text-slate-400 font-bold">/ night</span>
+                  ₹
+                  {selectedRoom.guestInfo?.roomRate
+                    ? selectedRoom.guestInfo.roomRate / 100
+                    : selectedRoom.price / 100}
+                  <span className="text-[8px] text-slate-400 font-bold">
+                    / night
+                  </span>
                 </div>
               </div>
               <div className="bg-[#eaf9f2] rounded-2xl p-3 flex flex-col items-start gap-1">
                 <div className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center text-emerald-500 mb-1">
                   <UserCheck size={12} />
                 </div>
-                <div className="text-[10px] font-bold text-slate-500">Capacity</div>
-                <div className="text-xs font-black text-slate-900">2 guests</div>
+                <div className="text-[10px] font-bold text-slate-500">
+                  Capacity
+                </div>
+                <div className="text-xs font-black text-slate-900">
+                  2 guests
+                </div>
               </div>
             </div>
 
             {/* Select for Booking */}
-            {!['OCCUPIED', 'MAINTENANCE', 'BLOCKED'].includes(selectedRoom.status) && (
+            {!["OCCUPIED", "MAINTENANCE", "BLOCKED"].includes(
+              selectedRoom.status,
+            ) && canBulkBooking && (
               <div className="bg-white border border-indigo-50/50 p-4 rounded-[20px] flex items-center justify-between shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] mb-2">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-indigo-50/50 flex items-center justify-center text-indigo-500 border border-indigo-100/50">
                     <CalendarDays size={18} />
                   </div>
                   <div>
-                    <div className="text-[13px] font-black text-slate-800">Select for Booking</div>
-                    <div className="text-[10px] font-medium text-slate-400 mt-0.5">Add to current bulk selection</div>
+                    <div className="text-[13px] font-black text-slate-800">
+                      Select for Booking
+                    </div>
+                    <div className="text-[10px] font-medium text-slate-400 mt-0.5">
+                      Add to current bulk selection
+                    </div>
                   </div>
                 </div>
                 <button
                   onClick={() => handleToggleRoomBooking(selectedRoom.id)}
-                  className={`relative w-11 h-6 rounded-full transition-colors duration-300 shadow-inner ${selectedRooms.includes(selectedRoom.id) ? 'bg-indigo-500' : 'bg-slate-200'}`}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-300 shadow-inner ${selectedRooms.includes(selectedRoom.id) ? "bg-indigo-500" : "bg-slate-200"}`}
                 >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${selectedRooms.includes(selectedRoom.id) ? 'translate-x-6' : 'translate-x-1'}`}></div>
+                  <div
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${selectedRooms.includes(selectedRoom.id) ? "translate-x-6" : "translate-x-1"}`}
+                  ></div>
                 </button>
               </div>
             )}
@@ -490,29 +773,52 @@ export default function RoomsManagementPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <UserCheck size={14} className="text-blue-600" />
-                  <h3 className="text-[11px] font-black text-slate-900">Guest Information</h3>
+                  <h3 className="text-[11px] font-black text-slate-900">
+                    Guest Information
+                  </h3>
                 </div>
                 <div className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1">
-                  <div className={`w-1.5 h-1.5 rounded-full ${selectedRoom.guestInfo ? 'bg-indigo-500' : 'bg-slate-400'}`}></div>
-                  {selectedRoom.guestInfo ? 'Occupied' : 'Unoccupied'}
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full ${selectedRoom.guestInfo ? "bg-indigo-500" : "bg-slate-400"}`}
+                  ></div>
+                  {selectedRoom.guestInfo ? "Occupied" : "Unoccupied"}
                 </div>
               </div>
-              
+
               <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
                 {selectedRoom.guestInfo ? (
-                  <div 
-                    className="p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50 transition-colors"
-                    onClick={() => setIsGuestModalOpen(true)}
+                  <div
+                    className={`p-4 flex items-center gap-4 ${canViewGuestDetails ? "cursor-pointer hover:bg-slate-50" : "cursor-default"} transition-colors`}
+                    onClick={() => {
+                      if (canViewGuestDetails) {
+                        setIsGuestModalOpen(true);
+                      }
+                    }}
                   >
                     <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm border border-indigo-100">
-                      {selectedRoom.guestInfo.name.substring(0, 2).toUpperCase()}
+                      {selectedRoom.guestInfo.name
+                        .substring(0, 2)
+                        .toUpperCase()}
                     </div>
                     <div>
-                      <div className="text-sm font-black text-slate-900">{selectedRoom.guestInfo.name}</div>
-                      <div className="text-[11px] font-medium text-slate-500 mt-0.5">{selectedRoom.guestInfo.phone || 'No phone'}</div>
-                      <div className="text-[9px] font-bold text-indigo-500 mt-1 uppercase tracking-widest">
-                        ID: {selectedRoom.guestInfo.idProof ? selectedRoom.guestInfo.idProof.substring(selectedRoom.guestInfo.idProof.length - 6).toUpperCase() : 'UNKNOWN'}
+                      <div className="text-sm font-black text-slate-900">
+                        {canViewGuestDetails ? selectedRoom.guestInfo.name : "Guest Staying"}
                       </div>
+                      <div className="text-[11px] font-medium text-slate-500 mt-0.5">
+                        {canViewGuestDetails ? (selectedRoom.guestInfo.phone || "No phone") : "Details protected"}
+                      </div>
+                      {canViewGuestDetails && (
+                        <div className="text-[9px] font-bold text-indigo-500 mt-1 uppercase tracking-widest">
+                          ID:{" "}
+                          {selectedRoom.guestInfo.idProof
+                            ? selectedRoom.guestInfo.idProof
+                                .substring(
+                                  selectedRoom.guestInfo.idProof.length - 6,
+                                )
+                                .toUpperCase()
+                            : "UNKNOWN"}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -521,8 +827,12 @@ export default function RoomsManagementPage() {
                       <UserCheck size={18} />
                     </div>
                     <div>
-                      <div className="text-sm font-black text-slate-900">No guest</div>
-                      <div className="text-[11px] font-medium text-slate-400 mt-0.5">Room is currently unoccupied</div>
+                      <div className="text-sm font-black text-slate-900">
+                        No guest
+                      </div>
+                      <div className="text-[11px] font-medium text-slate-400 mt-0.5">
+                        Room is currently unoccupied
+                      </div>
                     </div>
                   </div>
                 )}
@@ -533,34 +843,46 @@ export default function RoomsManagementPage() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5">
                 <ClipboardList size={14} className="text-blue-600" />
-                <h3 className="text-[11px] font-black text-slate-900">Room Details</h3>
+                <h3 className="text-[11px] font-black text-slate-900">
+                  Room Details
+                </h3>
               </div>
-              
+
               <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] p-4">
                 <div className="flex divide-x divide-slate-100">
                   <div className="flex-1 flex flex-col px-2">
                     <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 mb-1">
                       <Clock size={10} className="text-blue-500" /> Last Cleaned
                     </div>
-                    <div className="text-[10px] font-black text-slate-900">Not recorded</div>
+                    <div className="text-[10px] font-black text-slate-900">
+                      Not recorded
+                    </div>
                   </div>
                   <div className="flex-1 flex flex-col px-2">
                     <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 mb-1">
                       <Layers size={10} className="text-indigo-500" /> Floor
                     </div>
-                    <div className="text-[10px] font-black text-slate-900">Floor 01</div>
+                    <div className="text-[10px] font-black text-slate-900">
+                      Floor 01
+                    </div>
                   </div>
                   <div className="flex-1 flex flex-col px-2">
                     <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 mb-1">
-                      <Sparkles size={10} className="text-emerald-500" /> Amenities
+                      <Sparkles size={10} className="text-emerald-500" />{" "}
+                      Amenities
                     </div>
-                    <div className="text-[10px] font-black text-slate-900">Not specified</div>
+                    <div className="text-[10px] font-black text-slate-900">
+                      Not specified
+                    </div>
                   </div>
                   <div className="flex-1 flex flex-col px-2">
                     <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 mb-1">
-                      <ClipboardList size={10} className="text-purple-500" /> Notes
+                      <ClipboardList size={10} className="text-purple-500" />{" "}
+                      Notes
                     </div>
-                    <div className="text-[10px] font-black text-slate-900">—</div>
+                    <div className="text-[10px] font-black text-slate-900">
+                      —
+                    </div>
                   </div>
                 </div>
               </div>
@@ -570,135 +892,200 @@ export default function RoomsManagementPage() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5">
                 <Wrench size={14} className="text-blue-600" />
-                <h3 className="text-[11px] font-black text-slate-900">Room Actions</h3>
+                <h3 className="text-[11px] font-black text-slate-900">
+                  Room Actions
+                </h3>
               </div>
-              
-              {selectedRoom.status === 'OCCUPIED' ? (
+
+              {selectedRoom.status === "OCCUPIED" ? (
                 <div className="space-y-2">
                   <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl text-[10px] text-emerald-800 font-medium">
-                    Manual availability change is locked while a guest is staying. Please use the check-out process.
+                    Manual availability change is locked while a guest is
+                    staying. Please use the check-out process.
                   </div>
-                  <button
-                    onClick={() => {
-                      const floor = data?.floors.find(f => f.rooms.some(r => r.id === selectedRoom.id));
-                      if (floor) {
-                        openEditRoom(selectedRoom, floor.id);
-                      }
-                    }}
-                    className="w-full p-3.5 bg-[#fbf5ff] text-purple-600 rounded-[14px] text-[11px] font-bold hover:bg-purple-100 transition-all flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Edit size={14} /> Edit Room
-                    </div>
-                    <span>&gt;</span>
-                  </button>
-                  <button
-                    onClick={() => router.push(`/dashboard/checkout?roomId=${selectedRoom.id}`)}
-                    className="w-full p-3.5 bg-emerald-50 text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <LogOut size={14} /> Check-Out Guest
-                    </div>
-                    <span>&gt;</span>
-                  </button>
-
-                  {selectedRoom.housekeepingStatus === 'DIRTY' ? (
-                    <button onClick={() => handleSetClean(selectedRoom.id)} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full">
+                  {canEditRoom && (
+                    <button
+                      onClick={() => {
+                        const floor = data?.floors.find((f) =>
+                          f.rooms.some((r) => r.id === selectedRoom.id),
+                        );
+                        if (floor) {
+                          openEditRoom(selectedRoom, floor.id);
+                        }
+                      }}
+                      className="w-full p-3.5 bg-[#fbf5ff] text-purple-600 rounded-[14px] text-[11px] font-bold hover:bg-purple-100 transition-all flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-2">
-                        <Sparkles size={14} /> Set Clean
+                        <Edit size={14} /> Edit Room
                       </div>
-                      <span className="text-[10px]">&gt;</span>
-                    </button>
-                  ) : (
-                    <button onClick={() => handleStatusChange(selectedRoom.id, 'DIRTY')} className="p-3.5 bg-[#fff0f4] text-rose-600 rounded-[14px] text-[11px] font-bold hover:bg-rose-100 transition-all flex items-center justify-between w-full">
-                      <div className="flex items-center gap-2">
-                        <Layers size={14} /> Set Dirty
-                      </div>
-                      <span className="text-[10px]">&gt;</span>
+                      <span>&gt;</span>
                     </button>
                   )}
+                  {canSettlePayment && (
+                    <button
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/checkout?roomId=${selectedRoom.id}`,
+                        )
+                      }
+                      className="w-full p-3.5 bg-emerald-50 text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <LogOut size={14} /> Check-Out Guest
+                      </div>
+                      <span>&gt;</span>
+                    </button>
+                  )}
+
+                  {canChangeStatus &&
+                    (selectedRoom.housekeepingStatus === "DIRTY" ? (
+                      <button
+                        onClick={() => handleSetClean(selectedRoom.id)}
+                        className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={14} /> Set Clean
+                        </div>
+                        <span className="text-[10px]">&gt;</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() =>
+                          handleStatusChange(selectedRoom.id, "DIRTY")
+                        }
+                        className="p-3.5 bg-[#fff0f4] text-rose-600 rounded-[14px] text-[11px] font-bold hover:bg-rose-100 transition-all flex items-center justify-between w-full"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Layers size={14} /> Set Dirty
+                        </div>
+                        <span className="text-[10px]">&gt;</span>
+                      </button>
+                    ))}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    onClick={() => router.push(`/dashboard/book?rooms=${selectedRoom.id}`)} 
-                    className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full"
-                  >
-                    <div className="flex items-center gap-2">
-                      <UserCheck size={14} /> Check-in Guest
-                    </div>
-                    <span className="text-[10px]">&gt;</span>
-                  </button>
-                  <button 
-                    onClick={() => router.push(`/dashboard/book?rooms=${selectedRoom.id}`)} 
-                    className="p-3.5 bg-[#f4f7fe] text-blue-600 rounded-[14px] text-[11px] font-bold hover:bg-blue-100 transition-all flex items-center justify-between w-full"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CalendarDays size={14} /> Book
-                    </div>
-                    <span className="text-[10px]">&gt;</span>
-                  </button>
-                  
-                  {selectedRoom.housekeepingStatus === 'DIRTY' || selectedRoom.status === 'DIRTY' ? (
-                    <button onClick={() => handleSetClean(selectedRoom.id)} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full">
-                      <div className="flex items-center gap-2">
-                        <Sparkles size={14} /> Set Clean
-                      </div>
-                      <span className="text-[10px]">&gt;</span>
-                    </button>
-                  ) : (
-                    <button onClick={() => handleStatusChange(selectedRoom.id, 'DIRTY')} className="p-3.5 bg-[#fff0f4] text-rose-600 rounded-[14px] text-[11px] font-bold hover:bg-rose-100 transition-all flex items-center justify-between w-full">
-                      <div className="flex items-center gap-2">
-                        <Layers size={14} /> Set Dirty
-                      </div>
-                      <span className="text-[10px]">&gt;</span>
-                    </button>
-                  )}
-                  
-                  {selectedRoom.status === 'BLOCKED' ? (
-                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full col-span-2">
-                      <div className="flex items-center gap-2">
-                        <Sparkles size={14} /> Unblock
-                      </div>
-                      <span className="text-[10px]">&gt;</span>
-                    </button>
-                  ) : selectedRoom.status === 'MAINTENANCE' ? (
-                    <button onClick={() => handleStatusChange(selectedRoom.id, 'AVAILABLE')} className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full col-span-2">
-                      <div className="flex items-center gap-2">
-                        <Sparkles size={14} /> Set Available
-                      </div>
-                      <span className="text-[10px]">&gt;</span>
-                    </button>
-                  ) : (
-                    <>
-                      <button onClick={() => handleStatusChange(selectedRoom.id, 'BLOCKED')} className="p-3.5 bg-[#f4f7fe] text-blue-600 rounded-[14px] text-[11px] font-bold hover:bg-blue-100 transition-all flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          <MoreVertical size={14} /> Block Room
-                        </div>
-                        <span className="text-[10px]">&gt;</span>
-                      </button>
-                      <button onClick={() => handleStatusChange(selectedRoom.id, 'MAINTENANCE')} className="p-3.5 bg-[#fff7e6] text-amber-600 rounded-[14px] text-[11px] font-bold hover:bg-amber-100 transition-all flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          <Wrench size={14} /> Set Maintenance
-                        </div>
-                        <span className="text-[10px]">&gt;</span>
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => {
-                      const floor = data?.floors.find(f => f.rooms.some(r => r.id === selectedRoom.id));
-                      if (floor) {
-                        openEditRoom(selectedRoom, floor.id);
+                  {canCheckin && (
+                    <button
+                      onClick={() =>
+                        router.push(`/dashboard/book?rooms=${selectedRoom.id}`)
                       }
-                    }}
-                    className="p-3.5 bg-[#fbf5ff] text-purple-600 rounded-[14px] text-[11px] font-bold hover:bg-purple-100 transition-all flex items-center justify-between w-full"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Edit size={14} /> Edit Room
-                    </div>
-                    <span className="text-[10px]">&gt;</span>
-                  </button>
+                      className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full"
+                    >
+                      <div className="flex items-center gap-2">
+                        <UserCheck size={14} /> Check-in Guest
+                      </div>
+                      <span className="text-[10px]">&gt;</span>
+                    </button>
+                  )}
+                  {canCreateReservation && (
+                    <button
+                      onClick={() =>
+                        router.push(`/dashboard/book?rooms=${selectedRoom.id}`)
+                      }
+                      className="p-3.5 bg-[#f4f7fe] text-blue-600 rounded-[14px] text-[11px] font-bold hover:bg-blue-100 transition-all flex items-center justify-between w-full"
+                    >
+                      <div className="flex items-center gap-2">
+                        <CalendarDays size={14} /> Book
+                      </div>
+                      <span className="text-[10px]">&gt;</span>
+                    </button>
+                  )}
+
+                  {canChangeStatus &&
+                    (selectedRoom.housekeepingStatus === "DIRTY" ||
+                    selectedRoom.status === "DIRTY" ? (
+                      <button
+                        onClick={() => handleSetClean(selectedRoom.id)}
+                        className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={14} /> Set Clean
+                        </div>
+                        <span className="text-[10px]">&gt;</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() =>
+                          handleStatusChange(selectedRoom.id, "DIRTY")
+                        }
+                        className="p-3.5 bg-[#fff0f4] text-rose-600 rounded-[14px] text-[11px] font-bold hover:bg-rose-100 transition-all flex items-center justify-between w-full"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Layers size={14} /> Set Dirty
+                        </div>
+                        <span className="text-[10px]">&gt;</span>
+                      </button>
+                    ))}
+
+                  {canChangeStatus &&
+                    (selectedRoom.status === "BLOCKED" ? (
+                      <button
+                        onClick={() =>
+                          handleStatusChange(selectedRoom.id, "AVAILABLE")
+                        }
+                        className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full col-span-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={14} /> Unblock
+                        </div>
+                        <span className="text-[10px]">&gt;</span>
+                      </button>
+                    ) : selectedRoom.status === "MAINTENANCE" ? (
+                      <button
+                        onClick={() =>
+                          handleStatusChange(selectedRoom.id, "AVAILABLE")
+                        }
+                        className="p-3.5 bg-[#eaf9f2] text-emerald-600 rounded-[14px] text-[11px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-between w-full col-span-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={14} /> Set Available
+                        </div>
+                        <span className="text-[10px]">&gt;</span>
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleStatusChange(selectedRoom.id, "BLOCKED")
+                          }
+                          className="p-3.5 bg-[#f4f7fe] text-blue-600 rounded-[14px] text-[11px] font-bold hover:bg-blue-100 transition-all flex items-center justify-between w-full"
+                        >
+                          <div className="flex items-center gap-2">
+                            <MoreVertical size={14} /> Block Room
+                          </div>
+                          <span className="text-[10px]">&gt;</span>
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleStatusChange(selectedRoom.id, "MAINTENANCE")
+                          }
+                          className="p-3.5 bg-[#fff7e6] text-amber-600 rounded-[14px] text-[11px] font-bold hover:bg-amber-100 transition-all flex items-center justify-between w-full"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Wrench size={14} /> Set Maintenance
+                          </div>
+                          <span className="text-[10px]">&gt;</span>
+                        </button>
+                      </>
+                    ))}
+                  {canEditRoom && (
+                    <button
+                      onClick={() => {
+                        const floor = data?.floors.find((f) =>
+                          f.rooms.some((r) => r.id === selectedRoom.id),
+                        );
+                        if (floor) {
+                          openEditRoom(selectedRoom, floor.id);
+                        }
+                      }}
+                      className="p-3.5 bg-[#fbf5ff] text-purple-600 rounded-[14px] text-[11px] font-bold hover:bg-purple-100 transition-all flex items-center justify-between w-full"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Edit size={14} /> Edit Room
+                      </div>
+                      <span className="text-[10px]">&gt;</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -708,7 +1095,9 @@ export default function RoomsManagementPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Clock size={14} className="text-blue-600" />
-                  <h3 className="text-[11px] font-black text-slate-900">Recent Activity</h3>
+                  <h3 className="text-[11px] font-black text-slate-900">
+                    Recent Activity
+                  </h3>
                 </div>
                 <span className="text-[10px] font-bold text-blue-600 cursor-pointer hover:underline flex items-center gap-0.5">
                   View All <span className="text-[10px]">-&gt;</span>
@@ -717,66 +1106,125 @@ export default function RoomsManagementPage() {
 
               <div className="bg-white">
                 <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[5px] before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-100 pl-4 py-2">
-
                   <div className="relative flex items-start gap-3">
                     <div className="absolute -left-4 w-2 h-2 rounded-full bg-emerald-500 top-1.5"></div>
                     <div>
-                      <div className="text-[11px] font-bold text-slate-900">Room status changed to Available</div>
-                      <div className="text-[9px] font-medium text-slate-400 mt-0.5">19 Sep 2026 • 08:42 AM</div>
+                      <div className="text-[11px] font-bold text-slate-900">
+                        Room status changed to Available
+                      </div>
+                      <div className="text-[9px] font-medium text-slate-400 mt-0.5">
+                        19 Sep 2026 • 08:42 AM
+                      </div>
                     </div>
                   </div>
 
                   <div className="relative flex items-start gap-3">
                     <div className="absolute -left-4 w-2 h-2 rounded-full bg-indigo-500 top-1.5"></div>
                     <div>
-                      <div className="text-[11px] font-bold text-slate-900">Room created</div>
-                      <div className="text-[9px] font-medium text-slate-400 mt-0.5">10 Sep 2026 • 11:20 AM</div>
+                      <div className="text-[11px] font-bold text-slate-900">
+                        Room created
+                      </div>
+                      <div className="text-[9px] font-medium text-slate-400 mt-0.5">
+                        10 Sep 2026 • 11:20 AM
+                      </div>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
-
           </div>
         )}
       </div>
 
       {/* Floating Book Action */}
-      <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-2 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 ease-out ${selectedRooms.length > 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
-        <div className="flex items-center gap-3 px-4">
-          <span className="bg-indigo-500 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">{selectedRooms.length}</span>
-          <span className="text-sm font-bold">{selectedRooms.length === 1 ? 'Room Selected' : 'Rooms Selected'}</span>
-        </div>
-        <button onClick={() => setSelectedRooms([])} className="text-xs font-bold text-gray-400 hover:text-white px-3 transition-colors">Clear</button>
-        <button
-          onClick={() => router.push('/dashboard/book?rooms=' + selectedRooms.join(','))}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black px-6 py-2.5 rounded-full transition-colors flex items-center gap-2 ml-1"
+      {(canCheckin || canCreateReservation) && (
+        <div
+          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-2 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 ease-out ${selectedRooms.length > 0 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"}`}
         >
-          Book Rooms <ChevronRight size={16} />
-        </button>
-      </div>
+          <div className="flex items-center gap-3 px-4">
+            <span className="bg-indigo-500 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">
+              {selectedRooms.length}
+            </span>
+            <span className="text-sm font-bold">
+              {selectedRooms.length === 1 ? "Room Selected" : "Rooms Selected"}
+            </span>
+          </div>
+          <button
+            onClick={() => setSelectedRooms([])}
+            className="text-xs font-bold text-gray-400 hover:text-white px-3 transition-colors"
+          >
+            Clear
+          </button>
+          <button
+            onClick={() =>
+              router.push("/dashboard/book?rooms=" + selectedRooms.join(","))
+            }
+            className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black px-6 py-2.5 rounded-full transition-colors flex items-center gap-2 ml-1"
+          >
+            Book Rooms <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Add Floor Modal */}
       {isAddFloorOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">Add New Floor</h2>
-              <button onClick={() => setIsAddFloorOpen(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X size={20} /></button>
+              <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                Add New Floor
+              </h2>
+              <button
+                onClick={() => setIsAddFloorOpen(false)}
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
             </div>
-            <form className="space-y-4">
+            <form onSubmit={handleAddFloor} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Floor Number</label>
-                <input type="number" value={newFloorNumber} onChange={e => setNewFloorNumber(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-medium text-slate-900" placeholder="e.g., 1" />
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Floor Number
+                </label>
+                <input
+                  type="number"
+                  value={newFloorNumber}
+                  onChange={(e) => setNewFloorNumber(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-medium text-slate-900"
+                  placeholder="e.g., 1"
+                  disabled={isSubmittingFloor}
+                />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Floor Name / Description</label>
-                <input type="text" value={newFloorName} onChange={e => setNewFloorName(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-medium text-slate-900" placeholder="e.g., Ground Floor" />
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Floor Name / Description
+                </label>
+                <input
+                  type="text"
+                  value={newFloorName}
+                  onChange={(e) => setNewFloorName(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-medium text-slate-900"
+                  placeholder="e.g., Ground Floor"
+                  required
+                  disabled={isSubmittingFloor}
+                />
               </div>
               <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setIsAddFloorOpen(false)} className="flex-1 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors">Cancel</button>
-                <button type="button" className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20">Save Floor</button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddFloorOpen(false)}
+                  disabled={isSubmittingFloor}
+                  className="flex-1 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingFloor}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20 disabled:opacity-50"
+                >
+                  {isSubmittingFloor ? "Saving..." : "Save Floor"}
+                </button>
               </div>
             </form>
           </div>
@@ -798,12 +1246,14 @@ export default function RoomsManagementPage() {
           setEditingRoomId(null);
           setEditingRoom(null);
           setEditingRoomHasGuest(false);
-          trackedFetch('/api/hotel/dashboard')
-            .then(res => res.json())
-            .then(newData => {
+          trackedFetch("/api/hotel/dashboard")
+            .then((res) => res.json())
+            .then((newData) => {
               setData(newData);
               if (selectedRoom) {
-                const updated = newData.floors?.flatMap((f: any) => f.rooms).find((r: any) => r.id === selectedRoom.id);
+                const updated = newData.floors
+                  ?.flatMap((f: any) => f.rooms)
+                  .find((r: any) => r.id === selectedRoom.id);
                 if (updated) setSelectedRoom(updated);
               }
             });
@@ -813,16 +1263,18 @@ export default function RoomsManagementPage() {
         initialData={editingRoom}
       />
 
-      
       {/* Edit Floor Modal */}
       <EditFloorModal
         isOpen={isEditFloorOpen}
-        onClose={() => { setIsEditFloorOpen(false); setEditingFloor(null); }}
+        onClose={() => {
+          setIsEditFloorOpen(false);
+          setEditingFloor(null);
+        }}
         floor={editingFloor}
         onSuccess={() => {
-          trackedFetch('/api/hotel/dashboard')
-            .then(res => res.json())
-            .then(d => setData(d));
+          trackedFetch("/api/hotel/dashboard")
+            .then((res) => res.json())
+            .then((d) => setData(d));
         }}
       />
 
@@ -833,12 +1285,12 @@ export default function RoomsManagementPage() {
           room={selectedRoom}
         />
       )}
-      
-      <ApiJsonDebugger 
-        apiRequests={apiRequests} 
-        isOpen={isApiJsonOpen} 
-        onClose={() => setIsApiJsonOpen(false)} 
-        onClear={() => setApiRequests([])} 
+
+      <ApiJsonDebugger
+        apiRequests={apiRequests}
+        isOpen={isApiJsonOpen}
+        onClose={() => setIsApiJsonOpen(false)}
+        onClear={() => setApiRequests([])}
       />
     </div>
   );

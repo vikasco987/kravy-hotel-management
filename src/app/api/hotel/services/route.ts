@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,11 @@ export async function GET() {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'page:services');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const services = await prisma.extraService.findMany({
@@ -30,6 +36,11 @@ export async function POST(req: Request) {
     if (!authContext || !authContext.hotel) {
       console.log('[API] Unauthorized: no auth context or hotel');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:services:manage');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const bodyText = await req.text();
@@ -65,13 +76,13 @@ export async function POST(req: Request) {
     } else if (error && typeof error === 'object') {
       errorMsg = JSON.stringify(error);
     }
-    
+
     return NextResponse.json(
-      { 
+      {
         error: errorMsg,
         success: false,
         debug: "from_catch_block"
-      }, 
+      },
       { status: 500 }
     );
   }

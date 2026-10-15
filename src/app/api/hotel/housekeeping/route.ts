@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthContext } from '@/lib/authContext';
 import { TaskStatus, Prisma } from '@prisma/client';
+import { requirePermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,11 @@ export async function GET(req: Request) {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized or Hotel not found' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'page:housekeeping');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const hotelId = authContext.hotel.id;
@@ -272,6 +278,12 @@ export async function POST(req: Request) {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized or Hotel not found' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:housekeeping:create_task');
+    const legacyCheck = requirePermission(authContext.user, 'action:housekeeping:clean');
+    if (!authCheck.authorized && !legacyCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const hotelId = authContext.hotel.id;

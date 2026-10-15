@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthContext } from '@/lib/authContext';
 import { getStandardChecklistJson, isChecklistEmpty, resolveChecklist } from '@/lib/housekeeping';
+import { canConductInspection, requirePermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,24 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       notes,
       inspectionStatus,
     } = body;
+
+    const isInspectionAction = action === 'SUBMIT_INSPECTION' || inspectionStatus !== undefined;
+    if (isInspectionAction) {
+      // Inspection action checked later using canConductInspection
+    } else if (staffId !== undefined && action === undefined && checklist === undefined) {
+      // Pure staff assignment
+      const assignCheck = requirePermission(authContext.user, 'action:housekeeping:assign_staff');
+      const cleanCheck = requirePermission(authContext.user, 'action:housekeeping:clean');
+      if (!assignCheck.authorized && !cleanCheck.authorized) {
+        return NextResponse.json(assignCheck.errorResponse, { status: 403 });
+      }
+    } else {
+      // General housekeeping actions (cleaning, checklists, task updates) require action:housekeeping:clean
+      const authCheck = requirePermission(authContext.user, 'action:housekeeping:clean');
+      if (!authCheck.authorized) {
+        return NextResponse.json(authCheck.errorResponse, { status: 403 });
+      }
+    }
 
     const updateData: Record<string, unknown> = {};
 
@@ -154,39 +173,31 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
 
       // Guard 2: Enforce supervisory authorization server-side
-      // Check caller's effective supervisory role
+      // Check caller's effective supervisory role & explicit permission
       const userType = (authContext.user.type || '').toUpperCase();
       const userRole = (authContext.user.role || '').toUpperCase();
 
-      // In Kravy authentication:
-      // - Hotel owner/admin accounts created via standard registration have user.role === 'USER' or 'ADMIN' (and type === 'USER' / 'OWNER' / 'ADMIN').
-      // - Hotel creators have createdBy === user.id or business.createdBy === user.id.
-      // - Dedicated staff accounts have type or accessType equal to MANAGER, RECEPTIONIST, etc.
-      // Operational HOUSEKEEPING and generic STAFF accounts are excluded.
       const isHotelCreator = authContext.hotel.createdBy === authContext.user.id || authContext.business.createdBy === authContext.user.id;
-      const isSupervisory = isHotelCreator || [
+      const isAdminAccount = !authContext.user.isStaff && (isHotelCreator || [
         'OWNER',
         'ADMIN',
         'USER',
         'SELLER',
         'MASTER',
-        'MANAGER',
-        'RECEPTIONIST',
       ].includes(userType) || [
         'ADMIN',
         'USER',
         'SELLER',
         'MASTER',
-        'MANAGER',
-        'RECEPTIONIST',
-      ].includes(userRole);
+      ].includes(userRole));
 
-      // Explicitly reject operational housekeeping staff attempting inspection
-      const isHousekeepingStaff = userType === 'HOUSEKEEPING' || userRole === 'HOUSEKEEPING';
+      // For staff accounts, verify explicit 'action:housekeeping:inspect' permission.
+      // Mere housekeeping cleaning rights or staff status NEVER imply inspection rights.
+      const hasExplicitInspectPermission = canConductInspection(authContext.user);
 
-      if (!isSupervisory || isHousekeepingStaff) {
+      if (!isAdminAccount && !hasExplicitInspectPermission) {
         return NextResponse.json({
-          error: 'Forbidden: Only supervisors, managers, or front desk staff can submit inspection results.',
+          error: 'Forbidden: Only administrators or staff with explicit inspection permission can submit inspection results.',
         }, { status: 403 });
       }
 

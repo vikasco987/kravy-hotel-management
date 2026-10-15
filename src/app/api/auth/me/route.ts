@@ -1,31 +1,24 @@
-import { getEffectiveClerkId } from "@/lib/auth-utils";
+import { getAuthUser } from "@/lib/auth-utils";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const userId = await getEffectiveClerkId();
-    if (!userId) {
+    const authUser = await getAuthUser();
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-      select: {
-        id: true,
-        clerkId: true,
-        role: true,
-        name: true,
-        email: true,
-        allowedPaths: true,
-      },
+    return NextResponse.json({
+      id: authUser.id,
+      name: authUser.name,
+      email: authUser.email,
+      role: authUser.role,
+      type: authUser.type,
+      isStaff: !!authUser.isStaff,
+      permissions: authUser.permissions || [],
+      hotelId: authUser.hotelId,
+      status: authUser.status || "active"
     });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(user);
   } catch (error) {
     console.error("GET /api/auth/me error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

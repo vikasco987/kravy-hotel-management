@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAuthContext } from '@/lib/authContext';
 import { Role, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { requirePermission, PERMISSION_CATALOG } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized or Hotel not found' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:staff:edit');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { id } = await params;
@@ -37,7 +43,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const body = await req.json();
-    const { name, role, email, phone, status, password } = body;
+    const { name, role, email, phone, status, password, permissions } = body;
+
+    // Safety constraint: Staff cannot modify permissions unless they have action:staff:manage_permissions
+    // and staff can NEVER modify their own permissions or status
+    if (permissions !== undefined) {
+      const permCheck = requirePermission(authContext.user, 'action:staff:manage_permissions');
+      if (!permCheck.authorized) {
+        return NextResponse.json(permCheck.errorResponse, { status: 403 });
+      }
+      if (authContext.user.isStaff && authContext.user.id === id) {
+        return NextResponse.json({ error: 'Staff members cannot modify their own permissions' }, { status: 403 });
+      }
+    }
 
     const updateData: Prisma.StaffUpdateInput = {};
 
@@ -53,8 +71,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (role !== undefined) {
       const cleanRole = role.toUpperCase() as Role;
       if (!ALLOWED_STAFF_ROLES.includes(cleanRole)) {
-        return NextResponse.json({ 
-          error: `Invalid role. Allowed roles are: ${ALLOWED_STAFF_ROLES.join(', ')}` 
+        return NextResponse.json({
+          error: `Invalid role. Allowed roles are: ${ALLOWED_STAFF_ROLES.join(', ')}`
         }, { status: 400 });
       }
       updateData.role = cleanRole;
@@ -63,8 +81,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     // 3. Email validation & duplicate check
     if (email !== undefined) {
-      const cleanEmail = email && typeof email === 'string' && email.trim() !== '' 
-        ? email.trim().toLowerCase() 
+      const cleanEmail = email && typeof email === 'string' && email.trim() !== ''
+        ? email.trim().toLowerCase()
         : null;
 
       if (cleanEmail && cleanEmail !== staff.email) {
@@ -103,6 +121,28 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       updateData.password = await bcrypt.hash(password, 10);
     }
 
+    // 7. Permissions update
+    if (permissions !== undefined) {
+      if (!Array.isArray(permissions)) {
+        return NextResponse.json({ error: 'Permissions must be an array of strings' }, { status: 400 });
+      }
+      const validCatalogKeys = new Set(PERMISSION_CATALOG.map(p => p.key));
+      const cleanPermissions: string[] = [];
+      for (const p of permissions) {
+        if (typeof p !== 'string') {
+          return NextResponse.json({ error: 'Each permission must be a string key' }, { status: 400 });
+        }
+        const trimmed = p.trim();
+        if (trimmed && !validCatalogKeys.has(trimmed)) {
+          return NextResponse.json({ error: `Invalid permission key: ${trimmed}` }, { status: 400 });
+        }
+        if (trimmed && !cleanPermissions.includes(trimmed)) {
+          cleanPermissions.push(trimmed);
+        }
+      }
+      updateData.permissions = cleanPermissions;
+    }
+
     const updatedStaff = await prisma.staff.update({
       where: { id },
       data: updateData,
@@ -113,6 +153,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         email: true,
         phone: true,
         status: true,
+        permissions: true,
         createdAt: true,
         updatedAt: true,
         _count: {
@@ -140,6 +181,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const authContext = await getAuthContext();
     if (!authContext || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized or Hotel not found' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:staff:edit');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const { id } = await params;

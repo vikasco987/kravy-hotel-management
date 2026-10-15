@@ -1,12 +1,41 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Mail, Phone, Lock, User, ArrowRight, ShieldCheck, RefreshCw, KeyRound, Eye, EyeOff, MessageSquare } from 'lucide-react';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from "react";
+import {
+  Mail,
+  Lock,
+  User,
+  ArrowRight,
+  ShieldCheck,
+  RefreshCw,
+  KeyRound,
+  Eye,
+  EyeOff,
+  BedDouble,
+  CalendarDays,
+  Sparkles,
+  Receipt,
+  Crown,
+  Users,
+  CheckCircle2,
+  Building2,
+  Hotel
+} from "lucide-react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+
+type AuthMode = "admin_login" | "staff_login" | "signup" | "verify" | "forgot" | "reset";
 
 export default function CustomAuthPage() {
-  const [mode, setMode] = useState<'login' | 'signup' | 'verify' | 'forgot' | 'reset'>('login');
+  const [mode, setMode] = useState<AuthMode>(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("mode") === "admin") {
+        return "admin_login";
+      }
+    }
+    return "staff_login";
+  });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -15,9 +44,8 @@ export default function CustomAuthPage() {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const errorStr = urlParams.get("error");
-      if (errorStr === "session_expired") {
-        toast.error("Your session has expired. Please login again to continue.");
-        // Clean URL without refreshing page
+      if (errorStr === "session_expired" || errorStr === "invalid_session") {
+        toast.error("Your session has expired. Please sign in again to continue.");
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (errorStr) {
         toast.error(errorStr);
@@ -28,27 +56,28 @@ export default function CustomAuthPage() {
 
   // Form States
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-    newPassword: '',
-    otp: ''
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    newPassword: "",
+    otp: "",
+    identifier: ""
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
-    // ✅ Phone Validation: Numbers only, max 10 digits
-    if (name === 'phone') {
-      const cleaned = value.replace(/\D/g, '').slice(0, 10);
+
+    // Phone Validation: Numbers only, max 10 digits
+    if (name === "phone") {
+      const cleaned = value.replace(/\D/g, "").slice(0, 10);
       setFormData({ ...formData, [name]: cleaned });
       return;
     }
 
-    // ✅ OTP Validation: Numbers only, max 6 digits
-    if (name === 'otp') {
-      const cleaned = value.replace(/\D/g, '').slice(0, 6);
+    // OTP Validation: Numbers only, max 6 digits
+    if (name === "otp") {
+      const cleaned = value.replace(/\D/g, "").slice(0, 6);
       setFormData({ ...formData, [name]: cleaned });
       return;
     }
@@ -61,30 +90,81 @@ export default function CustomAuthPage() {
     setLoading(true);
 
     try {
-      if (mode === 'signup') {
+      if (mode === "staff_login") {
+        const identifier = (formData.identifier || formData.email || formData.phone).trim();
+        if (!identifier || !formData.password) {
+          toast.error("Please enter your email/phone and password.");
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch("/api/staff/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier, password: formData.password })
+        });
+        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
+
+        if (!res.ok) {
+          throw new Error(data.error || "Invalid credentials. Please verify and try again.");
+        }
+
+        toast.success(`Welcome back, ${data.staff?.name || "Staff Member"}!`);
+        setTimeout(() => {
+          window.location.href = data.redirectUrl || "/dashboard";
+        }, 350);
+      } else if (mode === "admin_login") {
+        const identifier = (formData.identifier || formData.email || formData.phone).trim().toLowerCase();
+        if (!identifier || !formData.password) {
+          toast.error("Please enter your admin email/phone and password.");
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier, password: formData.password })
+        });
+        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
+
+        if (!res.ok) {
+          if (data.notVerified) {
+            setMode("verify");
+            setFormData(prev => ({ ...prev, email: data.email || prev.email }));
+            toast.info(data.error || "Account verification required.");
+            return;
+          }
+          throw new Error(data.error || "Admin login failed. Please check credentials.");
+        }
+
+        toast.success("Signed in successfully as Administrator!");
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 350);
+      } else if (mode === "signup") {
         if (formData.phone.length !== 10) {
           toast.error("Please enter a valid 10-digit phone number.");
           setLoading(false);
           return;
         }
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData)
         });
-        
+
         const responseText = await res.text();
         let data: any = {};
         try {
           data = JSON.parse(responseText);
-        } catch (e) {
-          console.error("RAW_RESPONSE_ERROR:", responseText);
+        } catch {
           throw new Error(`Server Error (${res.status}): ${responseText.substring(0, 50)}...`);
         }
 
         if (!res.ok) {
           if (data.needsVerification) {
-            setMode('verify');
+            setMode("verify");
             setFormData(prev => ({ ...prev, email: data.email || prev.email }));
             toast.info(data.error || "Verification required");
             return;
@@ -92,72 +172,42 @@ export default function CustomAuthPage() {
           throw new Error(data.error || "Failed to register");
         }
         toast.success("OTP sent to your email!");
-        setMode('verify');
-      } 
-      else if (mode === 'verify') {
+        setMode("verify");
+      } else if (mode === "verify") {
         const cleanEmail = formData.email.trim().toLowerCase();
-        console.log("[DEBUG_AUTH] Verifying OTP for:", cleanEmail, "OTP:", formData.otp);
-        const res = await fetch('/api/auth/verify-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: cleanEmail, otp: formData.otp })
         });
         const data = await res.json().catch(() => ({ error: "Invalid server response" }));
-        console.log("[DEBUG_AUTH] Verification Response:", data);
         if (!res.ok) throw new Error(data.error || "Verification failed");
         toast.success("Account verified! Please login.");
-        setMode('login');
-      }
-      else if (mode === 'login') {
-        const identifier = (formData.email || formData.phone).trim().toLowerCase();
-        console.log("[DEBUG_AUTH] Attempting Login with identifier:", identifier);
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier, password: formData.password })
-        });
-        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
-        console.log("[DEBUG_AUTH] Login Response:", data);
-        if (!res.ok) {
-          if (data.notVerified) {
-            console.log("[DEBUG_AUTH] User not verified. Switching to verify mode with email:", data.email);
-            setMode('verify');
-            setFormData(prev => ({ ...prev, email: data.email || prev.email }));
-            toast.info(data.error || "Not verified");
-            return;
-          }
-          throw new Error(data.error || "Login failed");
-        }
-        toast.success("Logged in successfully!");
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 500);
-      }
-      else if (mode === 'forgot') {
-        const res = await fetch('/api/auth/forgot-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        setMode("admin_login");
+      } else if (mode === "forgot") {
+        const res = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: formData.email })
         });
         const data = await res.json().catch(() => ({ error: "Invalid server response" }));
         if (!res.ok) throw new Error(data.error || "Request failed");
         toast.success("Reset OTP sent to your email!");
-        setMode('reset');
-      }
-      else if (mode === 'reset') {
-        const res = await fetch('/api/auth/reset-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            email: formData.email, 
-            otp: formData.otp, 
-            newPassword: formData.newPassword 
+        setMode("reset");
+      } else if (mode === "reset") {
+        const res = await fetch("/api/auth/reset-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: formData.email,
+            otp: formData.otp,
+            newPassword: formData.newPassword
           })
         });
         const data = await res.json().catch(() => ({ error: "Invalid server response" }));
         if (!res.ok) throw new Error(data.error || "Reset failed");
-        toast.success("Password reset successfully! Please login.");
-        setMode('login');
+        toast.success("Password reset successfully! Please sign in.");
+        setMode("admin_login");
       }
     } catch (error: any) {
       console.error("Auth Error:", error);
@@ -167,280 +217,473 @@ export default function CustomAuthPage() {
     }
   };
 
-  const handleResendOTP = async () => {
-    if (!formData.email) return;
-    setLoading(true);
-    try {
-      const res = await fetch('/api/auth/resend-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Resend failed");
-      toast.success("New OTP sent to your email!");
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const isStaffMode = mode === "staff_login";
+  const isAdminMode = mode === "admin_login";
+  const isSignInView = isStaffMode || isAdminMode;
 
   return (
-    <div className="min-h-screen bg-[#F8F6F1] flex font-sans selection:bg-[#0B6B57]/20 text-[#1C2421]">
-      {/* Left Column: Image */}
-      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-[#0B6B57]">
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0B6B57]/90 via-[#0B6B57]/30 to-black/10 z-10" />
-        <img 
-          src="/login-bg.jpg" 
-          alt="Luxury Hotel Lobby" 
-          className="absolute inset-0 w-full h-full object-cover object-center scale-105 animate-[pulse_30s_ease-in-out_infinite_alternate]"
-        />
-        <div className="absolute bottom-16 left-16 right-16 z-20">
-          <div className="mb-6">
-            <h3 className="text-white font-black text-2xl tracking-tight">KRAVY</h3>
-            <p className="text-[#C9A96E] text-xs font-bold tracking-[0.2em] uppercase mt-1">Hotel & Room Management</p>
+    <div className="min-h-screen bg-[#F4F6FB] flex font-sans text-slate-900 selection:bg-indigo-500/20">
+      {/* ========================================================= */}
+      {/* LEFT PROMOTIONAL PANEL (Branding, Hotel image, Feature Cards, Dashboard Mock) */}
+      {/* ========================================================= */}
+      <div className="hidden lg:flex lg:w-[54%] xl:w-[56%] relative flex-col justify-between p-10 xl:p-14 overflow-hidden bg-slate-950 text-white">
+        {/* Background Image with Dark Vignette */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src="/images/hero-hotel.jpg"
+            alt="Luxury Hotel Room"
+            className="w-full h-full object-cover object-center scale-105 filter brightness-[0.45] contrast-[1.05]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-900/40" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/30 via-transparent to-transparent" />
+        </div>
+
+        {/* Top: Hotel Branding */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-amber-500/95 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-amber-500/20 border border-amber-400/40">
+            <Hotel size={24} strokeWidth={2.4} />
           </div>
-          <h2 className="text-5xl font-light text-white mb-4 leading-[1.1]">
-            Manage Your Hotel.<br />
-            <span className="font-bold">Elevate Every Stay.</span>
-          </h2>
-          <p className="text-white/80 text-lg mb-8 max-w-md font-light">
-            Reservations, rooms, guests and operations — beautifully managed from one premium platform.
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-black tracking-tight text-white">KRAVY</span>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400/90 block leading-tight">
+              Hotel Management
+            </span>
+          </div>
+        </div>
+
+        {/* Center: Main Headline, Pitch & 4 Feature Cards */}
+        <div className="relative z-10 my-auto py-6 max-w-xl">
+          <span className="inline-block text-[11px] font-extrabold tracking-[0.2em] uppercase text-amber-400 mb-2.5">
+            Smart Hotel Operations
+          </span>
+          <h1 className="text-4xl xl:text-[44px] font-black tracking-tight leading-[1.12] text-white">
+            Manage your hotel <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-200 to-amber-400">
+              smarter, everyday.
+            </span>
+          </h1>
+          <p className="text-slate-300 text-sm xl:text-base mt-3 leading-relaxed font-normal max-w-lg">
+            A complete hotel management platform to handle reservations, check-ins, housekeeping, billing and more — all in one place.
           </p>
-          <div className="flex items-center gap-6 text-sm font-medium text-white/90">
-            <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#C9A96E]"></div>Reservations</div>
-            <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#C9A96E]"></div>Room Management</div>
-            <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#C9A96E]"></div>Guest Experience</div>
+
+          {/* 4 Feature Cards Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-7">
+            <div className="rounded-2xl bg-slate-900/70 backdrop-blur-md border border-white/10 p-3.5 flex flex-col justify-between hover:border-amber-400/40 transition">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center mb-2">
+                <BedDouble size={16} />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">Room Management</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block leading-tight">Live room status & inventory</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-slate-900/70 backdrop-blur-md border border-white/10 p-3.5 flex flex-col justify-between hover:border-amber-400/40 transition">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2">
+                <CalendarDays size={16} />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">Guest Reservations</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block leading-tight">Bookings & front-desk check-ins</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-slate-900/70 backdrop-blur-md border border-white/10 p-3.5 flex flex-col justify-between hover:border-amber-400/40 transition">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center mb-2">
+                <Receipt size={16} />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">Billing & Invoices</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block leading-tight">Fast, GST-compliant folios</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-slate-900/70 backdrop-blur-md border border-white/10 p-3.5 flex flex-col justify-between hover:border-amber-400/40 transition">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-2">
+                <Sparkles size={16} />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">Housekeeping</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block leading-tight">Cleaning tasks & inspections</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom: Genuine Application Dashboard Preview Card */}
+        <div className="relative z-10 rounded-2xl bg-slate-900/90 backdrop-blur-lg border border-white/15 p-4 shadow-2xl">
+          <div className="flex items-center justify-between pb-3 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="text-xs font-bold text-slate-300 ml-2">Kravy Hotel Operations Console</span>
+            </div>
+            <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Active System
+            </span>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2 pt-3">
+            <div className="rounded-xl bg-white/5 p-2.5 border border-white/5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Available</span>
+              <span className="text-base font-black text-emerald-400 block mt-0.5">Clean</span>
+            </div>
+            <div className="rounded-xl bg-white/5 p-2.5 border border-white/5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Occupied</span>
+              <span className="text-base font-black text-blue-400 block mt-0.5">In House</span>
+            </div>
+            <div className="rounded-xl bg-white/5 p-2.5 border border-white/5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Dirty</span>
+              <span className="text-base font-black text-rose-400 block mt-0.5">Queue</span>
+            </div>
+            <div className="rounded-xl bg-white/5 p-2.5 border border-white/5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Inspect</span>
+              <span className="text-base font-black text-amber-400 block mt-0.5">Audit</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Right Column: Form */}
-      <div className="w-full lg:w-[45%] flex items-center justify-center p-6 relative">
-        <div className="w-full max-w-[420px] bg-white border border-[#E7E2D8] rounded-[24px] p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in fade-in zoom-in-95 duration-500">
-          <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-[#EDF5F1] rounded-xl flex items-center justify-center mx-auto mb-5 border border-[#0B6B57]/10 text-[#0B6B57]">
-              {mode === 'forgot' || mode === 'reset' ? <KeyRound size={24} /> : <ShieldCheck size={24} />}
+      {/* ========================================================= */}
+      {/* RIGHT SIGN-IN PANEL */}
+      {/* ========================================================= */}
+      <div className="w-full lg:w-[46%] xl:w-[44%] flex items-center justify-center p-6 sm:p-10 relative overflow-y-auto">
+        <div className="w-full max-w-[430px] my-auto">
+          {/* Top Logo for Mobile Screens */}
+          <div className="flex lg:hidden items-center justify-center gap-2.5 mb-6">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-md">
+              <Hotel size={22} strokeWidth={2.5} />
             </div>
-            <h1 className="text-2xl font-bold text-[#1C2421] tracking-tight">
-              {mode === 'login' ? 'Welcome Back' : 
-               mode === 'signup' ? 'Create Account' : 
-               mode === 'verify' ? 'Verify Email' : 
-               mode === 'forgot' ? 'Reset Password' : 'New Password'}
-            </h1>
-            <p className="text-[#6F8179] text-sm mt-2">
-              {mode === 'login' ? 'Sign in to manage your property' : 
-               mode === 'signup' ? 'Join the premium hotel PMS' : 
-               mode === 'forgot' ? 'Enter your email to receive an OTP' :
-               mode === 'reset' ? 'Enter OTP and your new password' :
-               'Enter the 6-digit code sent to your email'}
+            <div className="text-left">
+              <span className="text-lg font-black tracking-tight text-slate-900 block leading-tight">KRAVY</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 block">Hotel Management</span>
+            </div>
+          </div>
+
+          {/* Heading Icon & Welcome */}
+          <div className="text-center mb-7">
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+              {mode === "forgot" || mode === "reset" ? (
+                <KeyRound size={26} />
+              ) : isStaffMode ? (
+                <Users size={26} className="text-indigo-600" />
+              ) : (
+                <Crown size={26} className="text-amber-600" />
+              )}
+            </div>
+
+            <h2 className="text-2xl sm:text-[26px] font-black text-slate-900 tracking-tight">
+              {isSignInView ? "Welcome Back" :
+               mode === "signup" ? "Create Admin Account" :
+               mode === "verify" ? "Verify Email" :
+               mode === "forgot" ? "Reset Password" : "New Password"}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1.5 font-medium">
+              {isStaffMode ? "Sign in to your Kravy Hotel Management staff account." :
+               isAdminMode ? "Sign in to your Kravy Hotel Management administrator account." :
+               mode === "signup" ? "Register your hotel property management account." :
+               mode === "forgot" ? "Enter your admin email to receive a recovery code." :
+               mode === "reset" ? "Enter the verification code and your new password." :
+               "Enter the 6-digit code sent to your email."}
             </p>
           </div>
 
+          {/* Tab Selector: Admin Login vs Staff Login */}
+          {isSignInView && (
+            <div className="bg-slate-200/70 p-1 rounded-2xl flex items-center mb-6 border border-slate-300/50">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("admin_login");
+                  setShowPassword(false);
+                }}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  isAdminMode
+                    ? "bg-white text-slate-900 shadow-sm border border-slate-200/60"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Crown size={14} className={isAdminMode ? "text-amber-500" : "text-slate-400"} />
+                <span>Admin Login</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("staff_login");
+                  setShowPassword(false);
+                }}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  isStaffMode
+                    ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/25"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Users size={14} className={isStaffMode ? "text-white" : "text-slate-400"} />
+                <span>Staff Login</span>
+              </button>
+            </div>
+          )}
+
+          {/* MAIN AUTH FORM */}
           <form onSubmit={handleAction} className="space-y-4">
-            {(mode === 'signup') && (
+            {/* Full Name (Sign Up only) */}
+            {mode === "signup" && (
               <div className="relative group">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6F8179] group-focus-within:text-[#0B6B57] transition-colors" size={18} />
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="Full Name"
-                  required
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full bg-white border border-[#E7E2D8] rounded-xl py-3.5 pl-11 pr-4 text-[#1C2421] placeholder:text-[#6F8179]/60 focus:outline-none focus:border-[#0B6B57] focus:ring-1 focus:ring-[#0B6B57] transition-all"
-                />
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 block">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={17} />
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="e.g. Rahul Sharma"
+                    required
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 transition"
+                  />
+                </div>
               </div>
             )}
 
-            {(mode === 'signup' || mode === 'forgot' || mode === 'reset') && (
+            {/* Email for Reset / Forgot / Sign Up */}
+            {(mode === "signup" || mode === "forgot" || mode === "reset") && (
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6F8179] group-focus-within:text-[#0B6B57] transition-colors" size={18} />
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="Email Address"
-                  required
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full bg-white border border-[#E7E2D8] rounded-xl py-3.5 pl-11 pr-4 text-[#1C2421] placeholder:text-[#6F8179]/60 focus:outline-none focus:border-[#0B6B57] focus:ring-1 focus:ring-[#0B6B57] transition-all"
-                />
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 block">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={17} />
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="name@hotel.com"
+                    required
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 transition"
+                  />
+                </div>
               </div>
             )}
 
-            {mode === 'signup' && (
+            {/* Identifier (Email or Phone Number for Staff/Admin Login) */}
+            {isSignInView && (
               <div className="relative group">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6F8179] group-focus-within:text-[#0B6B57] transition-colors" size={18} />
-                <input
-                  type="tel"
-                  name="phone"
-                  placeholder="Phone Number"
-                  required
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  className="w-full bg-white border border-[#E7E2D8] rounded-xl py-3.5 pl-11 pr-4 text-[#1C2421] placeholder:text-[#6F8179]/60 focus:outline-none focus:border-[#0B6B57] focus:ring-1 focus:ring-[#0B6B57] transition-all"
-                />
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 block">
+                  Email or Phone Number
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={17} />
+                  <input
+                    type="text"
+                    name="identifier"
+                    autoComplete="username"
+                    placeholder={isStaffMode ? "Staff email or 10-digit phone" : "Admin email or phone"}
+                    required
+                    value={formData.identifier}
+                    onChange={handleInputChange}
+                    className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 transition"
+                  />
+                </div>
               </div>
             )}
 
-            {mode === 'login' && (
+            {/* Password */}
+            {(isSignInView || mode === "signup") && (
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6F8179] group-focus-within:text-[#0B6B57] transition-colors" size={18} />
-                <input
-                  type="text"
-                  name="email"
-                  placeholder="Email or Phone Number"
-                  required
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full bg-white border border-[#E7E2D8] rounded-xl py-3.5 pl-11 pr-4 text-[#1C2421] placeholder:text-[#6F8179]/60 focus:outline-none focus:border-[#0B6B57] focus:ring-1 focus:ring-[#0B6B57] transition-all"
-                />
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 block">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={17} />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    required
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
             )}
 
-            {(mode === 'login' || mode === 'signup') && (
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6F8179] group-focus-within:text-[#0B6B57] transition-colors" size={18} />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  placeholder="Password"
-                  required
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="w-full bg-white border border-[#E7E2D8] rounded-xl py-3.5 pl-11 pr-11 text-[#1C2421] placeholder:text-[#6F8179]/60 focus:outline-none focus:border-[#0B6B57] focus:ring-1 focus:ring-[#0B6B57] transition-all"
-                />
+            {/* Forgot Password Link - Only for Admin accounts where recovery flow exists */}
+            {isAdminMode && (
+              <div className="flex justify-end pt-0.5">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6F8179] hover:text-[#0B6B57] transition-colors"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            )}
-
-            {mode === 'login' && (
-              <div className="flex justify-end pt-1">
-                <button 
-                  type="button" 
-                  onClick={() => setMode('forgot')}
-                  className="text-xs font-medium text-[#6F8179] hover:text-[#0B6B57] transition-colors"
+                  onClick={() => setMode("forgot")}
+                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline transition"
                 >
                   Forgot Password?
                 </button>
               </div>
             )}
 
-            {mode === 'reset' && (
+            {/* Password Reset Input */}
+            {mode === "reset" && (
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6F8179] group-focus-within:text-[#0B6B57] transition-colors" size={18} />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="newPassword"
-                  placeholder="New Password"
-                  required
-                  value={formData.newPassword}
-                  onChange={handleInputChange}
-                  className="w-full bg-white border border-[#E7E2D8] rounded-xl py-3.5 pl-11 pr-11 text-[#1C2421] placeholder:text-[#6F8179]/60 focus:outline-none focus:border-[#0B6B57] focus:ring-1 focus:ring-[#0B6B57] transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6F8179] hover:text-[#0B6B57] transition-colors"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            )}
-
-            {(mode === 'verify' || mode === 'reset') && (
-              <div className="space-y-4">
-                {mode === 'verify' && (
-                  <div className="relative group">
-                    <input
-                      type="email"
-                      name="email"
-                      disabled
-                      value={formData.email}
-                      className="w-full bg-[#F8F6F1] border border-[#E7E2D8] rounded-xl py-3.5 px-4 text-[#6F8179] cursor-not-allowed text-sm focus:outline-none"
-                    />
-                  </div>
-                )}
-                <div className="relative group">
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 block">
+                  New Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={17} />
                   <input
-                    type="text"
-                    name="otp"
-                    placeholder="000000"
-                    maxLength={6}
+                    type={showPassword ? "text" : "password"}
+                    name="newPassword"
+                    placeholder="Enter at least 6 characters"
                     required
-                    autoFocus
-                    value={formData.otp}
+                    value={formData.newPassword}
                     onChange={handleInputChange}
-                    className="w-full bg-white border-2 border-[#0B6B57]/20 focus:border-[#0B6B57] rounded-xl py-4 px-4 text-center text-3xl font-bold tracking-[0.4em] text-[#1C2421] placeholder:text-[#E7E2D8] focus:outline-none focus:ring-4 focus:ring-[#0B6B57]/10 transition-all"
+                    className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 transition"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
-                {mode === 'verify' && (
-                  <div className="flex justify-center pt-2">
-                    <button 
-                      type="button" 
-                      onClick={handleResendOTP}
-                      disabled={loading}
-                      className="text-xs font-medium text-[#6F8179] hover:text-[#0B6B57] transition-colors"
-                    >
-                      Didn't receive code? Resend
-                    </button>
-                  </div>
-                )}
               </div>
             )}
 
+            {/* OTP Verification Input */}
+            {(mode === "verify" || mode === "reset") && (
+              <div className="space-y-3 pt-1">
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block text-center">
+                  Enter 6-Digit OTP Code
+                </label>
+                <input
+                  type="text"
+                  name="otp"
+                  placeholder="000000"
+                  maxLength={6}
+                  required
+                  autoFocus
+                  value={formData.otp}
+                  onChange={handleInputChange}
+                  className="w-full bg-white border-2 border-indigo-200 focus:border-indigo-600 rounded-xl py-3.5 px-4 text-center text-2xl font-black tracking-[0.3em] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-600/10 transition"
+                />
+              </div>
+            )}
+
+            {/* Primary Action Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#0B6B57] hover:bg-[#095746] disabled:opacity-70 disabled:hover:bg-[#0B6B57] text-white font-medium py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm mt-6"
+              className={`w-full py-3.5 px-4 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed ${
+                isStaffMode
+                  ? "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/25"
+                  : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/25"
+              }`}
             >
-              {loading ? <RefreshCw className="animate-spin" size={20} /> : (
+              {loading ? (
+                <RefreshCw className="animate-spin" size={18} />
+              ) : (
                 <>
-                  {mode === 'login' ? 'Sign In' : 
-                   mode === 'signup' ? 'Create Account' : 
-                   mode === 'forgot' ? 'Send OTP' :
-                   mode === 'reset' ? 'Reset Password' : 'Verify & Activate'}
-                  <ArrowRight size={18} />
+                  <span>
+                    {isStaffMode ? "Sign In as Staff" :
+                     isAdminMode ? "Sign In as Admin" :
+                     mode === "signup" ? "Create Account" :
+                     mode === "forgot" ? "Send Recovery Code" :
+                     mode === "reset" ? "Reset Password" : "Verify & Activate"}
+                  </span>
+                  <ArrowRight size={16} />
                 </>
               )}
             </button>
 
-            {/* Helper links */}
-            <div className="mt-6 text-center text-sm">
-              {mode === 'login' ? (
-                <p className="text-[#6F8179]">
-                  Don't have an account?{' '}
-                  <button type="button" onClick={() => setMode('signup')} className="text-[#C9A96E] font-medium hover:text-[#B6965E] transition-colors">Sign Up</button>
-                </p>
-              ) : mode === 'signup' ? (
-                <p className="text-[#6F8179]">
-                  Already have an account?{' '}
-                  <button type="button" onClick={() => setMode('login')} className="text-[#0B6B57] font-medium hover:text-[#095746] transition-colors">Sign In</button>
-                </p>
-              ) : (
-                <button type="button" onClick={() => { setMode('login'); setShowPassword(false); }} className="text-[#6F8179] hover:text-[#1C2421] text-xs mt-4 font-medium transition-colors flex items-center justify-center gap-1 mx-auto"><ArrowRight size={14} className="rotate-180" /> Back to Login</button>
-              )}
-            </div>
-            
-            {/* Support Info */}
-            <div className="mt-8 pt-6 border-t border-[#E7E2D8] text-center">
-              <p className="text-[#6F8179] text-xs font-medium mb-3">Need Help?</p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <a href="tel:+919403893991" className="flex items-center justify-center gap-1.5 text-[#1C2421] hover:text-[#0B6B57] transition-colors text-xs font-medium bg-[#F8F6F1] hover:bg-[#EDF5F1] py-2 px-4 rounded-lg border border-[#E7E2D8]">
-                  <Phone size={14} className="text-[#0B6B57]" /> Call Support
-                </a>
-                <a href="https://wa.me/919403893991" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 text-[#1C2421] hover:text-[#0B6B57] transition-colors text-xs font-medium bg-[#F8F6F1] hover:bg-[#EDF5F1] py-2 px-4 rounded-lg border border-[#E7E2D8]">
-                  <MessageSquare size={14} className="text-[#0B6B57]" /> WhatsApp
-                </a>
+            {/* Secondary Option: Switch between Admin and Staff */}
+            {isStaffMode && (
+              <div className="pt-2 text-center">
+                <div className="relative my-3">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200" />
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase font-bold text-slate-400">
+                    <span className="bg-[#F4F6FB] px-2">or</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMode("admin_login")}
+                  className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <Crown size={14} className="text-amber-500" />
+                  <span>Login as Admin Instead</span>
+                </button>
               </div>
-            </div>
+            )}
+
+            {isAdminMode && (
+              <div className="pt-2 text-center">
+                <div className="relative my-3">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200" />
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase font-bold text-slate-400">
+                    <span className="bg-[#F4F6FB] px-2">or</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMode("staff_login")}
+                  className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <Users size={14} className="text-indigo-600" />
+                  <span>Login as Staff Member</span>
+                </button>
+
+                <p className="text-xs text-slate-500 mt-4">
+                  New hotel property?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setMode("signup")}
+                    className="text-indigo-600 font-bold hover:underline"
+                  >
+                    Register Admin
+                  </button>
+                </p>
+              </div>
+            )}
+
+            {/* Return from Forgot / Reset / Signup to Login */}
+            {!isSignInView && (
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("admin_login");
+                    setShowPassword(false);
+                  }}
+                  className="text-xs text-slate-600 hover:text-slate-900 font-bold transition flex items-center justify-center gap-1 mx-auto"
+                >
+                  <ArrowRight size={14} className="rotate-180" />
+                  <span>Back to Sign In</span>
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </div>

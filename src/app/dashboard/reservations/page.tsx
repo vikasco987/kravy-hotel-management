@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  CalendarDays, 
-  CheckCircle2, 
-  LogOut, 
-  CalendarPlus, 
+import {
+  CalendarDays,
+  CheckCircle2,
+  LogOut,
+  CalendarPlus,
   CalendarCheck,
   Search,
   Calendar,
@@ -60,6 +60,9 @@ export default function ReservationsPage() {
   const [paginationData, setPaginationData] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  const [canPrintInvoice, setCanPrintInvoice] = useState(true);
+  const [canPrintReceipt, setCanPrintReceipt] = useState(true);
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [apiRequests, setApiRequests] = useState<any[]>([]);
   const [isApiJsonOpen, setIsApiJsonOpen] = useState(false);
@@ -79,7 +82,7 @@ export default function ReservationsPage() {
   useEffect(() => {
     setLoading(true);
     const abortController = new AbortController();
-    
+
     const params = new URLSearchParams({
       page: page.toString(),
       limit: '10',
@@ -116,6 +119,8 @@ export default function ReservationsPage() {
           setData({ stats: d.stats, reservations: d.reservations });
           if (d.pagination) setPaginationData(d.pagination);
           if (d.isAdmin !== undefined) setIsAdmin(d.isAdmin);
+          if (d.canPrintInvoice !== undefined) setCanPrintInvoice(d.canPrintInvoice);
+          if (d.canPrintReceipt !== undefined) setCanPrintReceipt(d.canPrintReceipt);
         }
         setLoading(false);
       })
@@ -123,7 +128,7 @@ export default function ReservationsPage() {
         if (e.name === 'AbortError') {
            return; // Ignore aborted requests
         }
-        
+
         setApiRequests(prev => [...prev, {
           url,
           method: 'GET',
@@ -135,7 +140,7 @@ export default function ReservationsPage() {
         console.error(e);
         setLoading(false);
       });
-      
+
       return () => abortController.abort();
   }, [page, debouncedSearch, statusFilter, checkInDateFilter, checkOutDateFilter]);
 
@@ -170,18 +175,18 @@ export default function ReservationsPage() {
 
   const stats = data?.stats || { total: 0, checkedIn: 0, checkedOut: 0, upcomingCheckIns: 0, upcomingCheckOuts: 0 };
   const allReservations = data?.reservations || [];
-  
+
   const reservations = allReservations;
 
   return (
     <div className="min-h-screen bg-[#F4F6F9] font-sans">
       <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-6">
-        
+
         {/* HERO HEADER */}
         <div className="relative w-full h-[180px] md:h-[220px] rounded-2xl overflow-hidden flex flex-col justify-center shadow-md">
            <img src="/images/reservations-banner.jpg" className="absolute inset-0 w-full h-full object-cover object-center" alt="Background" />
            <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-transparent w-[90%] md:w-[70%]"></div>
-           
+
            <div className="relative z-10 px-6 md:px-10 flex flex-col md:flex-row items-start md:items-center gap-5 mb-4">
              <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-white/80 backdrop-blur-md flex items-center justify-center text-indigo-600 shadow-sm border border-white/50">
                <CalendarDays size={32} strokeWidth={2.5} />
@@ -205,7 +210,7 @@ export default function ReservationsPage() {
                 <CalendarDays size={20} />
              </div>
            </div>
-           
+
            {/* Card 2 */}
            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
              <div className="flex items-center gap-4">
@@ -270,7 +275,7 @@ export default function ReservationsPage() {
                  <Search size={16} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by guest name, room, or reservation ID..." className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-gray-900" />
               </div>
-              
+
               <div className="relative flex items-center bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2 cursor-pointer hover:bg-gray-50">
                  <Calendar size={16} className="text-gray-400 mr-2" />
                  <div className="flex flex-col">
@@ -278,7 +283,7 @@ export default function ReservationsPage() {
                    <input type="date" value={checkInDateFilter} onChange={(e) => { setCheckInDateFilter(e.target.value); setPage(1); }} className="text-xs font-bold text-gray-700 outline-none bg-transparent" />
                  </div>
               </div>
-              
+
               <div className="relative flex items-center bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2 cursor-pointer hover:bg-gray-50">
                  <Calendar size={16} className="text-gray-400 mr-2" />
                  <div className="flex flex-col">
@@ -286,7 +291,7 @@ export default function ReservationsPage() {
                    <input type="date" value={checkOutDateFilter} onChange={(e) => { setCheckOutDateFilter(e.target.value); setPage(1); }} className="text-xs font-bold text-gray-700 outline-none bg-transparent" />
                  </div>
               </div>
-              
+
               <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-3 min-w-[140px] cursor-pointer hover:bg-gray-50 outline-none text-xs font-bold text-gray-700 appearance-none">
                   <option value="All">All Status</option>
                   <option value="Today">Today's Check-ins</option>
@@ -374,7 +379,7 @@ export default function ReservationsPage() {
                           const today = dayjs().startOf('day');
                           const expected = dayjs(res.checkOutDate).startOf('day');
                           const isOverdue = res.status === 'CHECKED_IN' && today.isAfter(expected);
-                          
+
                           if (res.status === 'CHECKED_OUT') {
                              return (
                                 <div className="flex flex-col">
@@ -454,12 +459,16 @@ export default function ReservationsPage() {
              }
              router.push(`/dashboard/checkout?roomId=${res.firstActiveRoomId}`);
            }} className="w-full text-left px-4 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Check-out</button>
-           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Print Invoice</button>
+           {canPrintInvoice && (
+             <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Print Invoice</button>
+           )}
          </>
       )}
       {res.status === "CHECKED_OUT" && (
          <>
-           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Print Invoice</button>
+           {canPrintInvoice && (
+             <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Print Invoice</button>
+           )}
            <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Payment/History</button>
          </>
       )}
@@ -474,7 +483,7 @@ export default function ReservationsPage() {
                </tbody>
              </table>
            </div>
-           
+
            {/* PAGINATION FOOTER */}
            {reservations.length > 0 && (
              <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
@@ -483,23 +492,23 @@ export default function ReservationsPage() {
                </span>
                {paginationData.totalPages > 1 && (
                  <div className="flex items-center gap-2">
-                   <button 
+                   <button
                      onClick={() => setPage(p => Math.max(1, p - 1))}
                      disabled={page === 1}
                      className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed">
                      <ChevronLeft size={14} />
                    </button>
-                   
+
                    {Array.from({ length: paginationData.totalPages }).map((_, i) => {
                      const p = i + 1;
                      if (p === 1 || p === paginationData.totalPages || (p >= page - 1 && p <= page + 1)) {
                        return (
-                         <button 
+                         <button
                            key={p}
                            onClick={() => setPage(p)}
                            className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs transition ${
-                             page === p 
-                               ? 'bg-indigo-600 text-white shadow-sm' 
+                             page === p
+                               ? 'bg-indigo-600 text-white shadow-sm'
                                : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
                            }`}>
                            {p}
@@ -510,8 +519,8 @@ export default function ReservationsPage() {
                      }
                      return null;
                    })}
-                   
-                   <button 
+
+                   <button
                      onClick={() => setPage(p => Math.min(paginationData.totalPages, p + 1))}
                      disabled={page === paginationData.totalPages}
                      className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed">
@@ -531,16 +540,16 @@ export default function ReservationsPage() {
               <p className="text-sm font-medium text-gray-500 mb-6">
                 Are you sure you want to delete reservation <strong>#RES-{deleteModalRes.reservationNumber}</strong> for guest <strong>{deleteModalRes.guestName}</strong>? This action cannot be undone.
               </p>
-              
+
               <div className="flex gap-3 justify-end">
-                <button 
+                <button
                   disabled={isDeleting}
-                  onClick={() => setDeleteModalRes(null)} 
+                  onClick={() => setDeleteModalRes(null)}
                   className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   disabled={isDeleting}
                   onClick={async () => {
                     setIsDeleting(true);
@@ -558,7 +567,7 @@ export default function ReservationsPage() {
                     }
                     setIsDeleting(false);
                     setDeleteModalRes(null);
-                  }} 
+                  }}
                   className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition"
                 >
                   {isDeleting ? 'Deleting...' : 'Delete'}
@@ -576,11 +585,11 @@ export default function ReservationsPage() {
         />
       )}
 
-      <ApiJsonDebugger 
-        apiRequests={apiRequests} 
-        isOpen={isApiJsonOpen} 
-        onClose={() => setIsApiJsonOpen(false)} 
-        onClear={() => setApiRequests([])} 
+      <ApiJsonDebugger
+        apiRequests={apiRequests}
+        isOpen={isApiJsonOpen}
+        onClose={() => setIsApiJsonOpen(false)}
+        onClear={() => setApiRequests([])}
       />
 
     </div>

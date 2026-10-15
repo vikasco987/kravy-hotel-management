@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission, hasPermission } from '@/lib/permissions';
 
 const prisma = new PrismaClient();
 
@@ -13,6 +14,11 @@ export async function DELETE(
     const authContext = await getAuthContext();
     if (!authContext || !authContext.user || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'action:reservations:cancel');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const hotelId = authContext.hotel.id;
@@ -74,6 +80,11 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const authCheck = requirePermission(authContext.user, 'page:reservations');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
+    }
+
     const hotelId = authContext.hotel.id;
     const reservationId = params.id;
 
@@ -83,7 +94,7 @@ export async function GET(
 
     const reservation = await prisma.reservation.findUnique({
       where: { id: reservationId },
-      include: { 
+      include: {
         guest: true,
         rooms: true,
         stay: {
@@ -122,10 +133,10 @@ export async function GET(
         for (const sr of reservation.stay.stayRooms) {
             const checkIn = new Date(sr.checkInDate);
             checkIn.setHours(0, 0, 0, 0);
-            
+
             const outDate = sr.checkOutDate ? new Date(sr.checkOutDate) : new Date(todayDate);
             outDate.setHours(0, 0, 0, 0);
-            
+
             let actualNights = Math.round((outDate.getTime() - checkIn.getTime()) / 86400000);
             if (actualNights < 1) actualNights = 1;
 
@@ -145,7 +156,7 @@ export async function GET(
                             chargeMode: c.chargeMode || 'FIXED'
                         }))
                 });
-                
+
                 sr.nights = actualNights;
                 sr.grossAmount = pricing.grossAmount;
                 sr.discountAmount = pricing.discountAmount;
@@ -189,7 +200,7 @@ export async function GET(
             }
             const extrasTotal = reservation.stay.roomCharges.reduce((acc, c) => acc + (c.amount * (c.quantity || 1)), 0);
             reservation.stay.invoice.subtotal = invSubtotal + extrasTotal;
-            reservation.stay.invoice.taxAmount = invTax; 
+            reservation.stay.invoice.taxAmount = invTax;
             reservation.stay.invoice.taxableAmount = invTaxable;
             reservation.stay.invoice.cgstAmount = invCgst;
             reservation.stay.invoice.sgstAmount = invSgst;
@@ -197,7 +208,15 @@ export async function GET(
         }
     }
 
-    return NextResponse.json({ success: true, reservation, roomDetails: rooms }, { status: 200 });
+    return NextResponse.json({
+      success: true,
+      reservation,
+      roomDetails: rooms,
+      canPrintInvoice: hasPermission(authContext.user, 'action:printing:invoice_a4'),
+      canPrintReceipt: hasPermission(authContext.user, 'action:printing:invoice_80mm') || hasPermission(authContext.user, 'action:printing:invoice_58mm') || hasPermission(authContext.user, 'action:printing:payment_receipt'),
+      canPrint80mm: hasPermission(authContext.user, 'action:printing:invoice_80mm'),
+      canPrint58mm: hasPermission(authContext.user, 'action:printing:invoice_58mm')
+    }, { status: 200 });
 
   } catch (error: any) {
     console.error('Error fetching reservation:', error);
@@ -217,14 +236,19 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const authCheck = requirePermission(authContext.user, 'action:reservations:edit');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
+    }
+
     const hotelId = authContext.hotel.id;
     const reservationId = params.id;
     const body = await req.json();
-    
-    const { 
+
+    const {
       guestName, guestPhone, guestEmail, guestAddress,
       checkInDate, checkOutDate, nights,
-      rooms, 
+      rooms,
       totalAmount, advanceAmount, paymentMode,
       source
     } = body;
@@ -259,7 +283,7 @@ export async function PUT(
           }
        });
 
-       // For rooms, it's safer to delete existing reservationRooms and recreate them 
+       // For rooms, it's safer to delete existing reservationRooms and recreate them
        // if the reservation is not yet checked in.
        if (!reservation.stay) {
            await tx.reservationRoom.deleteMany({
@@ -277,7 +301,7 @@ export async function PUT(
                      ]
                   }
                });
-               
+
                if (existing) {
                    throw new Error(`Room ${room.roomId} is already booked for these dates.`);
                }

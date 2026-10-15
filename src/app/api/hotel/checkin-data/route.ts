@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthContext } from '@/lib/authContext';
+import { requirePermission } from '@/lib/permissions';
 
 export async function GET(req: Request) {
   try {
     const authContext = await getAuthContext();
     if (!authContext || !authContext.user || !authContext.hotel) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = requirePermission(authContext.user, 'page:checkin');
+    if (!authCheck.authorized) {
+      return NextResponse.json(authCheck.errorResponse, { status: 403 });
     }
 
     const hotelId = authContext.hotel.id;
@@ -226,7 +232,9 @@ export async function GET(req: Request) {
         inHouse,
         checkOuts
       },
-      isAdmin: authContext.user.type === 'ADMIN' || authContext.user.type === 'OWNER' || authContext.business?.createdBy === authContext.user.id
+      isAdmin: authContext.user.type === 'ADMIN' || authContext.user.type === 'OWNER' || authContext.business?.createdBy === authContext.user.id,
+      canPerformCheckin: authContext.user.type !== 'STAFF' || (Array.isArray(authContext.user.permissions) && authContext.user.permissions.includes('action:checkin:perform')),
+      canSettlePayment: authContext.user.type !== 'STAFF' || (Array.isArray(authContext.user.permissions) && authContext.user.permissions.includes('action:checkout:settle_payment'))
     });
   } catch (error: any) {
     console.error('Failed to fetch checkin data:', error);

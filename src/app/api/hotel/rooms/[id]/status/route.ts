@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { RoomStatus } from '@prisma/client';
 import { getAuthContext } from '@/lib/authContext';
 import { getStandardChecklistJson, isChecklistEmpty } from '@/lib/housekeeping';
+import { requirePermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { hotel } = authContext;
     const { id } = await params;
     const body = await req.json();
     const { status } = body;
@@ -22,6 +22,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: 'Invalid room status' }, { status: 400 });
     }
+
+    // Require action:rooms:change_status, with fallback for housekeeping clean setting DIRTY
+    const authCheck = requirePermission(authContext.user, 'action:rooms:change_status');
+    if (!authCheck.authorized) {
+      const isHousekeeperCleaning = status === 'DIRTY' && requirePermission(authContext.user, 'action:housekeeping:clean').authorized;
+      if (!isHousekeeperCleaning) {
+        return NextResponse.json(authCheck.errorResponse, { status: 403 });
+      }
+    }
+
+    const { hotel } = authContext;
 
     // Ensure the room belongs to the authenticated hotel and check for active stays
     const room = await prisma.room.findFirst({
