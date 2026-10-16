@@ -292,16 +292,6 @@ export default function FloorsManagementPage() {
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
-              onClick={() => fetchFloorsData(true)}
-              disabled={refreshing}
-              title="Refresh floors data"
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-xs font-bold hover:bg-gray-50 transition shadow-sm disabled:opacity-50"
-            >
-              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-              <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
-            </button>
-
-            <button
               onClick={() => setIsApiJsonOpen(true)}
               className="flex items-center gap-1.5 bg-slate-800 text-white hover:bg-slate-700 px-3.5 py-2.5 rounded-xl font-bold text-xs transition shadow-sm whitespace-nowrap"
             >
