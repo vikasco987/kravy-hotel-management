@@ -1926,15 +1926,14 @@ function DashboardContent() {
       )}
 
       {/* Add Floor Modal */}
-      {/* Add Floor Modal */}
       {isAddFloorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
             <form onSubmit={handleAddFloor} className="p-6">
-              <h2 className="text-lg font-bold mb-4">Add New Floor</h2>
+              <h2 className="text-lg font-bold mb-4 text-gray-900">Add New Floor</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  <label className="block text-xs font-semibold text-gray-900 mb-1">
                     Floor Name
                   </label>
                   <input
@@ -1942,7 +1941,7 @@ function DashboardContent() {
                     value={newFloorName}
                     onChange={(e) => setNewFloorName(e.target.value)}
                     placeholder="e.g., 3rd Floor"
-                    className="w-full border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gray-300 outline-none"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-400 focus:border-gray-400 outline-none"
                     required
                   />
                 </div>
@@ -1951,13 +1950,13 @@ function DashboardContent() {
                 <button
                   type="button"
                   onClick={() => setIsAddFloorOpen(false)}
-                  className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800"
+                  className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
                 >
                   Save Floor
                 </button>
