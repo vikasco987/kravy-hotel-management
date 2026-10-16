@@ -478,11 +478,11 @@ export default function StaffManagementPage() {
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => setIsApiJsonOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs shadow-sm transition-all shrink-0"
+              className="flex items-center gap-1.5 bg-slate-800 text-white hover:bg-slate-700 px-3.5 py-2.5 rounded-xl font-bold text-xs transition shadow-sm whitespace-nowrap"
               title="View Staff API JSON and Network Logs"
             >
-              <Code size={15} strokeWidth={2.5} />
-              <span>API JSON Debugger</span>
+              <Code size={14} strokeWidth={2.5} />
+              <span>API JSON</span>
             </button>
             <button
               onClick={openAddModal}
