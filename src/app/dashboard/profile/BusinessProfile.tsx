@@ -321,25 +321,16 @@ export default function BusinessProfile({
           <div>
             <h3 className="text-xs font-bold text-[var(--kravy-text-muted)] mb-5 uppercase tracking-widest flex items-center gap-2">
               <div className="w-1 h-3 bg-purple-500 rounded-full" />
-              Business Details
+              Property & Tax Details
             </h3>
 
             <div className="space-y-2 bg-[var(--kravy-bg-2)] p-6 rounded-3xl border border-[var(--kravy-border)]">
-              <Info label="Business Type" value={data.businessType} />
-              <Info label="GST Number" value={data.gstNumber} fallback="Not Registered" />
+              <Info label="Property Type" value={data.businessType} />
+              <Info label="GSTIN" value={data.gstNumber} fallback="Not Registered" />
               <Info label="Address" value={data.businessAddress} />
               <Info label="State" value={data.state} />
               <Info label="District" value={data.district} />
               <Info label="PIN Code" value={data.pinCode} />
-              <Info label="FSSAI Number" value={data.fssaiNumber} fallback="Not Added" />
-              {data.fssaiNumber && (
-                <div className="flex justify-between gap-4 text-xs py-1">
-                  <span className="text-[var(--kravy-text-muted)] font-medium italic">Print FSSAI on Bill</span>
-                  <span className={`font-bold ${data.fssaiEnabled ? "text-green-500" : "text-red-500"}`}>
-                    {data.fssaiEnabled ? "ENABLED" : "DISABLED"}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         </div>

@@ -19,7 +19,7 @@ export default function Page() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/profiles", {
+      const res = await fetch("/api/profile", {
         cache: "no-store",
       });
 
@@ -30,8 +30,15 @@ export default function Page() {
 
       const data = await res.json();
       
-      setProfiles(data.profiles || []);
-      setEnableMultipleProfiles(data.enableMultipleProfiles || false);
+      // Handle both { profiles: [...] } and direct profile object returns
+      if (Array.isArray(data?.profiles)) {
+        setProfiles(data.profiles);
+      } else if (data && typeof data === 'object' && (data.id || data.businessName || data.userId)) {
+        setProfiles([data]);
+      } else {
+        setProfiles([]);
+      }
+      setEnableMultipleProfiles(false);
       
     } catch (err) {
       console.error("Profile fetch error:", err);
@@ -46,19 +53,7 @@ export default function Page() {
   }, [fetchProfiles]);
 
   const toggleMultipleProfiles = async () => {
-    const newValue = !enableMultipleProfiles;
-    setEnableMultipleProfiles(newValue);
-    
-    // Save to server
-    try {
-      await fetch("/api/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enableMultipleProfiles: newValue })
-      });
-    } catch (e) {
-      console.error(e);
-    }
+    // Disabled in single-profile mode
   };
 
   if (loading) {
@@ -100,10 +95,13 @@ export default function Page() {
         <div className="space-y-4 max-w-5xl mx-auto">
           <Card className="p-6 flex items-center justify-between rounded-3xl bg-[var(--kravy-surface)] border-[var(--kravy-border)]">
             <div>
-              <h3 className="font-bold text-lg">Multi-Business Profiles</h3>
-              <p className="text-sm text-slate-500">Manage multiple restaurants from a single account.</p>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-lg">Multi-Business Profiles</h3>
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Coming Soon</span>
+              </div>
+              <p className="text-sm text-slate-500">Manage multiple properties from a single account.</p>
             </div>
-            <Switch checked={enableMultipleProfiles} onCheckedChange={toggleMultipleProfiles} />
+            <Switch checked={false} disabled aria-label="Multi-Business Profiles (Coming Soon)" />
           </Card>
           <ProfileEmpty />
         </div>
@@ -114,10 +112,13 @@ export default function Page() {
       <div className="space-y-4 max-w-5xl mx-auto p-6">
         <Card className="p-6 flex items-center justify-between rounded-3xl bg-[var(--kravy-surface)] border-[var(--kravy-border)] shadow-sm">
           <div>
-            <h3 className="font-bold text-lg">Multi-Business Profiles</h3>
-            <p className="text-sm text-slate-500">Manage multiple restaurants from a single account.</p>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-lg">Multi-Business Profiles</h3>
+              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Coming Soon</span>
+            </div>
+            <p className="text-sm text-slate-500">Manage multiple properties from a single account.</p>
           </div>
-          <Switch checked={enableMultipleProfiles} onCheckedChange={toggleMultipleProfiles} />
+          <Switch checked={false} disabled aria-label="Multi-Business Profiles (Coming Soon)" />
         </Card>
         <BusinessProfile
           data={profiles[0]}
@@ -133,9 +134,9 @@ export default function Page() {
       <Card className="p-6 flex items-center justify-between rounded-3xl bg-[var(--kravy-surface)] border-[var(--kravy-border)] shadow-sm">
         <div>
           <h3 className="font-bold text-lg">Multi-Business Profiles</h3>
-          <p className="text-sm text-slate-500">Manage multiple restaurants from a single account.</p>
+          <p className="text-sm text-slate-500">Manage multiple properties from a single account.</p>
         </div>
-        <Switch checked={enableMultipleProfiles} onCheckedChange={toggleMultipleProfiles} />
+        <Switch checked={false} disabled aria-label="Multi-Business Profiles (Coming Soon)" />
       </Card>
 
       <div>

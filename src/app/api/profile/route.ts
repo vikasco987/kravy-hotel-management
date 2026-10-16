@@ -70,9 +70,11 @@ export async function GET(request: Request) {
       const user = await prisma.user.findUnique({
         where: { clerkId: effectiveId }
       });
-      if (profile && user) {
-        (profile as any).enableMultipleProfiles = user.enableMultipleProfiles;
-        (profile as any).subscriptionAmountPaid = (user.privateMetadata as any)?.subscriptionAmountPaid || 4000;
+      if (profile) {
+        (profile as any).enableMultipleProfiles = false;
+        if (user) {
+          (profile as any).subscriptionAmountPaid = (user.privateMetadata as any)?.subscriptionAmountPaid || 4000;
+        }
       }
     } catch (e: any) {
       if (e.code === 'P2032' || e.message?.includes('createdAt') || e.message?.includes('updatedAt')) {
@@ -90,9 +92,11 @@ export async function GET(request: Request) {
         const user = await prisma.user.findUnique({
           where: { clerkId: effectiveId }
         });
-        if (profile && user) {
-          (profile as any).enableMultipleProfiles = user.enableMultipleProfiles;
-          (profile as any).subscriptionAmountPaid = (user.privateMetadata as any)?.subscriptionAmountPaid || 4000;
+        if (profile) {
+          (profile as any).enableMultipleProfiles = false;
+          if (user) {
+            (profile as any).subscriptionAmountPaid = (user.privateMetadata as any)?.subscriptionAmountPaid || 4000;
+          }
         }
       } else {
         throw e;

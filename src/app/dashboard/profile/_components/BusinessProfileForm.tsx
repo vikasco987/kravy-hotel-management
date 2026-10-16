@@ -25,27 +25,55 @@ import { INDIA_STATE_DISTRICT } from "@/lib/india-state-district";
 
 
 /* ---------------- SCHEMA ---------------- */
+const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const PINCODE_REGEX = /^[1-9][0-9]{5}$/;
+const PHONE_REGEX = /^(?:\+91|91)?[6-9]\d{9}$/;
+
 const schema = z.object({
   id: z.string().optional(),
   businessType: z.string().nullable().optional(),
-  businessName: z.string().min(1, "Required"),
+  businessName: z.string().min(1, "Business name is required"),
   businessTagline: z.string().nullable().optional(),
 
   contactName: z.string().nullable().optional(),
-  contactPhone: z.string().nullable().optional(),
-  contactEmail: z.string().email().or(z.literal('')).nullable().optional(),
+  contactPhone: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === '') return true;
+      const cleaned = val.replace(/[\s\-()]/g, '');
+      return PHONE_REGEX.test(cleaned) || /^\d{10,12}$/.test(cleaned);
+    }, { message: "Invalid 10-digit mobile number" }),
+  contactEmail: z.string().email("Invalid email format").or(z.literal('')).nullable().optional(),
 
   upi: z.string().nullable().optional(),
-  gstNumber: z.string().nullable().optional(),
+  gstNumber: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === '') return true;
+      return GSTIN_REGEX.test(val.trim().toUpperCase());
+    }, { message: "Invalid GSTIN format (e.g. 07AAAAA0000A1Z5)" }),
 
   businessAddress: z.string().nullable().optional(),
   state: z.string().nullable().optional(),
   district: z.string().nullable().optional(),
-  pinCode: z.string().nullable().optional(),
+  pinCode: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === '') return true;
+      return PINCODE_REGEX.test(val.trim());
+    }, { message: "PIN code must be exactly 6 digits" }),
   
   upiQrEnabled: z.boolean().nullable().optional(),
-  menuLinkEnabled: z.boolean().nullable().optional(),
   greetingMessage: z.string().nullable().optional(),
+
+  // Optional legacy fields preserved for payload compatibility
+  menuLinkEnabled: z.boolean().nullable().optional(),
   businessNameSize: z.string().nullable().optional(),
   fssaiNumber: z.string().nullable().optional(),
   fssaiEnabled: z.boolean().nullable().optional(),
@@ -56,12 +84,6 @@ const schema = z.object({
   tokenNumberSize: z.number().nullable().optional(),
   businessAddressSize: z.number().nullable().optional(),
   phonePrefixType: z.string().nullable().optional(),
-  
-  qrMenuShowDetails: z.boolean().nullable().optional(),
-  qrMenuCuisines: z.string().nullable().optional(),
-  qrMenuRating: z.string().nullable().optional(),
-  qrMenuDeliveryTime: z.string().nullable().optional(),
-  qrMenuCostForTwo: z.string().nullable().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -102,9 +124,16 @@ export default function BusinessProfileForm({
     defaultValues?.signatureUrl || null
   );
 
-  const { register, handleSubmit, watch, reset, setValue } = useForm<FormValues>({
+  const initialValues: Partial<FormValues> = {
+    ...defaultValues,
+    businessType: defaultValues?.businessType || (mode === "create" ? "Hotel" : ""),
+    greetingMessage: defaultValues?.greetingMessage ?? "Thank you for staying with us!",
+    upiQrEnabled: defaultValues?.upiQrEnabled ?? true,
+  };
+
+  const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues,
+    defaultValues: initialValues,
   });
 
   const currentPinCode = watch("pinCode");
@@ -177,12 +206,8 @@ export default function BusinessProfileForm({
         state: json.state ?? defaultValues?.state,
         district: json.district ?? defaultValues?.district,
         pinCode: json.pinCode ?? defaultValues?.pinCode,
-        
-        qrMenuShowDetails: json.qrMenuShowDetails ?? defaultValues?.qrMenuShowDetails,
-        qrMenuCuisines: json.qrMenuCuisines ?? defaultValues?.qrMenuCuisines,
-        qrMenuRating: json.qrMenuRating ?? defaultValues?.qrMenuRating,
-        qrMenuDeliveryTime: json.qrMenuDeliveryTime ?? defaultValues?.qrMenuDeliveryTime,
-        qrMenuCostForTwo: json.qrMenuCostForTwo ?? defaultValues?.qrMenuCostForTwo,
+        greetingMessage: json.greetingMessage ?? defaultValues?.greetingMessage ?? "Thank you for staying with us!",
+        upiQrEnabled: json.upiQrEnabled ?? defaultValues?.upiQrEnabled ?? true,
       };
 
       // 2. Direct POST to API
@@ -247,13 +272,13 @@ export default function BusinessProfileForm({
       const payload = {
         id: defaultValues?.id,
         isNewProfile: mode === "create",
-        businessType: values.businessType,
+        businessType: values.businessType || "Hotel",
         businessName: values.businessName,
         businessTagline: values.businessTagline || null,
 
-        contactName: values.contactName,
-        contactPhone: values.contactPhone,
-        contactEmail: values.contactEmail,
+        contactName: values.contactName || null,
+        contactPhone: values.contactPhone || null,
+        contactEmail: values.contactEmail || null,
 
         upi: values.upi || null,
 
@@ -261,15 +286,14 @@ export default function BusinessProfileForm({
         logo: logoUrl,
         signature: signatureUrl,
 
-        gstNumber: values.gstNumber || null,
+        gstNumber: values.gstNumber ? values.gstNumber.trim().toUpperCase() : null,
         businessAddress: values.businessAddress || null,
-        state: values.state,
-        district: values.district,
-        pinCode: values.pinCode || null,
+        state: values.state || null,
+        district: values.district || null,
+        pinCode: values.pinCode ? values.pinCode.trim() : null,
         
-        upiQrEnabled: values.upiQrEnabled,
-        menuLinkEnabled: values.menuLinkEnabled,
-
+        upiQrEnabled: values.upiQrEnabled ?? true,
+        greetingMessage: values.greetingMessage || "Thank you for staying with us!",
       };
 
       const res = await fetch("/api/profile", {
@@ -289,13 +313,15 @@ export default function BusinessProfileForm({
           errorMsg = errData.details || errData.error || errorMsg;
         } catch (e) {}
 
-        alert(`Failed to save profile (Status ${status}): ${errorMsg}`);
+        toast.error(`Failed to save profile: ${errorMsg}`);
         return;
       }
 
       const savedData = await res.json();
       console.log("Profile Saved Successfully:", savedData);
       
+      toast.success("Business profile saved successfully!");
+
       // ✅ SUCCESS
       if (onSuccess) {
         onSuccess();
@@ -303,7 +329,7 @@ export default function BusinessProfileForm({
 
     } catch (err) {
       console.error("Submit error:", err);
-      alert("Something went wrong while saving your profile. Please check your connection.");
+      toast.error("Something went wrong while saving your profile. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -411,90 +437,55 @@ export default function BusinessProfileForm({
         </div>
       </div>
 
-      {/* BUSINESS */}
-      <Section title="Business Information">
-        <Field label="Business Type">
-          <select {...register("businessType")} className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-11 px-4 focus:ring-2 focus:ring-[var(--kravy-brand)]/20 transition-all outline-none font-bold">
-            <option value="">Select</option>
-            <option value="food">Restaurant / Food</option>
-            <option value="retail">Retail</option>
-            <option value="service">Service</option>
-          </select>
-        </Field>
-
-        <Field label="Business Name">
-          <Input {...register("businessName")} />
-        </Field>
-
-        <Field label="Tagline">
-          <Input {...register("businessTagline")} />
-        </Field>
-
-        <Field label="Store Name Size">
-          <select {...register("businessNameSize")} className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-11 px-4 outline-none font-bold">
-            <option value="medium">Medium</option>
-            <option value="large">Large</option>
-            <option value="xlarge">Extra Large</option>
-          </select>
-        </Field>
-      </Section>
-
-      {/* FOOTER */}
-      <Section title="Receipt Customization">
-        <Field label="Greeting Message">
-          <Input {...register("greetingMessage")} placeholder="Thank You 🙏 Visit Again!" />
-        </Field>
-
-        <Field label={`Token Number Size (${watchedValues.tokenNumberSize || 22}px)`}>
-          <div className="flex items-center gap-4">
-            <input 
-              type="range" 
-              min="10" 
-              max="48" 
-              step="1"
-              {...register("tokenNumberSize", { valueAsNumber: true })}
-              className="flex-1 accent-[var(--kravy-brand)]"
-            />
-            <span className="text-xs font-black w-8">{watchedValues.tokenNumberSize || 22}</span>
-          </div>
-          <p className="text-[10px] text-[var(--kravy-text-muted)] mt-1 italic">Controls token size on Bill & KOT. Default is 22px.</p>
-        </Field>
-
-        <Field label={`Address Font Size (${watchedValues.businessAddressSize || 12}px)`}>
-          <div className="flex items-center gap-4">
-            <input 
-              type="range" 
-              min="8" 
-              max="24" 
-              step="1"
-              {...register("businessAddressSize", { valueAsNumber: true })}
-              className="flex-1 accent-purple-500"
-            />
-            <span className="text-xs font-black w-8">{watchedValues.businessAddressSize || 12}</span>
-          </div>
-          <p className="text-[10px] text-[var(--kravy-text-muted)] mt-1 italic">Decrease to fit long addresses. Default is 12px.</p>
-        </Field>
-
-        <Field label="Phone Prefix Style">
+      {/* PROPERTY / BUSINESS */}
+      <Section title="Property & Business Information">
+        <Field label="Property Type" error={errors.businessType?.message}>
           <select 
-            {...register("phonePrefixType")} 
-            className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-11 px-4 outline-none font-bold"
+            {...register("businessType")} 
+            className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-11 px-4 focus:ring-2 focus:ring-[var(--kravy-brand)]/20 transition-all outline-none font-bold"
           >
-            <option value="TEXT">Text (Mob: )</option>
-            <option value="SYMBOL">Symbol (📞 )</option>
+            <option value="Hotel">Hotel</option>
+            <option value="Resort">Resort</option>
+            <option value="Guest House">Guest House</option>
+            <option value="Boutique Hotel">Boutique Hotel</option>
+            <option value="Lodge / Motel">Lodge / Motel</option>
+            <option value="Homestay / Bed & Breakfast">Homestay / Bed & Breakfast</option>
+            <option value="Hostel">Hostel</option>
           </select>
-          <p className="text-[10px] text-[var(--kravy-text-muted)] mt-1 italic">Choose how the phone number is labeled on the bill.</p>
+        </Field>
+
+        <Field label="Property / Business Name *" error={errors.businessName?.message}>
+          <Input {...register("businessName")} placeholder="e.g. Kravy Grand Palace" />
+        </Field>
+
+        <Field label="Tagline / Subtitle" error={errors.businessTagline?.message}>
+          <Input {...register("businessTagline")} placeholder="e.g. Luxury Stays & Suites" />
+        </Field>
+
+        <Field label="Invoice Footer Greeting" error={errors.greetingMessage?.message}>
+          <Input {...register("greetingMessage")} placeholder="Thank you for staying with us!" />
         </Field>
       </Section>
 
       {/* CONTACT */}
-      <Section title="Contact Details">
-        <Input {...register("contactName")} placeholder="Contact Person" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
-        <Input {...register("contactPhone")} placeholder="Phone" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
-        <Input {...register("contactEmail")} placeholder="Email" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
-        
-        <div className="flex flex-col gap-4">
-          <Input {...register("upi")} placeholder="UPI ID" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
+      <Section title="Contact Information">
+        <Field label="Front Desk / Manager Name" error={errors.contactName?.message}>
+          <Input {...register("contactName")} placeholder="Full Name" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
+        </Field>
+
+        <Field label="Front Desk Phone" error={errors.contactPhone?.message}>
+          <Input {...register("contactPhone")} placeholder="10-digit mobile number" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
+        </Field>
+
+        <Field label="Official Hotel Email" error={errors.contactEmail?.message}>
+          <Input {...register("contactEmail")} placeholder="reservations@hotel.com" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
+        </Field>
+
+        <Field label="Front Desk UPI ID (Optional)" error={errors.upi?.message}>
+          <Input {...register("upi")} placeholder="e.g. hotel@upi" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
+        </Field>
+
+        <div className="md:col-span-2">
           <label className="flex items-center gap-3 cursor-pointer bg-[var(--kravy-bg-2)] p-4 rounded-xl border border-[var(--kravy-border)] hover:border-indigo-500/50 transition-colors">
             <input 
               type="checkbox" 
@@ -502,101 +493,62 @@ export default function BusinessProfileForm({
               className="w-5 h-5 rounded min-w-[20px] accent-[var(--kravy-brand)]"
             />
             <div>
-              <p className="text-sm font-bold text-[var(--kravy-text-primary)]">Enable UPI QR on Bill</p>
-              <p className="text-xs text-[var(--kravy-text-muted)] mt-0.5">Prints a scannable QR code along with the bill</p>
-            </div>
-          </label>
-
-          <label className="flex items-center gap-3 cursor-pointer bg-[var(--kravy-bg-2)] p-4 rounded-xl border border-[var(--kravy-border)] hover:border-indigo-500/50 transition-colors">
-            <input 
-              type="checkbox" 
-              {...register("menuLinkEnabled")} 
-              className="w-5 h-5 rounded min-w-[20px] accent-[var(--kravy-brand)]"
-            />
-            <div>
-              <p className="text-sm font-bold text-[var(--kravy-text-primary)]">Share Menu Link in WhatsApp</p>
-              <p className="text-xs text-[var(--kravy-text-muted)] mt-0.5">Include your online menu link in the invoice message</p>
-            </div>
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer bg-[var(--kravy-bg-2)] p-4 rounded-xl border border-[var(--kravy-border)] hover:border-indigo-500/50 transition-colors">
-            <input 
-              type="checkbox" 
-              {...register("enableMenuQRInBill")} 
-              className="w-5 h-5 rounded min-w-[20px] accent-indigo-500"
-            />
-            <div>
-              <p className="text-sm font-bold text-[var(--kravy-text-primary)]">Print Menu QR on Bill</p>
-              <p className="text-xs text-[var(--kravy-text-muted)] mt-0.5">Prints a scannable QR for your digital menu on receipts</p>
+              <p className="text-sm font-bold text-[var(--kravy-text-primary)]">Enable UPI QR on Guest Invoice</p>
+              <p className="text-xs text-[var(--kravy-text-muted)] mt-0.5">Prints a scannable payment QR code on guest folios and thermal receipts</p>
             </div>
           </label>
         </div>
       </Section>
 
-      {/* ADDRESS */}
-      <Section title="Business Address">
-        <Input {...register("businessAddress")} placeholder="Full Address" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
+      {/* ADDRESS & TAX */}
+      <Section title="Property Address & Tax Registration">
+        <div className="md:col-span-2">
+          <Field label="Street Address" error={errors.businessAddress?.message}>
+            <Input {...register("businessAddress")} placeholder="Plot No, Street, Landmark" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
+          </Field>
+        </div>
 
-        <select
-          {...register("state")}
-          value={selectedState}
-          onChange={(e) => setSelectedState(e.target.value)}
-          className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-11 px-4 outline-none font-bold focus:ring-2 focus:ring-[var(--kravy-brand)]/20"
-        >
-          <option value="">Select State</option>
-          {Object.keys(INDIA_STATE_DISTRICT).map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-
-        <select {...register("district")} className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-11 px-4 outline-none font-bold focus:ring-2 focus:ring-[var(--kravy-brand)]/20">
-          <option value="">Select District</option>
-          {selectedState &&
-            INDIA_STATE_DISTRICT[selectedState]?.map((d) => (
-              <option key={d} value={d}>
-                {d}
+        <Field label="State" error={errors.state?.message}>
+          <select
+            {...register("state")}
+            value={selectedState}
+            onChange={(e) => setSelectedState(e.target.value)}
+            className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-11 px-4 outline-none font-bold focus:ring-2 focus:ring-[var(--kravy-brand)]/20"
+          >
+            <option value="">Select State</option>
+            {Object.keys(INDIA_STATE_DISTRICT).map((s) => (
+              <option key={s} value={s}>
+                {s}
               </option>
             ))}
-        </select>
+          </select>
+        </Field>
 
-        <Input {...register("pinCode")} placeholder="PIN Code" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
-        <Input {...register("gstNumber")} placeholder="GST Number" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
-        
-        <div className="flex flex-col gap-4">
-          <Input {...register("fssaiNumber")} placeholder="FSSAI Number" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
-          <label className="flex items-center gap-3 cursor-pointer bg-[var(--kravy-bg-2)] p-4 rounded-xl border border-[var(--kravy-border)] hover:border-indigo-500/50 transition-colors">
-            <input 
-              type="checkbox" 
-              {...register("fssaiEnabled")} 
-              className="w-5 h-5 rounded min-w-[20px] accent-[var(--kravy-brand)]"
-            />
-            <div>
-              <p className="text-sm font-bold text-[var(--kravy-text-primary)]">Enable FSSAI on Bill</p>
-              <p className="text-xs text-[var(--kravy-text-muted)] mt-0.5">Prints your FSSAI license number on receipts</p>
-            </div>
-          </label>
+        <Field label="District" error={errors.district?.message}>
+          <select {...register("district")} className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-11 px-4 outline-none font-bold focus:ring-2 focus:ring-[var(--kravy-brand)]/20">
+            <option value="">Select District</option>
+            {selectedState &&
+              INDIA_STATE_DISTRICT[selectedState]?.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+          </select>
+        </Field>
 
-          <label className="flex items-center gap-3 cursor-pointer bg-[var(--kravy-bg-2)] p-4 rounded-xl border border-[var(--kravy-border)] hover:border-indigo-500/50 transition-colors">
-            <input 
-              type="checkbox" 
-              {...register("hsnEnabled")} 
-              className="w-5 h-5 rounded min-w-[20px] accent-[var(--kravy-brand)]"
-            />
-            <div>
-              <p className="text-sm font-bold text-[var(--kravy-text-primary)]">Enable HSN on Bill</p>
-              <p className="text-xs text-[var(--kravy-text-muted)] mt-0.5">Prints HSN codes for products on receipts</p>
-            </div>
-          </label>
-        </div>
+        <Field label="PIN Code" error={errors.pinCode?.message}>
+          <Input {...register("pinCode")} placeholder="6-digit postal code" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)]" />
+        </Field>
+
+        <Field label="GSTIN (Optional)" error={errors.gstNumber?.message}>
+          <Input {...register("gstNumber")} placeholder="e.g. 07AAAAA0000A1Z5" className="h-11 rounded-xl bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] uppercase" />
+        </Field>
       </Section>
 
-
-      {/* MEDIA */}
-      <Section title="Branding">
-        <DragDrop id="profileImage" label="Profile Image" preview={profilePreview} setPreview={setProfilePreview} />
-        <DragDrop id="logo" label="Logo" preview={logoPreview} setPreview={setLogoPreview} />
-        <DragDrop id="signature" label="Signature" preview={signaturePreview} setPreview={setSignaturePreview} />
+      {/* BRANDING */}
+      <Section title="Hotel Branding & Signatures">
+        <DragDrop id="logo" label="Hotel Logo" preview={logoPreview} setPreview={setLogoPreview} />
+        <DragDrop id="signature" label="Manager Signature" preview={signaturePreview} setPreview={setSignaturePreview} />
       </Section>
 
       {/* ACTION */}
@@ -607,143 +559,133 @@ export default function BusinessProfileForm({
           </Button>
         )}
         <Button type="submit" disabled={loading} className="bg-[var(--kravy-brand)] text-white font-black px-8 py-3 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
-          {loading ? "Saving..." : "Save Profile"}
+          {loading ? "Saving..." : "Save Business Profile"}
         </Button>
       </div>
     </form>
 
-    {/* LIVE BILL PREVIEW */}
+    {/* LIVE HOTEL GUEST FOLIO PREVIEW */}
     <div className="w-[380px] shrink-0 sticky top-24 hidden xl:block shadow-2xl rounded-[32px] overflow-hidden border border-[var(--kravy-border)] bg-[var(--kravy-surface)] animate-in fade-in slide-in-from-right-8 transition-all">
       <div className="px-6 py-5 border-b border-[var(--kravy-border)] bg-[var(--kravy-bg-2)]/50">
-        <h3 className="text-base font-black text-[var(--kravy-text-primary)] tracking-tight">Live Receipt Preview</h3>
-        <p className="text-[10px] font-bold text-[var(--kravy-text-muted)] uppercase tracking-wider mt-0.5">See how your printed bill looks</p>
+        <h3 className="text-base font-black text-[var(--kravy-text-primary)] tracking-tight">Hotel Folio Preview</h3>
+        <p className="text-[10px] font-bold text-[var(--kravy-text-muted)] uppercase tracking-wider mt-0.5">Live Guest Invoice Rendering</p>
       </div>
       <div className="p-8 bg-[#E5E5E5] dark:bg-[#1A1A1A] flex justify-center min-h-[500px]">
         <div 
           className="bg-white text-black p-4 shadow-xl origin-top mx-auto filter hover:brightness-[0.98] transition-all"
-          style={{ width: '58mm', minHeight: '100px', transform: 'scale(1.3)', marginBottom: '30px' }}
+          style={{ width: '68mm', minHeight: '120px', transform: 'scale(1.15)', marginBottom: '30px' }}
         >
           <div className="font-mono text-[10px] leading-tight">
             {logoPreview && (
-              <div className="flex justify-center mb-1">
-                <img src={logoPreview} alt="Logo" className="max-h-[28mm] object-contain" />
+              <div className="flex justify-center mb-1.5">
+                <img src={logoPreview} alt="Hotel Logo" className="max-h-[22mm] object-contain" />
               </div>
             )}
-            <div 
-              className="text-center font-bold"
-              style={{ 
-                fontSize: watchedValues.businessNameSize === 'medium' ? '12px' : 
-                          watchedValues.businessNameSize === 'xlarge' ? '18px' : '15px' 
-              }}
-            >
-              {watchedValues.businessName || "Your Business"}
+            <div className="text-center font-bold text-[13px] uppercase tracking-wide">
+              {watchedValues.businessName || "Kravy Hotel & Suites"}
             </div>
+            {watchedValues.businessTagline && (
+              <div className="text-center text-[8.5px] italic opacity-80 mt-0.5">
+                {watchedValues.businessTagline}
+              </div>
+            )}
+            
             {(watchedValues.businessAddress || watchedValues.district || selectedState || watchedValues.pinCode || watchedValues.contactPhone) && (
-              <div 
-                className="text-center mt-0.5 opacity-90 text-[10px]"
-                style={{ fontSize: `${(watchedValues.businessAddressSize || 12) * 0.8}px` }} // Scaled for preview
-              >
+              <div className="text-center mt-1 opacity-90 text-[8.5px] leading-tight">
                 {watchedValues.businessAddress}
                 {watchedValues.district && `, ${watchedValues.district}`}
                 {selectedState && `, ${selectedState}`}
                 {watchedValues.pinCode && ` - ${watchedValues.pinCode}`}
-                {watchedValues.contactPhone && <div className="mt-0.5">{watchedValues.phonePrefixType?.toString().toUpperCase() === 'SYMBOL' ? '📞 ' : 'Mob: '} {watchedValues.contactPhone}</div>}
+                {watchedValues.contactPhone && (
+                  <div className="mt-0.5">Ph: {watchedValues.contactPhone}</div>
+                )}
               </div>
             )}
-            {watchedValues.gstNumber && <div className="text-center text-[9px] mt-0.5 opacity-90 text-[10px]">GSTIN: {watchedValues.gstNumber}</div>}
-            {(watchedValues.fssaiNumber && watchedValues.fssaiEnabled) && (
-              <div className="text-center text-[9px] mt-0.5 opacity-90 text-[10px]">FSSAI: {watchedValues.fssaiNumber}</div>
+            {watchedValues.gstNumber && (
+              <div className="text-center text-[8.5px] font-bold mt-0.5">
+                GSTIN: {watchedValues.gstNumber}
+              </div>
             )}
             
-            <div className="mt-2 border-t border-dashed border-gray-400 pt-1.5 px-1">
+            <div className="mt-2 border-t border-dashed border-gray-400 pt-1.5 px-0.5">
               <div className="flex justify-between items-center mb-1">
-                <div className="font-black uppercase text-[8px] tracking-tight text-black opacity-80">Bill Summary</div>
-                <div className="font-black uppercase text-[7px] border-2 border-black text-black px-1.5 py-0.5 rounded-sm">
-                  COUNTER
+                <div className="font-black uppercase text-[8px] tracking-wider text-black opacity-80">Guest Folio</div>
+                <div className="font-bold uppercase text-[7px] bg-black text-white px-1.5 py-0.5 rounded-sm">
+                  {watchedValues.businessType || "HOTEL"}
                 </div>
               </div>
-              <div className="flex justify-between items-start">
-                <div className="text-[9px] space-y-0.5">
-                  <div className="font-black text-black">No: SV-SAMPLE</div>
-                  <div className="font-black text-[8px] text-black/70">
-                    {new Date().toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).replace(/\//g, '|').replace(',', ' -')}
-                  </div>
-                </div>
-                <div className="flex flex-col items-end border-l border-black/20 pl-2 py-0.5">
-                  <div className="text-[6px] font-black uppercase tracking-tighter opacity-50">Token</div>
-                  <div 
-                    className="font-black leading-none pt-0.5 text-black"
-                    style={{ fontSize: `${(watchedValues.tokenNumberSize || 22) * 0.7}px` }} 
-                  >
-                    #123
-                  </div>
+              <div className="text-[8.5px] space-y-0.5">
+                <div>Guest: <span className="font-bold">Rahul Sharma</span></div>
+                <div>Room: <span className="font-bold">Deluxe 204 (2 Nights)</span></div>
+                <div className="text-[7.5px] text-gray-600">
+                  Stay: {new Date().toLocaleDateString('en-IN')} - 2 Guests
                 </div>
               </div>
             </div>
             
             <div className="my-1.5 border-t border-dashed border-gray-400" />
             
-            <div className="flex justify-between font-semibold text-[9px] opacity-90 text-[10px]">
-              <span className="flex-1 min-w-0 pr-1">Item</span>
-              <span className="w-[7mm] text-center shrink-0">Qty</span>
-              <span className="w-[10mm] text-right shrink-0">Rate</span>
-              <span className="w-[11mm] text-right shrink-0">Total</span>
+            <div className="flex justify-between font-semibold text-[8.5px] opacity-90">
+              <span className="flex-1 pr-1">Particulars</span>
+              <span className="w-[8mm] text-center shrink-0">Qty</span>
+              <span className="w-[12mm] text-right shrink-0">Total</span>
             </div>
             
             <div className="border-t border-dashed border-gray-400 my-1" />
             
-            <div className="flex justify-between text-[9px] opacity-90 text-[10px] mb-0.5">
-              <span className="flex-1 min-w-0 truncate pr-1">Sample Item</span>
-              <span className="w-[7mm] text-center shrink-0">1</span>
-              <span className="w-[10mm] text-right shrink-0">99.00</span>
-              <span className="w-[11mm] text-right shrink-0">99.00</span>
+            <div className="flex justify-between text-[8.5px] opacity-90 mb-0.5">
+              <span className="flex-1 truncate pr-1">Room Rent (2 Nights)</span>
+              <span className="w-[8mm] text-center shrink-0">2</span>
+              <span className="w-[12mm] text-right shrink-0">5,000.00</span>
+            </div>
+            <div className="flex justify-between text-[8.5px] opacity-90 mb-0.5">
+              <span className="flex-1 truncate pr-1">CGST (6%)</span>
+              <span className="w-[8mm] text-center shrink-0">-</span>
+              <span className="w-[12mm] text-right shrink-0">300.00</span>
+            </div>
+            <div className="flex justify-between text-[8.5px] opacity-90 mb-0.5">
+              <span className="flex-1 truncate pr-1">SGST (6%)</span>
+              <span className="w-[8mm] text-center shrink-0">-</span>
+              <span className="w-[12mm] text-right shrink-0">300.00</span>
             </div>
             
-            <div className="my-1 border-t border-dashed border-gray-400" />
-            
-            <div className="flex justify-between opacity-90 text-[10px]"><span>Subtotal</span><span>₹99.00</span></div>
-            <div className="flex justify-between opacity-90 text-[10px]"><span>GST (5%)</span><span>₹4.95</span></div>
-            
             <div className="border-t border-dashed border-gray-400 my-1.5" />
             
-            <div className="flex justify-between font-bold text-[11px] text-[12px]"><span>GRAND TOTAL</span><span>₹103.95</span></div>
+            <div className="flex justify-between font-bold text-[10px]">
+              <span>NET PAYABLE</span>
+              <span>₹5,600.00</span>
+            </div>
             
             <div className="border-t border-dashed border-gray-400 my-1.5" />
-            
-            <div className="text-center text-[9px] opacity-90 text-[10px]">Payment: UPI</div>
             
             {(watchedValues.upi && watchedValues.upiQrEnabled !== false) && (
               <div className="my-2 text-center">
-                <div className="text-[8px] font-bold mb-1">SCAN & PAY</div>
+                <div className="text-[7.5px] font-bold mb-1">SCAN TO PAY (FRONT DESK)</div>
                 <div className="inline-block border border-gray-300 p-1 rounded-md bg-white">
                   <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`upi://pay?pa=${watchedValues.upi}&pn=${watchedValues.businessName || "Store"}&am=103.95&cu=INR`)}`} 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${watchedValues.upi}&pn=${watchedValues.businessName || "Hotel"}&am=5600.00&cu=INR`)}`} 
                     alt="UPI QR" 
-                    className="w-[28mm] h-[28mm] object-contain block mix-blend-multiply" 
+                    className="w-[24mm] h-[24mm] object-contain block mix-blend-multiply" 
                   />
                 </div>
-                <div className="text-center text-[8px] mt-1.5 opacity-90">UPI: {watchedValues.upi}</div>
+                <div className="text-center text-[7.5px] mt-1 opacity-90">UPI: {watchedValues.upi}</div>
               </div>
             )}
+            
+            <div className="text-center font-semibold mt-2 opacity-90 text-[8.5px] whitespace-pre-wrap">
+              {watchedValues.greetingMessage || "Thank you for staying with us!"}
+            </div>
 
-            {watchedValues.enableMenuQRInBill && (
-              <div className="my-2 text-center border-t border-dashed border-gray-300 pt-2">
-                <div className="text-[8px] font-bold mb-1 uppercase tracking-tighter">Scan to View Digital Menu</div>
-                <div className="inline-block border border-gray-300 p-1 rounded-md bg-white">
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}/menu/${defaultValues?.userId || 'demo-user'}`)}`} 
-                    alt="Menu QR" 
-                    className="w-[25mm] h-[25mm] object-contain block mix-blend-multiply" 
-                  />
+            {signaturePreview && (
+              <div className="mt-3 pt-1 border-t border-dotted border-gray-300 text-right">
+                <div className="flex justify-end">
+                  <img src={signaturePreview} alt="Signature" className="h-6 object-contain" />
                 </div>
+                <div className="text-[7px] text-gray-500 uppercase mt-0.5">Authorized Signatory</div>
               </div>
             )}
             
-            {watchedValues.businessTagline && <div className="text-center text-[9px] mt-1.5 opacity-90 text-[10px] italic">{watchedValues.businessTagline}</div>}
-            <div className="text-center font-semibold mt-1 opacity-90 text-[10px] whitespace-pre-wrap">{watchedValues.greetingMessage || "Thank you 🙏"}</div>
-            
-            {/* Added simulated paper cut space */}
-            <div className="h-[10mm] border-t border-dashed border-gray-200 mt-2" />
+            <div className="h-[8mm] border-t border-dashed border-gray-200 mt-2" />
           </div>
         </div>
       </div>
@@ -768,10 +710,13 @@ function Section({ title, children }: any) {
   );
 }
 
-function Field({ label, children }: any) {
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <Label className="text-[10px] font-black text-[var(--kravy-text-muted)] uppercase tracking-widest ml-1">{label}</Label>
+    <div className="space-y-1.5">
+      <div className="flex justify-between items-center ml-1">
+        <Label className="text-[10px] font-black text-[var(--kravy-text-muted)] uppercase tracking-widest">{label}</Label>
+        {error && <span className="text-[10px] font-bold text-rose-500">{error}</span>}
+      </div>
       {children}
     </div>
   );
