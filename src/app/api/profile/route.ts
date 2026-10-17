@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getEffectiveClerkId } from "@/lib/auth-utils";
+import { getEffectiveClerkId, getAuthUser } from "@/lib/auth-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,14 +16,14 @@ async function ensureValidDates() {
       update: "BusinessProfile",
       updates: [
         {
-          q: { 
-            $or: [ 
-              { createdAt: null }, 
-              { createdAt: { $exists: false } } 
-            ] 
+          q: {
+            $or: [
+              { createdAt: null },
+              { createdAt: { $exists: false } }
+            ]
           },
-          u: { 
-            $set: { createdAt: { $date: new Date().toISOString() } } 
+          u: {
+            $set: { createdAt: { $date: new Date().toISOString() } }
           },
           multi: true
         }
@@ -34,14 +34,14 @@ async function ensureValidDates() {
       update: "BusinessProfile",
       updates: [
         {
-          q: { 
-            $or: [ 
-              { updatedAt: null }, 
-              { updatedAt: { $exists: false } } 
-            ] 
+          q: {
+            $or: [
+              { updatedAt: null },
+              { updatedAt: { $exists: false } }
+            ]
           },
-          u: { 
-            $set: { updatedAt: { $date: new Date().toISOString() } } 
+          u: {
+            $set: { updatedAt: { $date: new Date().toISOString() } }
           },
           multi: true
         }
@@ -55,21 +55,55 @@ async function ensureValidDates() {
 
 export async function GET(request: Request) {
   try {
+    const authUser = await getAuthUser();
     const effectiveId = await getEffectiveClerkId();
 
-    if (!effectiveId) {
+    if (!effectiveId && !authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Collect candidate identifiers for business profile ownership
+    const candidateIds = new Set<string>();
+    if (effectiveId) candidateIds.add(effectiveId);
+    if (authUser?.id) candidateIds.add(authUser.id);
+    if (authUser?.businessId) candidateIds.add(authUser.businessId);
+
+    // If current session is a staff member or points to a business, resolve parent business owner
+    const businessIdToCheck = authUser?.businessId || (authUser?.isStaff ? effectiveId : null);
+    if (businessIdToCheck) {
+      try {
+        const parentBiz = await prisma.business.findUnique({
+          where: { id: businessIdToCheck },
+          select: { createdBy: true }
+        });
+        if (parentBiz?.createdBy) {
+          candidateIds.add(parentBiz.createdBy);
+        }
+      } catch (err) {
+        console.error("Staff parent business resolution error:", err);
+      }
+    }
+
+    const whereClause = {
+      OR: Array.from(candidateIds).map((id) => ({ userId: id }))
+    };
 
     let profile = null;
     try {
       profile = await prisma.businessProfile.findFirst({
-        where: { userId: effectiveId },
+        where: whereClause,
       });
 
-      const user = await prisma.user.findUnique({
-        where: { clerkId: effectiveId }
-      });
+      const userLookupId = effectiveId || authUser?.id;
+      const user = userLookupId ? await prisma.user.findFirst({
+        where: {
+          OR: [
+            { clerkId: userLookupId },
+            { id: userLookupId }
+          ]
+        }
+      }) : null;
+
       if (profile) {
         (profile as any).enableMultipleProfiles = false;
         if (user) {
@@ -87,11 +121,17 @@ export async function GET(request: Request) {
           ]
         });
         profile = await prisma.businessProfile.findFirst({
-          where: { userId: effectiveId },
+          where: whereClause,
         });
-        const user = await prisma.user.findUnique({
-          where: { clerkId: effectiveId }
-        });
+        const userLookupId = effectiveId || authUser?.id;
+        const user = userLookupId ? await prisma.user.findFirst({
+          where: {
+            OR: [
+              { clerkId: userLookupId },
+              { id: userLookupId }
+            ]
+          }
+        }) : null;
         if (profile) {
           (profile as any).enableMultipleProfiles = false;
           if (user) {
@@ -223,10 +263,44 @@ export async function POST(request: Request) {
 
     console.log("SERVER DEBUG: Final Update Data:", JSON.stringify(updateData, null, 2));
 
-    // ✅ FIX: Find specific profile if body.id is provided, otherwise find the first one unless it's a new profile
-    const existingProfile = body.id 
-      ? await prisma.businessProfile.findFirst({ where: { id: body.id, userId: effectiveId } })
-      : (body.isNewProfile ? null : await prisma.businessProfile.findFirst({ where: { userId: effectiveId } }));
+    const authUser = await getAuthUser();
+    const candidateIds = new Set<string>();
+    if (effectiveId) candidateIds.add(effectiveId);
+    if (authUser?.id) candidateIds.add(authUser.id);
+    if (authUser?.businessId) candidateIds.add(authUser.businessId);
+
+    const businessIdToCheck = authUser?.businessId || (authUser?.isStaff ? effectiveId : null);
+    let parentOwnerId: string | null = null;
+    if (businessIdToCheck) {
+      try {
+        const parentBiz = await prisma.business.findUnique({
+          where: { id: businessIdToCheck },
+          select: { createdBy: true }
+        });
+        if (parentBiz?.createdBy) {
+          parentOwnerId = parentBiz.createdBy;
+          candidateIds.add(parentBiz.createdBy);
+        }
+      } catch (err) {
+        console.error("Staff parent business resolution in POST error:", err);
+      }
+    }
+
+    const candidateWhere = {
+      OR: Array.from(candidateIds).map((id) => ({ userId: id }))
+    };
+
+    // ✅ FIX: Find specific profile if body.id is provided, otherwise find the first one unless it's explicitly a new profile
+    const existingProfile = body.id
+      ? await prisma.businessProfile.findFirst({
+          where: {
+            id: body.id,
+            ...candidateWhere
+          }
+        })
+      : (body.isNewProfile ? null : await prisma.businessProfile.findFirst({ where: candidateWhere }));
+
+    const targetUserId = parentOwnerId || (authUser && !authUser.isStaff ? authUser.id : effectiveId);
 
     let profile;
     if (existingProfile) {
@@ -238,7 +312,7 @@ export async function POST(request: Request) {
       profile = await prisma.businessProfile.create({
         data: {
           ...updateData, // Use the fields we have in updateData
-          userId: effectiveId,
+          userId: targetUserId,
           // Ensure mandatory fields have defaults if missing in updateData
           businessName: updateData.businessName ?? s(body.businessName) ?? "My Business",
           taxEnabled: updateData.taxEnabled ?? b(body.taxEnabled) ?? false,

@@ -46,7 +46,12 @@ export default function Sidebar() {
   const [isPending, startTransition] = useTransition();
   const [optimisticPath, setOptimisticPath] = useState(pathname);
   const { profile } = useProfileCache();
+  const [sidebarImgError, setSidebarImgError] = useState(false);
   const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    setSidebarImgError(false);
+  }, [profile?.logoUrl]);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -206,12 +211,17 @@ export default function Sidebar() {
           <div className="flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-[#3b366e] flex items-center justify-center shadow-md">
-                {profile?.logoUrl ? (
-                  <img src={profile.logoUrl} alt="Property" className="w-full h-full object-cover" />
+                {profile?.logoUrl && !sidebarImgError ? (
+                  <img
+                    src={profile.logoUrl}
+                    alt={profile?.businessName || "Property"}
+                    className="w-full h-full object-cover"
+                    onError={() => setSidebarImgError(true)}
+                  />
                 ) : (
                   <img
                     src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100&q=80"
-                    alt="Grand Plaza"
+                    alt={profile?.businessName || "Hotel Property"}
                     className="w-full h-full object-cover"
                   />
                 )}
@@ -221,7 +231,7 @@ export default function Sidebar() {
                   <span>{profile?.businessName || "My Business"}</span>
                 </div>
                 <div className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
-                  {profile?.tagLine || "Grand Plaza"}
+                  {profile?.businessTagLine || profile?.tagLine || "Luxury Stays & Hospitality"}
                 </div>
               </div>
             </div>

@@ -22,6 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { uploadToCloudinary } from "@/lib/cloudinary-client";
 import { INDIA_STATE_DISTRICT } from "@/lib/india-state-district";
+import { notifyProfileUpdated } from "@/hooks/useProfileCache";
 
 
 /* ---------------- SCHEMA ---------------- */
@@ -68,7 +69,7 @@ const schema = z.object({
       if (!val || val.trim() === '') return true;
       return PINCODE_REGEX.test(val.trim());
     }, { message: "PIN code must be exactly 6 digits" }),
-  
+
   upiQrEnabled: z.boolean().nullable().optional(),
   greetingMessage: z.string().nullable().optional(),
 
@@ -147,14 +148,14 @@ export default function BusinessProfileForm({
             const postOffice = data[0].PostOffice[0];
             const fetchedState = postOffice.State;
             let fetchedDistrict = postOffice.District.replace(/ district$/i, '').trim();
-            
+
             // Fuzzy match the State
             const stateKeys = Object.keys(INDIA_STATE_DISTRICT);
             const matchedState = stateKeys.find(s => s.toLowerCase() === fetchedState.toLowerCase()) || fetchedState;
-            
+
             setSelectedState(matchedState);
             setValue("state", matchedState, { shouldValidate: true });
-            
+
             // Wait for re-render so district options are populated before setting value
             setTimeout(() => {
               const districts = INDIA_STATE_DISTRICT[matchedState] || [];
@@ -180,12 +181,12 @@ export default function BusinessProfileForm({
     try {
       const json = JSON.parse(jsonStr);
       setLoading(true);
-      
+
       // 1. Merge pasted JSON with current payload structure
       // This ensures both 'contactName' and 'contactPersonName' style keys work
       const payload = {
         ...json, // Spread everything from the pasted JSON
-        
+
         // Ensure standard keys exist (API will prioritize these if available)
         businessType: json.businessType ?? defaultValues?.businessType,
         businessName: json.businessName ?? defaultValues?.businessName,
@@ -225,9 +226,10 @@ export default function BusinessProfileForm({
       if (json.logoUrl || json.logo) setLogoPreview(json.logoUrl || json.logo);
       if (json.signatureUrl || json.signature) setSignaturePreview(json.signatureUrl || json.signature);
       if (json.state) setSelectedState(json.state);
-      
+
       alert("Schema applied and profile updated successfully! 🎉");
       setIsPasteModalOpen(false);
+      notifyProfileUpdated(json);
       if (onSuccess) onSuccess();
 
     } catch (err) {
@@ -256,17 +258,41 @@ export default function BusinessProfileForm({
       const getFile = (id: string) =>
         (document.getElementById(id) as HTMLInputElement)?.files?.[0];
 
-      const profileImageUrl = getFile("profileImage")
-        ? await uploadToCloudinary(getFile("profileImage")!)
-        : defaultValues?.profileImageUrl || null;
+      let profileImageUrl = defaultValues?.profileImageUrl || null;
+      const profileImageFile = getFile("profileImage");
+      if (profileImageFile) {
+        try {
+          profileImageUrl = await uploadToCloudinary(profileImageFile);
+        } catch (uploadErr: any) {
+          console.error("Profile image upload failed:", uploadErr);
+          toast.error(uploadErr.message || "Profile image upload failed.");
+          return;
+        }
+      }
 
-      const logoUrl = getFile("logo")
-        ? await uploadToCloudinary(getFile("logo")!)
-        : defaultValues?.logoUrl || null;
+      let logoUrl = defaultValues?.logoUrl || null;
+      const logoFile = getFile("logo");
+      if (logoFile) {
+        try {
+          logoUrl = await uploadToCloudinary(logoFile);
+        } catch (uploadErr: any) {
+          console.error("Logo upload failed:", uploadErr);
+          toast.error(uploadErr.message || "Logo upload failed.");
+          return;
+        }
+      }
 
-      const signatureUrl = getFile("signature")
-        ? await uploadToCloudinary(getFile("signature")!)
-        : defaultValues?.signatureUrl || null;
+      let signatureUrl = defaultValues?.signatureUrl || null;
+      const signatureFile = getFile("signature");
+      if (signatureFile) {
+        try {
+          signatureUrl = await uploadToCloudinary(signatureFile);
+        } catch (uploadErr: any) {
+          console.error("Signature upload failed:", uploadErr);
+          toast.error(uploadErr.message || "Signature upload failed.");
+          return;
+        }
+      }
 
       // ✅ EXPLICIT PAYLOAD (MATCHES API 1:1)
       const payload = {
@@ -291,7 +317,7 @@ export default function BusinessProfileForm({
         state: values.state || null,
         district: values.district || null,
         pinCode: values.pinCode ? values.pinCode.trim() : null,
-        
+
         upiQrEnabled: values.upiQrEnabled ?? true,
         greetingMessage: values.greetingMessage || "Thank you for staying with us!",
       };
@@ -306,7 +332,7 @@ export default function BusinessProfileForm({
         const status = res.status;
         const text = await res.text().catch(() => "No response text");
         console.error(`Save failed (${status}):`, text);
-        
+
         let errorMsg = "Unknown Server Error";
         try {
           const errData = JSON.parse(text);
@@ -319,17 +345,20 @@ export default function BusinessProfileForm({
 
       const savedData = await res.json();
       console.log("Profile Saved Successfully:", savedData);
-      
+
       toast.success("Business profile saved successfully!");
+
+      // Dispatch event to refresh GlobalHeader, Sidebar, RoomDashboard etc.
+      notifyProfileUpdated(savedData);
 
       // ✅ SUCCESS
       if (onSuccess) {
         onSuccess();
       }
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Submit error:", err);
-      toast.error("Something went wrong while saving your profile. Please check your connection.");
+      toast.error(err?.message || "Something went wrong while saving your profile. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -355,7 +384,7 @@ export default function BusinessProfileForm({
         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
           <FileJson size={120} />
         </div>
-        
+
         <div className="flex flex-col gap-2">
           <h3 className="text-xl font-black text-[var(--kravy-text-primary)] flex items-center gap-2 tracking-tight">
             <Sparkles className="text-indigo-500" size={20} />
@@ -373,7 +402,7 @@ export default function BusinessProfileForm({
 
           <Sheet open={isPasteModalOpen} onOpenChange={setIsPasteModalOpen}>
             <SheetTrigger asChild>
-              <button 
+              <button
                 type="button"
                 className="flex items-center gap-3 px-6 py-3 bg-[var(--kravy-bg-2)] text-[var(--kravy-text-primary)] rounded-2xl hover:border-indigo-500/50 border border-[var(--kravy-border)] transition-all text-[11px] font-black uppercase tracking-widest active:scale-95"
               >
@@ -387,7 +416,7 @@ export default function BusinessProfileForm({
                 <SheetDescription className="text-sm font-bold text-[var(--kravy-text-muted)]">Paste your business configuration JSON below to auto-fill the form</SheetDescription>
               </SheetHeader>
               <div className="mt-8 space-y-6">
-                <Textarea 
+                <Textarea
                   placeholder='{ "businessName": "My Awesome Store", ... }'
                   className="min-h-[400px] font-mono text-xs bg-[var(--kravy-bg-2)] border-[var(--kravy-border)] rounded-2xl p-6 focus:ring-2 focus:ring-indigo-500/20 transition-all text-[var(--kravy-text-primary)]"
                   value={pastedJson}
@@ -401,7 +430,7 @@ export default function BusinessProfileForm({
             </SheetContent>
           </Sheet>
 
-          <button 
+          <button
             type="button"
             onClick={handleDownloadSchema}
             className="flex items-center gap-3 px-6 py-3 bg-[var(--kravy-bg-2)] text-[var(--kravy-text-muted)] rounded-2xl hover:text-indigo-500 transition-all text-[11px] font-black uppercase tracking-widest border border-dashed border-[var(--kravy-border)] hover:border-indigo-500/50 active:scale-95"
@@ -440,8 +469,8 @@ export default function BusinessProfileForm({
       {/* PROPERTY / BUSINESS */}
       <Section title="Property & Business Information">
         <Field label="Property Type" error={errors.businessType?.message}>
-          <select 
-            {...register("businessType")} 
+          <select
+            {...register("businessType")}
             className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-11 px-4 focus:ring-2 focus:ring-[var(--kravy-brand)]/20 transition-all outline-none font-bold"
           >
             <option value="Hotel">Hotel</option>
@@ -487,9 +516,9 @@ export default function BusinessProfileForm({
 
         <div className="md:col-span-2">
           <label className="flex items-center gap-3 cursor-pointer bg-[var(--kravy-bg-2)] p-4 rounded-xl border border-[var(--kravy-border)] hover:border-indigo-500/50 transition-colors">
-            <input 
-              type="checkbox" 
-              {...register("upiQrEnabled")} 
+            <input
+              type="checkbox"
+              {...register("upiQrEnabled")}
               className="w-5 h-5 rounded min-w-[20px] accent-[var(--kravy-brand)]"
             />
             <div>
@@ -571,7 +600,7 @@ export default function BusinessProfileForm({
         <p className="text-[10px] font-bold text-[var(--kravy-text-muted)] uppercase tracking-wider mt-0.5">Live Guest Invoice Rendering</p>
       </div>
       <div className="p-8 bg-[#E5E5E5] dark:bg-[#1A1A1A] flex justify-center min-h-[500px]">
-        <div 
+        <div
           className="bg-white text-black p-4 shadow-xl origin-top mx-auto filter hover:brightness-[0.98] transition-all"
           style={{ width: '68mm', minHeight: '120px', transform: 'scale(1.15)', marginBottom: '30px' }}
         >
@@ -589,7 +618,7 @@ export default function BusinessProfileForm({
                 {watchedValues.businessTagline}
               </div>
             )}
-            
+
             {(watchedValues.businessAddress || watchedValues.district || selectedState || watchedValues.pinCode || watchedValues.contactPhone) && (
               <div className="text-center mt-1 opacity-90 text-[8.5px] leading-tight">
                 {watchedValues.businessAddress}
@@ -606,7 +635,7 @@ export default function BusinessProfileForm({
                 GSTIN: {watchedValues.gstNumber}
               </div>
             )}
-            
+
             <div className="mt-2 border-t border-dashed border-gray-400 pt-1.5 px-0.5">
               <div className="flex justify-between items-center mb-1">
                 <div className="font-black uppercase text-[8px] tracking-wider text-black opacity-80">Guest Folio</div>
@@ -622,17 +651,17 @@ export default function BusinessProfileForm({
                 </div>
               </div>
             </div>
-            
+
             <div className="my-1.5 border-t border-dashed border-gray-400" />
-            
+
             <div className="flex justify-between font-semibold text-[8.5px] opacity-90">
               <span className="flex-1 pr-1">Particulars</span>
               <span className="w-[8mm] text-center shrink-0">Qty</span>
               <span className="w-[12mm] text-right shrink-0">Total</span>
             </div>
-            
+
             <div className="border-t border-dashed border-gray-400 my-1" />
-            
+
             <div className="flex justify-between text-[8.5px] opacity-90 mb-0.5">
               <span className="flex-1 truncate pr-1">Room Rent (2 Nights)</span>
               <span className="w-[8mm] text-center shrink-0">2</span>
@@ -648,30 +677,30 @@ export default function BusinessProfileForm({
               <span className="w-[8mm] text-center shrink-0">-</span>
               <span className="w-[12mm] text-right shrink-0">300.00</span>
             </div>
-            
+
             <div className="border-t border-dashed border-gray-400 my-1.5" />
-            
+
             <div className="flex justify-between font-bold text-[10px]">
               <span>NET PAYABLE</span>
               <span>₹5,600.00</span>
             </div>
-            
+
             <div className="border-t border-dashed border-gray-400 my-1.5" />
-            
+
             {(watchedValues.upi && watchedValues.upiQrEnabled !== false) && (
               <div className="my-2 text-center">
                 <div className="text-[7.5px] font-bold mb-1">SCAN TO PAY (FRONT DESK)</div>
                 <div className="inline-block border border-gray-300 p-1 rounded-md bg-white">
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${watchedValues.upi}&pn=${watchedValues.businessName || "Hotel"}&am=5600.00&cu=INR`)}`} 
-                    alt="UPI QR" 
-                    className="w-[24mm] h-[24mm] object-contain block mix-blend-multiply" 
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${watchedValues.upi}&pn=${watchedValues.businessName || "Hotel"}&am=5600.00&cu=INR`)}`}
+                    alt="UPI QR"
+                    className="w-[24mm] h-[24mm] object-contain block mix-blend-multiply"
                   />
                 </div>
                 <div className="text-center text-[7.5px] mt-1 opacity-90">UPI: {watchedValues.upi}</div>
               </div>
             )}
-            
+
             <div className="text-center font-semibold mt-2 opacity-90 text-[8.5px] whitespace-pre-wrap">
               {watchedValues.greetingMessage || "Thank you for staying with us!"}
             </div>
@@ -684,7 +713,7 @@ export default function BusinessProfileForm({
                 <div className="text-[7px] text-gray-500 uppercase mt-0.5">Authorized Signatory</div>
               </div>
             )}
-            
+
             <div className="h-[8mm] border-t border-dashed border-gray-200 mt-2" />
           </div>
         </div>
@@ -759,7 +788,7 @@ function DragDrop({ id, label, preview, setPreview }: any) {
   };
 
   return (
-    <label 
+    <label
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

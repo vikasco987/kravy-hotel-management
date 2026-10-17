@@ -9,9 +9,28 @@ interface CacheEntry {
 // Global state
 let globalCache: CacheEntry | null = null;
 let activePromise: Promise<any> | null = null;
+const listeners = new Set<(data: any) => void>();
+
+function notifyListeners(data: any) {
+  listeners.forEach((listener) => {
+    try {
+      listener(data);
+    } catch (e) {
+      console.error("Profile listener error:", e);
+    }
+  });
+}
 
 // Configuration
 const STALE_TIME = 60 * 1000; // 60 seconds
+
+export const PROFILE_UPDATED_EVENT = "kravy:profile-updated";
+
+export function notifyProfileUpdated(updatedData?: any) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(PROFILE_UPDATED_EVENT, { detail: updatedData }));
+  }
+}
 
 export function useProfileCache() {
   // Initialize state from synchronous cache if available
@@ -19,10 +38,34 @@ export function useProfileCache() {
   const [loading, setLoading] = useState(!globalCache);
   const [error, setError] = useState<Error | null>(null);
 
+  // Subscribe to shared profile cache updates across all components
+  useEffect(() => {
+    const listener = (data: any) => {
+      setProfile(data);
+      setLoading(false);
+    };
+    listeners.add(listener);
+
+    // If cache was populated in another component while this one mounted, sync immediately
+    if (globalCache?.data && profile !== globalCache.data) {
+      setProfile(globalCache.data);
+      setLoading(false);
+    }
+
+    return () => {
+      listeners.delete(listener);
+    };
+  }, [profile]);
+
   const fetchProfile = useCallback(async (force: boolean = false) => {
     // Deduplication: Return existing promise if already fetching
     if (activePromise && !force) {
-      return activePromise;
+      const existingData = await activePromise;
+      if (existingData) {
+        setProfile(existingData);
+        setLoading(false);
+      }
+      return existingData;
     }
 
     try {
@@ -39,20 +82,21 @@ export function useProfileCache() {
       });
 
       const data = await activePromise;
-      
+
       // Update global cache
       globalCache = {
         data,
         timestamp: Date.now()
       };
-      
+
       setProfile(data);
+      notifyListeners(data);
       setError(null);
       return data;
     } catch (err: any) {
       console.error("Profile fetch failed:", err);
       setError(err);
-      
+
       // If we don't have ANY cache, clear it so we don't get stuck
       if (!globalCache) {
          setProfile(null);
@@ -68,7 +112,7 @@ export function useProfileCache() {
     // 1. If cache exists, check if stale
     if (globalCache) {
       const isStale = Date.now() - globalCache.timestamp > STALE_TIME;
-      
+
       if (isStale) {
         // Silently revalidate in background without setting loading=true
         fetchProfile(false).catch(() => {});
@@ -83,6 +127,33 @@ export function useProfileCache() {
     }
   }, [fetchProfile]);
 
+  // Listen for global profile update events
+  useEffect(() => {
+    const handleProfileUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && typeof customEvent.detail === "object") {
+        const merged = globalCache?.data
+          ? { ...globalCache.data, ...customEvent.detail }
+          : customEvent.detail;
+        globalCache = {
+          data: merged,
+          timestamp: Date.now(),
+        };
+        setProfile(merged);
+        notifyListeners(merged);
+      } else {
+        fetchProfile(true).catch(() => {});
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdated);
+      return () => {
+        window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdated);
+      };
+    }
+  }, [fetchProfile]);
+
   /**
    * Optimistically update the UI and optionally trigger a background revalidation
    * to ensure server state matches client state.
@@ -93,15 +164,17 @@ export function useProfileCache() {
       globalCache = {
         data: merged,
         // Mark as fresh
-        timestamp: Date.now() 
+        timestamp: Date.now()
       };
       setProfile(merged);
+      notifyListeners(merged);
     } else {
       globalCache = {
         data: newProfileData,
         timestamp: Date.now()
       };
       setProfile(newProfileData);
+      notifyListeners(newProfileData);
     }
 
     if (shouldRevalidate) {
@@ -110,9 +183,9 @@ export function useProfileCache() {
     }
   }, [fetchProfile]);
 
-  return { 
-    profile, 
-    loading, 
+  return {
+    profile,
+    loading,
     error,
     updateProfile,
     // Expose explicit invalidate method

@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
+import { useProfileCache } from "@/hooks/useProfileCache";
 import {
   Check,
   Sun,
@@ -456,6 +457,7 @@ function QuickActionCard({
   );
 }
 function DashboardContent() {
+  const { profile } = useProfileCache();
   const [data, setData] = useState<DashboardData | null>(null);
   const [filter, setFilter] = useState("ALL");
   const searchParams = useSearchParams();
@@ -976,7 +978,7 @@ function DashboardContent() {
                     Good Afternoon, System Administrator
                   </h1>
                   <p className="text-blue-100 text-sm mt-1">
-                    Here&apos;s what&apos;s happening at Grand Plaza today.
+                    Here&apos;s what&apos;s happening at {profile?.businessName || "My Hotel"} today.
                   </p>
                 </div>
               </div>
