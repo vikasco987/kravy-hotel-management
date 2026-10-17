@@ -143,6 +143,11 @@ export async function GET(request: Request) {
       }
     }
 
+    if (profile) {
+      const { parsePrintBranding } = await import('@/lib/printBranding');
+      (profile as any).printBranding = parsePrintBranding(profile.servedStatusLabel);
+    }
+
     // Removed SaaS logic for premium popup
     return NextResponse.json(profile, { status: 200 });
   } catch (error) {
@@ -249,9 +254,22 @@ export async function POST(request: Request) {
     // Removed POS specific additional charges and SaaS settings
     if (body.enableFuelBilling !== undefined) updateData.enableFuelBilling = b(body.enableFuelBilling);
 
-    // ✅ MISC SETTINGS
+    // ✅ MISC & BRANDING SETTINGS
     if (body.gstType !== undefined) updateData.gstType = s(body.gstType);
-    if (body.servedStatusLabel !== undefined) updateData.servedStatusLabel = s(body.servedStatusLabel);
+    if (body.printBranding !== undefined && typeof body.printBranding === 'object') {
+      const { serializePrintBranding } = await import('@/lib/printBranding');
+      updateData.servedStatusLabel = serializePrintBranding(body.printBranding);
+    } else if (body.logoSize || body.logoAlign || body.signatureSize || body.signatureAlign) {
+      const { serializePrintBranding } = await import('@/lib/printBranding');
+      updateData.servedStatusLabel = serializePrintBranding({
+        logoSize: body.logoSize,
+        logoAlign: body.logoAlign,
+        signatureSize: body.signatureSize,
+        signatureAlign: body.signatureAlign,
+      });
+    } else if (body.servedStatusLabel !== undefined) {
+      updateData.servedStatusLabel = s(body.servedStatusLabel);
+    }
     if (body.collectCustomerName !== undefined) updateData.collectCustomerName = b(body.collectCustomerName);
     if (body.requireCustomerName !== undefined) updateData.requireCustomerName = b(body.requireCustomerName);
     if (body.collectCustomerPhone !== undefined) updateData.collectCustomerPhone = b(body.collectCustomerPhone);
@@ -323,6 +341,11 @@ export async function POST(request: Request) {
           gstType: updateData.gstType ?? s(body.gstType) ?? "PRODUCT",
         }
       });
+    }
+
+    if (profile) {
+      const { parsePrintBranding } = await import('@/lib/printBranding');
+      (profile as any).printBranding = parsePrintBranding(profile.servedStatusLabel);
     }
 
     return NextResponse.json(profile, { status: 200 });

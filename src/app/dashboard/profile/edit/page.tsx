@@ -79,6 +79,7 @@ export default async function Page() {
         profileImageUrl: data.profileImageUrl,
         logoUrl: data.logoUrl,
         signatureUrl: data.signatureUrl,
+        printBranding: data.printBranding,
       }}
     />
   );

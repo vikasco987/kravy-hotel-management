@@ -3,6 +3,13 @@
 import React, { useState, useEffect, use, Suspense } from 'react';
 import { Printer, ArrowLeft } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import {
+  getLogoDimensions,
+  getSignatureDimensions,
+  normalizeLogoSize,
+  normalizeLogoAlign,
+  normalizeSignatureSize,
+} from '@/lib/printBranding';
 
 function InvoiceContent({ stayId }: { stayId: string }) {
   const searchParams = useSearchParams();
@@ -101,6 +108,18 @@ function InvoiceContent({ stayId }: { stayId: string }) {
     window.print();
   };
 
+  const branding = {
+    logoSize: normalizeLogoSize(businessProfile?.printBranding?.logoSize),
+    logoAlign: normalizeLogoAlign(businessProfile?.printBranding?.logoAlign),
+    signatureSize: normalizeSignatureSize(businessProfile?.printBranding?.signatureSize),
+    signatureAlign: 'right' as const,
+  };
+
+  const logoUrl = businessProfile?.logoUrl;
+  const signatureUrl = businessProfile?.signatureUrl;
+  const logoDims = getLogoDimensions(branding.logoSize);
+  const signatureDims = getSignatureDimensions(branding.signatureSize);
+
   return (
     <div className="bg-gray-100 min-h-screen p-8 print:p-0 print:bg-white flex flex-col items-center">
 
@@ -131,11 +150,46 @@ function InvoiceContent({ stayId }: { stayId: string }) {
       {format === 'A4' && (
         <div className="bg-white text-black w-full max-w-4xl p-12 shadow-xl print:shadow-none print:w-full print:max-w-none print:p-8">
 
+           {/* Top Full-Width Logo for Center Alignment */}
+           {logoUrl && branding.logoAlign === 'center' && (
+             <div className="w-full flex justify-center text-center mb-6">
+               <img
+                 src={logoUrl}
+                 alt={businessProfile?.businessName || hotel.name}
+                 className="object-contain"
+                 style={{
+                   maxHeight: logoDims.a4.maxHeight,
+                   maxWidth: logoDims.a4.maxWidth,
+                 }}
+               />
+             </div>
+           )}
+
            <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
-              <div>
+              <div className="flex-1 pr-6">
+                 {/* Left or Right Logo within Hotel Info block */}
+                 {logoUrl && branding.logoAlign !== 'center' && (
+                   <div className={`mb-3 flex ${
+                     branding.logoAlign === 'right' ? 'justify-end text-right' :
+                     'justify-start text-left'
+                   }`}>
+                     <img
+                       src={logoUrl}
+                       alt={businessProfile?.businessName || hotel.name}
+                       className="object-contain"
+                       style={{
+                         maxHeight: logoDims.a4.maxHeight,
+                         maxWidth: logoDims.a4.maxWidth,
+                       }}
+                     />
+                   </div>
+                 )}
                  <h1 className="text-3xl font-black uppercase tracking-wider">
                     {businessProfile?.businessName || hotel.name}
                  </h1>
+                 {businessProfile?.businessTagLine && (
+                   <p className="text-xs italic text-gray-600 mt-0.5">{businessProfile.businessTagLine}</p>
+                 )}
                  <p className="text-sm mt-1">{businessProfile?.businessAddress || hotel.address || 'Hotel Address'}</p>
                  <p className="text-sm">{[businessProfile?.district, businessProfile?.state, businessProfile?.pinCode].filter(Boolean).join(', ')}</p>
                  {(businessProfile?.contactPersonPhone || businessProfile?.businessEmail) && (
@@ -143,7 +197,7 @@ function InvoiceContent({ stayId }: { stayId: string }) {
                  )}
                  <p className="text-sm font-bold mt-1">GSTIN: {businessProfile?.gstNumber || hotel.gstin || 'N/A'}</p>
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                  <h2 className="text-4xl font-black text-gray-300 uppercase tracking-widest">INVOICE</h2>
                  <p className="text-sm font-bold mt-2">Invoice No: {invoice?.invoiceNumber || 'DRAFT'}</p>
                  <p className="text-sm">Date: {new Date().toLocaleDateString()}</p>
@@ -222,10 +276,33 @@ function InvoiceContent({ stayId }: { stayId: string }) {
               </div>
            </div>
 
-           <div className="border-t border-gray-300 pt-8 mt-16 text-center text-xs text-gray-500">
-              <p>Thank you for choosing {businessProfile?.businessName || hotel.name}! We hope you had a pleasant stay.</p>
-              <p>This is a computer generated invoice and does not require a signature.</p>
-           </div>
+           {/* Signature Area */}
+           {signatureUrl ? (
+             <div className="mt-10 pt-4 flex justify-end text-right">
+               <div className="text-center w-56">
+                 <div className="flex justify-center items-end min-h-[40px]">
+                   <img
+                     src={signatureUrl}
+                     alt="Manager Signature"
+                     className="object-contain inline-block"
+                     style={{
+                       maxHeight: signatureDims.a4.maxHeight,
+                       maxWidth: signatureDims.a4.maxWidth,
+                     }}
+                   />
+                 </div>
+                 <div className="border-t border-black pt-1.5 mt-1">
+                   <p className="text-xs font-bold uppercase tracking-wider">Authorized Signatory</p>
+                   <p className="text-[10px] text-gray-500 font-medium">{businessProfile?.businessName || hotel.name}</p>
+                 </div>
+               </div>
+             </div>
+           ) : (
+             <div className="border-t border-gray-300 pt-8 mt-16 text-center text-xs text-gray-500">
+                <p>Thank you for choosing {businessProfile?.businessName || hotel.name}! We hope you had a pleasant stay.</p>
+                <p>This is a computer generated invoice and does not require a signature.</p>
+             </div>
+           )}
         </div>
       )}
 
@@ -233,10 +310,34 @@ function InvoiceContent({ stayId }: { stayId: string }) {
       {(format === '80MM' || format === '58MM') && (
         <div className="bg-white p-4 shadow-xl font-mono text-sm leading-tight text-black print:shadow-none" style={{ width: format === '58MM' ? '58mm' : '80mm', minHeight: '100mm', margin: '0 auto' }}>
 
-           <div className="text-center border-b border-dashed border-gray-400 pb-3 mb-3">
+           <div className={`border-b border-dashed border-gray-400 pb-3 mb-3 ${
+             branding.logoAlign === 'left' ? 'text-left' :
+             branding.logoAlign === 'right' ? 'text-right' :
+             'text-center'
+           }`}>
+              {logoUrl && (
+                <div className={`mb-2 flex ${
+                  branding.logoAlign === 'left' ? 'justify-start text-left' :
+                  branding.logoAlign === 'right' ? 'justify-end text-right' :
+                  'justify-center text-center'
+                }`}>
+                  <img
+                    src={logoUrl}
+                    alt={businessProfile?.businessName || hotel.name}
+                    className="object-contain filter grayscale contrast-125"
+                    style={{
+                      maxHeight: format === '58MM' ? logoDims.thermal58mm.maxHeight : logoDims.thermal80mm.maxHeight,
+                      maxWidth: format === '58MM' ? logoDims.thermal58mm.maxWidth : logoDims.thermal80mm.maxWidth,
+                    }}
+                  />
+                </div>
+              )}
               <h1 className="text-lg font-black uppercase">{businessProfile?.businessName || hotel.name}</h1>
-              {businessProfile?.businessAddress && <p className="text-[10px]">{businessProfile.businessAddress}</p>}
-              <p className="text-[10px] uppercase mt-1">Tax Invoice</p>
+              {businessProfile?.businessTagLine && (
+                <p className="text-[9px] italic text-gray-700">{businessProfile.businessTagLine}</p>
+              )}
+              {businessProfile?.businessAddress && <p className="text-[10px] mt-0.5">{businessProfile.businessAddress}</p>}
+              <p className="text-[10px] uppercase mt-1 font-bold">Tax Invoice</p>
               <p className="text-[10px]">Inv: {invoice?.invoiceNumber || 'DRAFT'}</p>
            </div>
 
@@ -282,12 +383,29 @@ function InvoiceContent({ stayId }: { stayId: string }) {
               </div>
            </div>
 
-           <div className="border-t-2 border-black pt-2 mb-6 flex justify-between font-black text-sm">
+           <div className="border-t-2 border-black pt-2 mb-4 flex justify-between font-black text-sm">
               <span>TOTAL</span>
               <span>₹{(leadStayRoom.finalAmount / 100).toFixed(2)}</span>
            </div>
 
-           <div className="text-center text-[10px] mt-6">
+           {signatureUrl && (
+             <div className="my-4 pt-2 border-t border-dotted border-gray-400 text-right">
+               <div className="flex justify-end">
+                 <img
+                   src={signatureUrl}
+                   alt="Signature"
+                   className="object-contain filter grayscale contrast-125"
+                   style={{
+                     maxHeight: format === '58MM' ? signatureDims.thermal58mm.maxHeight : signatureDims.thermal80mm.maxHeight,
+                     maxWidth: format === '58MM' ? signatureDims.thermal58mm.maxWidth : signatureDims.thermal80mm.maxWidth,
+                   }}
+                 />
+               </div>
+               <p className="text-[9px] uppercase font-bold mt-1">Authorized Signatory</p>
+             </div>
+           )}
+
+           <div className="text-center text-[10px] mt-4 border-t border-dashed border-gray-400 pt-2">
               <p>Thank You</p>
               <p>Visit Again</p>
            </div>

@@ -2,6 +2,14 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { X, Printer, FileText, Send, Share2 } from 'lucide-react';
+import { useProfileCache } from '@/hooks/useProfileCache';
+import {
+  getLogoDimensions,
+  getSignatureDimensions,
+  normalizeLogoSize,
+  normalizeLogoAlign,
+  normalizeSignatureSize,
+} from '@/lib/printBranding';
 
 interface ReceiptRoomData {
   roomNo: string;
@@ -63,11 +71,26 @@ export default function CheckInReceiptModal({
   canPrintGRC
 }: CheckInReceiptModalProps) {
   const [printMode, setPrintMode] = useState<'80mm' | '58mm' | 'A4' | null>(null);
+  const { profile } = useProfileCache();
 
   // Format currency
   const formatAmt = (amt: number) => amt.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 });
   const d = bookingData;
   const leadGuest = d.rooms[0] || {} as ReceiptRoomData;
+
+  const branding = {
+    logoSize: normalizeLogoSize(profile?.printBranding?.logoSize),
+    logoAlign: normalizeLogoAlign(profile?.printBranding?.logoAlign),
+    signatureSize: normalizeSignatureSize(profile?.printBranding?.signatureSize),
+    signatureAlign: 'right' as const,
+  };
+
+  const displayName = profile?.businessName || d.hotelName || 'My Hotel';
+  const logoUrl = profile?.logoUrl;
+  const signatureUrl = profile?.signatureUrl;
+  const logoDims = getLogoDimensions(branding.logoSize);
+  const signatureDims = getSignatureDimensions(branding.signatureSize);
+  const initials = displayName.trim().slice(0, 2).toUpperCase();
 
   const handlePrint = (mode: '80mm' | '58mm' | 'A4') => {
     if (mode === 'A4') {
@@ -138,6 +161,7 @@ export default function CheckInReceiptModal({
         .no-print, .no-print * {
           display: none !important;
         }
+
         ${isThermal ? `
           .thermal-safe {
              padding-bottom: 80px !important; /* Safety for cutter */
@@ -186,15 +210,38 @@ export default function CheckInReceiptModal({
 
             {/* 1. Header Area */}
             <div className="flex justify-between items-start border-b border-gray-200 pb-4 mb-6 thermal-stack">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#0e2a6d] rounded flex items-center justify-center text-white font-bold text-xl thermal-hide">
-                  {d.hotelName?.[0] || 'G'}
-                </div>
+              <div className="flex items-center gap-4">
+                {logoUrl ? (
+                  <div
+                    className="overflow-hidden flex items-center thermal-hide"
+                    style={{
+                      maxHeight: logoDims.a4.maxHeight,
+                      maxWidth: logoDims.a4.maxWidth,
+                    }}
+                  >
+                    <img
+                      src={logoUrl}
+                      alt={displayName}
+                      className="object-contain"
+                      style={{
+                        maxHeight: logoDims.a4.maxHeight,
+                        maxWidth: logoDims.a4.maxWidth,
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 bg-[#0e2a6d] rounded flex items-center justify-center text-white font-bold text-base thermal-hide">
+                    {initials}
+                  </div>
+                )}
                 <div>
-                  <h1 className="text-2xl font-black text-[#0e2a6d] uppercase tracking-wide m-0">{d.hotelName || 'GRAND PLAZA'}</h1>
-                  <p className="text-xs text-gray-600 mt-1 max-w-xs leading-tight">{d.hotelAddress || 'Keralala Main Road, Civil Lines, Near Railway Station'}</p>
+                  <h1 className="text-2xl font-black text-[#0e2a6d] uppercase tracking-wide m-0">{displayName}</h1>
+                  {profile?.businessTagLine && (
+                    <p className="text-xs italic text-gray-600 mt-0.5">{profile.businessTagLine}</p>
+                  )}
+                  <p className="text-xs text-gray-600 mt-1 max-w-xs leading-tight">{profile?.businessAddress || d.hotelAddress || 'Hotel Address'}</p>
                   <p className="text-[10px] text-gray-500 mt-1">
-                    GSTIN: {d.hotelGstin || '4567876543456'} | Phone: {d.hotelPhone || '8606093110'} | Email: {d.hotelEmail || 'info@raintechpos.com'}
+                    GSTIN: {profile?.gstNumber || d.hotelGstin || 'N/A'} | Phone: {profile?.contactPersonPhone || d.hotelPhone || 'N/A'} | Email: {profile?.businessEmail || d.hotelEmail || 'N/A'}
                   </p>
                 </div>
               </div>
@@ -343,8 +390,30 @@ export default function CheckInReceiptModal({
                   </div>
                 </div>
               </div>
-
             </div>
+
+            {/* 5. Signature Area */}
+            {signatureUrl && (
+              <div className="mt-8 pt-3 border-t border-gray-200 flex justify-end text-right">
+                <div className="text-center w-52">
+                  <div className="flex justify-center items-end min-h-[35px] mb-1">
+                    <img
+                      src={signatureUrl}
+                      alt="Manager Signature"
+                      className="object-contain inline-block"
+                      style={{
+                        maxHeight: signatureDims.a4.maxHeight,
+                        maxWidth: signatureDims.a4.maxWidth,
+                      }}
+                    />
+                  </div>
+                  <div className="border-t border-black pt-1">
+                    <span className="text-[11px] font-bold uppercase block">Authorized Signatory</span>
+                    <span className="text-[9px] text-gray-500 font-medium">{displayName}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* End of receipt wrapper */}
           </div>

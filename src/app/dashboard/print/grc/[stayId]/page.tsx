@@ -98,10 +98,38 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
     return notFound();
   }
 
-   const hotel = stay.reservation.hotel;
+  const hotel = stay.reservation.hotel;
   const guest = stay.reservation.guest;
   const leadStayRoom = stay.stayRooms[0];
   if (!leadStayRoom) return notFound();
+
+  // Resolve businessProfile: for staff users, query using hotel's owner/creator ID
+  const businessOwnerId = hotel.createdBy || authContext.business?.createdBy || authContext.user.id;
+  const businessProfile = await prisma.businessProfile.findFirst({
+    where: { userId: businessOwnerId }
+  });
+
+  const {
+    parsePrintBranding,
+    getLogoDimensions,
+    getSignatureDimensions,
+    normalizeLogoSize,
+    normalizeLogoAlign,
+    normalizeSignatureSize,
+  } = await import('@/lib/printBranding');
+
+  const rawBranding = parsePrintBranding(businessProfile?.servedStatusLabel);
+  const branding = {
+    logoSize: normalizeLogoSize(rawBranding.logoSize),
+    logoAlign: normalizeLogoAlign(rawBranding.logoAlign),
+    signatureSize: normalizeSignatureSize(rawBranding.signatureSize),
+    signatureAlign: 'right' as const,
+  };
+
+  const logoDims = getLogoDimensions(branding.logoSize);
+  const signatureDims = getSignatureDimensions(branding.signatureSize);
+  const logoUrl = businessProfile?.logoUrl;
+  const signatureUrl = businessProfile?.signatureUrl;
 
   const expectedOut = new Date(leadStayRoom.checkInDate);
   expectedOut.setDate(expectedOut.getDate() + leadStayRoom.nights);
@@ -124,8 +152,32 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
         </div>
 
         {/* Header */}
-        <div className="text-center border-b-2 border-black pb-6 mb-6">
-           <h1 className="text-3xl font-black uppercase tracking-wider">{hotel.name}</h1>
+        <div className={`border-b-2 border-black pb-6 mb-6 ${
+          branding.logoAlign === 'left' ? 'text-left' :
+          branding.logoAlign === 'right' ? 'text-right' :
+          'text-center'
+        }`}>
+           {logoUrl && (
+             <div className={`mb-3 flex ${
+               branding.logoAlign === 'left' ? 'justify-start text-left' :
+               branding.logoAlign === 'right' ? 'justify-end text-right' :
+               'justify-center text-center'
+             }`}>
+               <img
+                 src={logoUrl}
+                 alt={businessProfile?.businessName || hotel.name}
+                 className="object-contain"
+                 style={{
+                   maxHeight: logoDims.a4.maxHeight,
+                   maxWidth: logoDims.a4.maxWidth,
+                 }}
+               />
+             </div>
+           )}
+           <h1 className="text-3xl font-black uppercase tracking-wider">{businessProfile?.businessName || hotel.name}</h1>
+           {businessProfile?.businessTagLine && (
+             <p className="text-xs italic text-gray-600 mt-0.5">{businessProfile.businessTagLine}</p>
+           )}
            <p className="text-sm font-medium mt-1">GUEST REGISTRATION CARD (GRC)</p>
         </div>
 
@@ -222,11 +274,26 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
            </p>
 
            <div className="flex justify-between items-end mt-16 pt-8">
-              <div className="text-center w-48 border-t border-black pt-2">
+              <div className="text-center w-52 border-t border-black pt-2">
                  <span className="text-xs font-bold uppercase block">Guest Signature</span>
+                 <span className="text-[10px] text-gray-500 font-medium">I agree to hotel policies</span>
               </div>
-              <div className="text-center w-48 border-t border-black pt-2">
-                 <span className="text-xs font-bold uppercase block">Receptionist Signature</span>
+              <div className="text-center w-52 border-t border-black pt-2">
+                 {signatureUrl && (
+                   <div className="flex justify-center items-end min-h-[35px] mb-1">
+                     <img
+                       src={signatureUrl}
+                       alt="Manager / Receptionist Signature"
+                       className="object-contain inline-block"
+                       style={{
+                         maxHeight: signatureDims.a4.maxHeight,
+                         maxWidth: signatureDims.a4.maxWidth,
+                       }}
+                     />
+                   </div>
+                 )}
+                 <span className="text-xs font-bold uppercase block">Authorized / Receptionist</span>
+                 <span className="text-[10px] text-gray-500 font-medium">{businessProfile?.businessName || hotel.name}</span>
               </div>
            </div>
         </div>
@@ -245,9 +312,33 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
         `}} />
         <div className="bg-white p-4 shadow-xl font-mono text-sm leading-tight text-black print:shadow-none" style={{ width: initialFormat === '58MM' ? '58mm' : '80mm', minHeight: '100mm', margin: '0 auto' }}>
 
-           <div className="text-center border-b border-dashed border-gray-400 pb-3 mb-3">
-              <h1 className="text-lg font-black uppercase">{hotel.name}</h1>
-              <p className="text-[10px] uppercase mt-1">GUEST REGISTRATION (GRC)</p>
+           <div className={`border-b border-dashed border-gray-400 pb-3 mb-3 ${
+             branding.logoAlign === 'left' ? 'text-left' :
+             branding.logoAlign === 'right' ? 'text-right' :
+             'text-center'
+           }`}>
+              {logoUrl && (
+                <div className={`mb-2 flex ${
+                  branding.logoAlign === 'left' ? 'justify-start text-left' :
+                  branding.logoAlign === 'right' ? 'justify-end text-right' :
+                  'justify-center text-center'
+                }`}>
+                  <img
+                    src={logoUrl}
+                    alt={businessProfile?.businessName || hotel.name}
+                    className="object-contain filter grayscale contrast-125"
+                    style={{
+                      maxHeight: initialFormat === '58MM' ? logoDims.thermal58mm.maxHeight : logoDims.thermal80mm.maxHeight,
+                      maxWidth: initialFormat === '58MM' ? logoDims.thermal58mm.maxWidth : logoDims.thermal80mm.maxWidth,
+                    }}
+                  />
+                </div>
+              )}
+              <h1 className="text-lg font-black uppercase">{businessProfile?.businessName || hotel.name}</h1>
+              {businessProfile?.businessTagLine && (
+                <p className="text-[9px] italic text-gray-700">{businessProfile.businessTagLine}</p>
+              )}
+              <p className="text-[10px] uppercase mt-1 font-bold">GUEST REGISTRATION (GRC)</p>
               <p className="text-[10px]">#BK-{stay.reservationId.slice(-6).toUpperCase()}</p>
            </div>
 
@@ -300,14 +391,31 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
               <span>Advance Paid</span>
               <span>₹{(totalPaid / 100).toFixed(2)}</span>
            </div>
-           <div className="flex justify-between text-[11px] font-bold mb-6">
+           <div className="flex justify-between text-[11px] font-bold mb-4">
               <span>Balance Due</span>
               <span>₹{Math.max(0, (leadStayRoom.finalAmount - totalPaid) / 100).toFixed(2)}</span>
            </div>
 
-           <div className="text-center text-[10px] mt-6 border-t border-dashed border-gray-400 pt-3">
+           {signatureUrl && (
+             <div className="my-4 pt-2 border-t border-dotted border-gray-400 text-right">
+               <div className="flex justify-end">
+                 <img
+                   src={signatureUrl}
+                   alt="Signature"
+                   className="object-contain filter grayscale contrast-125"
+                   style={{
+                     maxHeight: initialFormat === '58MM' ? signatureDims.thermal58mm.maxHeight : signatureDims.thermal80mm.maxHeight,
+                     maxWidth: initialFormat === '58MM' ? signatureDims.thermal58mm.maxWidth : signatureDims.thermal80mm.maxWidth,
+                   }}
+                 />
+               </div>
+               <p className="text-[9px] uppercase font-bold mt-1">Authorized / Receptionist</p>
+             </div>
+           )}
+
+           <div className="text-center text-[10px] mt-4 border-t border-dashed border-gray-400 pt-3">
               <p>I agree to hotel rules.</p>
-              <p className="mt-6 border-t border-black inline-block px-4">Guest Signature</p>
+              <p className="mt-5 border-t border-black inline-block px-4">Guest Signature</p>
            </div>
         </div>
         </>

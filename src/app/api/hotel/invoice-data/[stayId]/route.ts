@@ -92,6 +92,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ stayId: 
         where: { userId: businessOwnerId }
     });
 
+    if (businessProfile) {
+      const { parsePrintBranding } = await import('@/lib/printBranding');
+      (businessProfile as any).printBranding = parsePrintBranding(businessProfile.servedStatusLabel);
+    }
+
     const { PricingService } = await import('@/lib/pricing/PricingService');
     const todayDate = new Date();
     const firstStayRoom = stay.stayRooms.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];

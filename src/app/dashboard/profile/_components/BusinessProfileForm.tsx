@@ -25,6 +25,19 @@ import { INDIA_STATE_DISTRICT } from "@/lib/india-state-district";
 import { notifyProfileUpdated } from "@/hooks/useProfileCache";
 
 
+import {
+  DEFAULT_PRINT_BRANDING,
+  BrandingAlign,
+  PrintBrandingSettings,
+  LOGO_SIZE_BOUNDS,
+  SIGNATURE_SIZE_BOUNDS,
+  normalizeLogoSize,
+  normalizeSignatureSize,
+  normalizeLogoAlign,
+  getLogoDimensions,
+  getSignatureDimensions,
+} from "@/lib/printBranding";
+
 /* ---------------- SCHEMA ---------------- */
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const PINCODE_REGEX = /^[1-9][0-9]{5}$/;
@@ -73,6 +86,11 @@ const schema = z.object({
   upiQrEnabled: z.boolean().nullable().optional(),
   greetingMessage: z.string().nullable().optional(),
 
+  // Print Branding Controls (Numeric sliders + logo alignment)
+  logoSize: z.number().optional(),
+  logoAlign: z.enum(["left", "center", "right"]).optional(),
+  signatureSize: z.number().optional(),
+
   // Optional legacy fields preserved for payload compatibility
   menuLinkEnabled: z.boolean().nullable().optional(),
   businessNameSize: z.string().nullable().optional(),
@@ -103,6 +121,11 @@ export default function BusinessProfileForm({
     upiQrEnabled?: boolean;
     userId?: string;
     id?: string;
+    printBranding?: PrintBrandingSettings;
+    logoSize?: any;
+    logoAlign?: BrandingAlign;
+    signatureSize?: any;
+    signatureAlign?: BrandingAlign;
   };
   onCancel?: () => void;
   onSuccess?: () => void;
@@ -130,6 +153,9 @@ export default function BusinessProfileForm({
     businessType: defaultValues?.businessType || (mode === "create" ? "Hotel" : ""),
     greetingMessage: defaultValues?.greetingMessage ?? "Thank you for staying with us!",
     upiQrEnabled: defaultValues?.upiQrEnabled ?? true,
+    logoSize: normalizeLogoSize(defaultValues?.logoSize ?? defaultValues?.printBranding?.logoSize),
+    logoAlign: normalizeLogoAlign(defaultValues?.logoAlign ?? defaultValues?.printBranding?.logoAlign),
+    signatureSize: normalizeSignatureSize(defaultValues?.signatureSize ?? defaultValues?.printBranding?.signatureSize),
   };
 
   const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<FormValues>({
@@ -320,6 +346,14 @@ export default function BusinessProfileForm({
 
         upiQrEnabled: values.upiQrEnabled ?? true,
         greetingMessage: values.greetingMessage || "Thank you for staying with us!",
+
+        // Print Branding Settings (numeric sliders + logo alignment + fixed right signature)
+        printBranding: {
+          logoSize: normalizeLogoSize(values.logoSize),
+          logoAlign: normalizeLogoAlign(values.logoAlign),
+          signatureSize: normalizeSignatureSize(values.signatureSize),
+          signatureAlign: 'right',
+        },
       };
 
       const res = await fetch("/api/profile", {
@@ -580,6 +614,76 @@ export default function BusinessProfileForm({
         <DragDrop id="signature" label="Manager Signature" preview={signaturePreview} setPreview={setSignaturePreview} />
       </Section>
 
+      {/* PRINT BRANDING SETTINGS */}
+      <Section title="Print Branding Settings (Invoices & GRC)">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-[var(--kravy-text-primary)]">Hotel Logo Display</span>
+              <p className="text-[10px] text-[var(--kravy-text-muted)] font-medium">Applied to A4 & Thermal prints</p>
+            </div>
+            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[var(--kravy-surface-sunken)] text-[var(--kravy-brand)] border border-[var(--kravy-border-default)]">
+              {normalizeLogoSize(watchedValues.logoSize)}px
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-[11px] font-medium text-[var(--kravy-text-secondary)]">
+              <span>Logo Size</span>
+              <span>{LOGO_SIZE_BOUNDS.min}px – {LOGO_SIZE_BOUNDS.max}px</span>
+            </div>
+            <input
+              type="range"
+              min={LOGO_SIZE_BOUNDS.min}
+              max={LOGO_SIZE_BOUNDS.max}
+              step={LOGO_SIZE_BOUNDS.step}
+              {...register("logoSize", { valueAsNumber: true })}
+              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--kravy-brand)]"
+            />
+          </div>
+
+          <div className="pt-1">
+            <Field label="Logo Alignment">
+              <select
+                {...register("logoAlign")}
+                className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-11 px-4 outline-none font-bold focus:ring-2 focus:ring-[var(--kravy-brand)]/20 text-xs"
+              >
+                <option value="left">Left Aligned</option>
+                <option value="center">Center Aligned</option>
+                <option value="right">Right Aligned</option>
+              </select>
+            </Field>
+          </div>
+        </div>
+
+        <div className="space-y-4 pt-4 border-t border-[var(--kravy-border-default)]">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-[var(--kravy-text-primary)]">Manager Signature Display</span>
+              <p className="text-[10px] text-[var(--kravy-text-muted)] font-medium">Permanently right-aligned above Authorized Signatory</p>
+            </div>
+            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[var(--kravy-surface-sunken)] text-[var(--kravy-brand)] border border-[var(--kravy-border-default)]">
+              {normalizeSignatureSize(watchedValues.signatureSize)}px
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-[11px] font-medium text-[var(--kravy-text-secondary)]">
+              <span>Signature Size (Width)</span>
+              <span>{SIGNATURE_SIZE_BOUNDS.min}px – {SIGNATURE_SIZE_BOUNDS.max}px</span>
+            </div>
+            <input
+              type="range"
+              min={SIGNATURE_SIZE_BOUNDS.min}
+              max={SIGNATURE_SIZE_BOUNDS.max}
+              step={SIGNATURE_SIZE_BOUNDS.step}
+              {...register("signatureSize", { valueAsNumber: true })}
+              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--kravy-brand)]"
+            />
+          </div>
+        </div>
+      </Section>
+
       {/* ACTION */}
       <div className="flex justify-end gap-3 pt-4">
         {onCancel && (
@@ -606,15 +710,35 @@ export default function BusinessProfileForm({
         >
           <div className="font-mono text-[10px] leading-tight">
             {logoPreview && (
-              <div className="flex justify-center mb-1.5">
-                <img src={logoPreview} alt="Hotel Logo" className="max-h-[22mm] object-contain" />
+              <div className={`mb-2 ${
+                watchedValues.logoAlign === 'left' ? 'flex justify-start text-left' :
+                watchedValues.logoAlign === 'right' ? 'flex justify-end text-right' :
+                'flex justify-center text-center'
+              }`}>
+                <img
+                  src={logoPreview}
+                  alt="Hotel Logo"
+                  className="object-contain"
+                  style={{
+                    maxHeight: getLogoDimensions(watchedValues.logoSize || 60).preview.maxHeight,
+                    maxWidth: getLogoDimensions(watchedValues.logoSize || 60).preview.maxWidth,
+                  }}
+                />
               </div>
             )}
-            <div className="text-center font-bold text-[13px] uppercase tracking-wide">
+            <div className={`font-bold text-[13px] uppercase tracking-wide ${
+              watchedValues.logoAlign === 'left' ? 'text-left' :
+              watchedValues.logoAlign === 'right' ? 'text-right' :
+              'text-center'
+            }`}>
               {watchedValues.businessName || "Kravy Hotel & Suites"}
             </div>
             {watchedValues.businessTagline && (
-              <div className="text-center text-[8.5px] italic opacity-80 mt-0.5">
+              <div className={`text-[8.5px] italic opacity-80 mt-0.5 ${
+                watchedValues.logoAlign === 'left' ? 'text-left' :
+                watchedValues.logoAlign === 'right' ? 'text-right' :
+                'text-center'
+              }`}>
                 {watchedValues.businessTagline}
               </div>
             )}
@@ -708,7 +832,15 @@ export default function BusinessProfileForm({
             {signaturePreview && (
               <div className="mt-3 pt-1 border-t border-dotted border-gray-300 text-right">
                 <div className="flex justify-end">
-                  <img src={signaturePreview} alt="Signature" className="h-6 object-contain" />
+                  <img
+                    src={signaturePreview}
+                    alt="Signature"
+                    className="object-contain"
+                    style={{
+                      maxHeight: getSignatureDimensions(watchedValues.signatureSize || 120).preview.maxHeight,
+                      maxWidth: getSignatureDimensions(watchedValues.signatureSize || 120).preview.maxWidth,
+                    }}
+                  />
                 </div>
                 <div className="text-[7px] text-gray-500 uppercase mt-0.5">Authorized Signatory</div>
               </div>
