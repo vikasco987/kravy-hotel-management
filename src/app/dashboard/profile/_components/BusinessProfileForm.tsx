@@ -134,9 +134,6 @@ export default function BusinessProfileForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedState, setSelectedState] = useState(defaultValues?.state || "");
-  const [pastedJson, setPastedJson] = useState("");
-  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
-
 
   const [profilePreview, setProfilePreview] = useState<string | null>(
     defaultValues?.profileImageUrl || null
@@ -194,86 +191,6 @@ export default function BusinessProfileForm({
         .catch((err) => console.error("Failed to fetch pin code details", err));
     }
   }, [currentPinCode, setValue]);
-
-  const handleSchemaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => applyJsonToForm(event.target?.result as string);
-    reader.readAsText(file);
-  };
-
-  const applyJsonToForm = async (jsonStr: string) => {
-    try {
-      const json = JSON.parse(jsonStr);
-      setLoading(true);
-
-      // 1. Merge pasted JSON with current payload structure
-      // This ensures both 'contactName' and 'contactPersonName' style keys work
-      const payload = {
-        ...json, // Spread everything from the pasted JSON
-
-        // Ensure standard keys exist (API will prioritize these if available)
-        businessType: json.businessType ?? defaultValues?.businessType,
-        businessName: json.businessName ?? defaultValues?.businessName,
-        businessTagline: json.businessTagline ?? json.businessTagLine ?? defaultValues?.businessTagline,
-
-        contactName: json.contactName ?? json.contactPersonName,
-        contactPhone: json.contactPhone ?? json.contactPersonPhone,
-        contactEmail: json.contactEmail ?? json.contactPersonEmail,
-
-        upi: json.upi ?? defaultValues?.upi,
-
-        profileImage: json.profileImageUrl ?? json.profileImage ?? defaultValues?.profileImageUrl,
-        logo: json.logoUrl ?? json.logo ?? defaultValues?.logoUrl,
-        signature: json.signatureUrl ?? json.signature ?? defaultValues?.signatureUrl,
-
-        gstNumber: json.gstNumber ?? defaultValues?.gstNumber,
-        businessAddress: json.businessAddress ?? defaultValues?.businessAddress,
-        state: json.state ?? defaultValues?.state,
-        district: json.district ?? defaultValues?.district,
-        pinCode: json.pinCode ?? defaultValues?.pinCode,
-        greetingMessage: json.greetingMessage ?? defaultValues?.greetingMessage ?? "Thank you for staying with us!",
-        upiQrEnabled: json.upiQrEnabled ?? defaultValues?.upiQrEnabled ?? true,
-      };
-
-      // 2. Direct POST to API
-      const res = await fetch("/api/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error("API Save Failed");
-
-      // 3. UI Update (Success)
-      reset(json);
-      if (json.profileImageUrl || json.profileImage) setProfilePreview(json.profileImageUrl || json.profileImage);
-      if (json.logoUrl || json.logo) setLogoPreview(json.logoUrl || json.logo);
-      if (json.signatureUrl || json.signature) setSignaturePreview(json.signatureUrl || json.signature);
-      if (json.state) setSelectedState(json.state);
-
-      alert("Schema applied and profile updated successfully! 🎉");
-      setIsPasteModalOpen(false);
-      notifyProfileUpdated(json);
-      if (onSuccess) onSuccess();
-
-    } catch (err) {
-      alert("Error: Schema format invalid or connection issue.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDownloadSchema = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(watchedValues, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "business_profile_schema.json");
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-  };
 
   const watchedValues = watch();
 
@@ -413,93 +330,6 @@ export default function BusinessProfileForm({
         })}
         className="flex-1 w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 transition-colors"
       >
-      {/* SCHEMA ACTIONS */}
-      <div className="flex flex-col gap-6 bg-[var(--kravy-surface)] p-6 rounded-[32px] border border-[var(--kravy-border)] shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-          <FileJson size={120} />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <h3 className="text-xl font-black text-[var(--kravy-text-primary)] flex items-center gap-2 tracking-tight">
-            <Sparkles className="text-indigo-500" size={20} />
-            Schema Management
-          </h3>
-          <p className="text-xs font-bold text-[var(--kravy-text-muted)] uppercase tracking-widest">Bulk Setup via JSON Schema</p>
-        </div>
-
-        <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-3 px-6 py-3 bg-indigo-500 text-white rounded-2xl cursor-pointer hover:bg-indigo-600 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 group">
-            <Upload size={16} className="group-hover:-translate-y-0.5 transition-transform" />
-            Upload JSON File
-            <input type="file" accept=".json" hidden onChange={handleSchemaUpload} />
-          </label>
-
-          <Sheet open={isPasteModalOpen} onOpenChange={setIsPasteModalOpen}>
-            <SheetTrigger asChild>
-              <button
-                type="button"
-                className="flex items-center gap-3 px-6 py-3 bg-[var(--kravy-bg-2)] text-[var(--kravy-text-primary)] rounded-2xl hover:border-indigo-500/50 border border-[var(--kravy-border)] transition-all text-[11px] font-black uppercase tracking-widest active:scale-95"
-              >
-                <ClipboardPaste size={16} />
-                Paste Schema Text
-              </button>
-            </SheetTrigger>
-            <SheetContent className="sm:max-w-xl bg-[var(--kravy-surface)] border-[var(--kravy-border)] p-8 overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle className="text-2xl font-black text-[var(--kravy-text-primary)] tracking-tight">Paste Business Schema</SheetTitle>
-                <SheetDescription className="text-sm font-bold text-[var(--kravy-text-muted)]">Paste your business configuration JSON below to auto-fill the form</SheetDescription>
-              </SheetHeader>
-              <div className="mt-8 space-y-6">
-                <Textarea
-                  placeholder='{ "businessName": "My Awesome Store", ... }'
-                  className="min-h-[400px] font-mono text-xs bg-[var(--kravy-bg-2)] border-[var(--kravy-border)] rounded-2xl p-6 focus:ring-2 focus:ring-indigo-500/20 transition-all text-[var(--kravy-text-primary)]"
-                  value={pastedJson}
-                  onChange={(e) => setPastedJson(e.target.value)}
-                />
-                <div className="flex flex-col gap-3">
-                  <Button className="w-full bg-indigo-500 text-white font-black py-4 rounded-xl" onClick={() => applyJsonToForm(pastedJson)}>Apply Schema Data</Button>
-                  <Button variant="ghost" className="w-full" onClick={() => setIsPasteModalOpen(false)}>Close & Reset</Button>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          <button
-            type="button"
-            onClick={handleDownloadSchema}
-            className="flex items-center gap-3 px-6 py-3 bg-[var(--kravy-bg-2)] text-[var(--kravy-text-muted)] rounded-2xl hover:text-indigo-500 transition-all text-[11px] font-black uppercase tracking-widest border border-dashed border-[var(--kravy-border)] hover:border-indigo-500/50 active:scale-95"
-          >
-            <Download size={16} />
-            Format Template
-          </button>
-        </div>
-
-        {/* GUIDELINES */}
-        <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-[var(--kravy-border)] border-dashed">
-          <div className="space-y-3 bg-blue-500/5 p-4 rounded-2xl border border-blue-500/10">
-            <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-2">
-              <Info size={12} /> Format Guide
-            </h4>
-            <ul className="text-[10px] font-bold text-[var(--kravy-text-muted)] space-y-1 ml-1">
-              <li>• Key: <code className="text-blue-500">businessName</code> (String, REQUIRED)</li>
-              <li>• Key: <code className="text-blue-500">state</code> / <code className="text-blue-500">district</code> (Valid Indian names)</li>
-              <li>• Key: <code className="text-blue-500">upiQrEnabled</code> (Boolean: true/false)</li>
-              <li>• Key: <code className="text-blue-500">pinCode</code> (String, 6 digits)</li>
-            </ul>
-          </div>
-          <div className="space-y-3 bg-amber-500/5 p-4 rounded-2xl border border-amber-500/10">
-            <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
-              <AlertCircle size={12} /> Conditions
-            </h4>
-            <ul className="text-[10px] font-bold text-[var(--kravy-text-muted)] space-y-1 ml-1">
-              <li>• Image URLs must be from <code className="text-amber-500">cloudinary</code> or <code className="text-amber-500">unsplash</code></li>
-              <li>• Mandatory fields must not be empty or null</li>
-              <li>• Invalid JSON will be rejected to prevent data loss</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
       {/* PROPERTY / BUSINESS */}
       <Section title="Property & Business Information">
         <Field label="Property Type" error={errors.businessType?.message}>
@@ -687,7 +517,12 @@ export default function BusinessProfileForm({
       {/* ACTION */}
       <div className="flex justify-end gap-3 pt-4">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            className="h-11 px-6 rounded-xl font-bold text-[var(--kravy-text-primary)] border-[var(--kravy-border)] bg-[var(--kravy-surface)] hover:bg-[var(--kravy-bg-2)] hover:text-[var(--kravy-text-primary)] transition-all"
+          >
             Cancel
           </Button>
         )}
