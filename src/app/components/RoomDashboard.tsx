@@ -7,6 +7,9 @@ import { useProfileCache } from "@/hooks/useProfileCache";
 import {
   Check,
   Sun,
+  Sunrise,
+  Sunset,
+  MoonStar,
   ArrowUp,
   ArrowDown,
   Clock3,
@@ -456,8 +459,71 @@ function QuickActionCard({
     </button>
   );
 }
+interface GreetingInfo {
+  text: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  iconClass: string;
+}
+
+function getGreetingInfo(date: Date = new Date()): GreetingInfo {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const timeInMinutes = hours * 60 + minutes;
+
+  // 5:00 AM (300) - 11:59 AM (719): Good Morning (warm golden/yellow tone)
+  if (timeInMinutes >= 300 && timeInMinutes < 720) {
+    return {
+      text: "Good Morning",
+      icon: Sunrise,
+      iconClass: "text-amber-400 fill-amber-400",
+    };
+  }
+  // 12:00 PM (720) - 4:59 PM (1019): Good Afternoon (bright sun in yellow)
+  if (timeInMinutes >= 720 && timeInMinutes < 1020) {
+    return {
+      text: "Good Afternoon",
+      icon: Sun,
+      iconClass: "text-yellow-400 fill-yellow-400",
+    };
+  }
+  // 5:00 PM (1020) - 8:59 PM (1259): Good Evening (warm orange/amber tone)
+  if (timeInMinutes >= 1020 && timeInMinutes < 1260) {
+    return {
+      text: "Good Evening",
+      icon: Sunset,
+      iconClass: "text-orange-400 fill-orange-400",
+    };
+  }
+  // 9:00 PM (1260) - 4:59 AM (299): Good Night (soft indigo/purple tone)
+  return {
+    text: "Good Night",
+    icon: MoonStar,
+    iconClass: "text-indigo-300 fill-indigo-300/40",
+  };
+}
+
+function formatGreetingName(rawName?: string | null, rawEmail?: string | null): string {
+  if (rawName && rawName.trim()) {
+    const trimmed = rawName.trim();
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  }
+  if (rawEmail && rawEmail.trim()) {
+    const username = rawEmail.split("@")[0].trim();
+    if (username) {
+      return username.charAt(0).toUpperCase() + username.slice(1);
+    }
+  }
+  return "there";
+}
+
 function DashboardContent() {
   const { profile } = useProfileCache();
+  const [user, setUser] = useState<any>(null);
+  const [greetingInfo, setGreetingInfo] = useState<GreetingInfo>({
+    text: "Good Afternoon",
+    icon: Sun,
+    iconClass: "text-yellow-400 fill-yellow-400",
+  });
   const [data, setData] = useState<DashboardData | null>(null);
   const [filter, setFilter] = useState("ALL");
   const searchParams = useSearchParams();
@@ -689,6 +755,25 @@ function DashboardContent() {
       .catch((err) => {
         console.error("Failed to fetch dashboard:", err);
       });
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((authData) => {
+        if (!authData.error) {
+          setUser(authData);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch user in RoomDashboard:", err));
+  }, []);
+
+  useEffect(() => {
+    setGreetingInfo(getGreetingInfo());
+    const interval = setInterval(() => {
+      setGreetingInfo(getGreetingInfo());
+    }, 30000); // Check every 30 seconds to stay accurate when crossing time boundaries
+    return () => clearInterval(interval);
   }, []);
 
   const handleAddFloor = async (e: React.FormEvent) => {
@@ -972,10 +1057,10 @@ function DashboardContent() {
 
             <div className="relative z-10 flex w-full items-center justify-between px-8">
               <div className="flex items-center gap-4">
-                <Sun size={48} className="text-yellow-400 fill-yellow-400" />
+                <greetingInfo.icon size={48} className={greetingInfo.iconClass} />
                 <div>
                   <h1 className="text-3xl font-bold text-white tracking-tight">
-                    Good Afternoon, System Administrator
+                    {greetingInfo.text}, {formatGreetingName(user?.name, user?.email)}!
                   </h1>
                   <p className="text-blue-100 text-sm mt-1">
                     Here&apos;s what&apos;s happening at {profile?.businessName || "My Hotel"} today.
