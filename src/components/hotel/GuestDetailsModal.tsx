@@ -1,6 +1,7 @@
-import React from 'react';
-import { X, User, Calendar, CreditCard, Clock, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, User, Calendar, CreditCard, Clock, FileText, Eye, Camera } from 'lucide-react';
 import dayjs from 'dayjs';
+import { GuestMediaPreviewModal, PreviewItem } from './GuestMediaPreviewModal';
 
 interface GuestDetailsModalProps {
   isOpen: boolean;
@@ -9,6 +10,10 @@ interface GuestDetailsModalProps {
 }
 
 export function GuestDetailsModal({ isOpen, onClose, room }: GuestDetailsModalProps) {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewItems, setPreviewItems] = useState<PreviewItem[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
   if (!isOpen || !room || !room.guestInfo) return null;
   
   const guestInfo = room.guestInfo;
@@ -33,9 +38,104 @@ export function GuestDetailsModal({ isOpen, onClose, room }: GuestDetailsModalPr
         idProof: guestInfo.idProof,
         isLead: true,
         age: 'Not provided',
-        gender: 'Not provided'
+        gender: 'Not provided',
+        photoUrl: guestInfo.guestPhotoUrl,
+        documents: guestInfo.documents,
      }];
+  } else {
+     // Enrich lead guest from root guestInfo if fields are missing in snapshot
+     allGuests = allGuests.map((g, idx) => {
+       if (idx === 0 || g.isLead) {
+         return {
+           ...g,
+           photoUrl: g.photoUrl || guestInfo.guestPhotoUrl || null,
+           documents: g.documents || guestInfo.documents || [],
+         };
+       }
+       return g;
+     });
   }
+
+  const handleOpenPreview = (items: PreviewItem[], startIdx = 0) => {
+    if (items.length === 0) return;
+    setPreviewItems(items);
+    setPreviewIndex(startIdx);
+    setPreviewOpen(true);
+  };
+
+  const getGuestPreviewItems = (g: any): PreviewItem[] => {
+    const items: PreviewItem[] = [];
+
+    // Guest Photo
+    if (g.photoUrl) {
+      items.push({
+        url: g.photoUrl,
+        title: `${g.name || 'Guest'} - Photo`,
+        type: 'photo',
+        subtitle: g.isLead ? 'Lead Guest Photo' : 'Guest Photo',
+      });
+    }
+
+    // Documents from DB documents relation
+    if (Array.isArray(g.documents) && g.documents.length > 0) {
+      g.documents.forEach((doc: any, dIdx: number) => {
+        if (doc.fileReference) {
+          items.push({
+            url: doc.fileReference,
+            title: `${g.name || 'Guest'} - ID Document ${dIdx + 1}`,
+            type: 'id',
+            subtitle: doc.documentType || 'Identity Proof',
+            documentNumber: doc.documentNumber,
+            status: doc.verificationStatus,
+          });
+        }
+      });
+    }
+
+    // Documents from snapshot idDocuments
+    if (Array.isArray(g.idDocuments) && g.idDocuments.length > 0) {
+      g.idDocuments.forEach((doc: any, dIdx: number) => {
+        const docUrl = typeof doc === 'string' ? doc : doc.url;
+        if (docUrl && !items.some(i => i.url === docUrl)) {
+          items.push({
+            url: docUrl,
+            title: `${g.name || 'Guest'} - ID Document ${dIdx + 1}`,
+            type: 'id',
+            subtitle: 'Identity Proof',
+            documentNumber: typeof doc === 'object' ? doc.number : null,
+          });
+        }
+      });
+    }
+
+    // Documents from snapshot idUrls
+    if (Array.isArray(g.idUrls) && g.idUrls.length > 0) {
+      g.idUrls.forEach((url: string, uIdx: number) => {
+        if (url && !items.some(i => i.url === url)) {
+          items.push({
+            url: url,
+            title: `${g.name || 'Guest'} - ID Document ${uIdx + 1}`,
+            type: 'id',
+            subtitle: 'Identity Proof',
+            documentNumber: g.idNumber || null,
+          });
+        }
+      });
+    }
+
+    // Single idUrl
+    if (g.idUrl && !items.some(i => i.url === g.idUrl)) {
+      items.push({
+        url: g.idUrl,
+        title: `${g.name || 'Guest'} - ID Document`,
+        type: 'id',
+        subtitle: 'Identity Proof',
+        documentNumber: g.idNumber || null,
+      });
+    }
+
+    return items;
+  };
 
   const roomRate = guestInfo.roomRate ? guestInfo.roomRate / 100 : room.price / 100;
   const amountPaid = (guestInfo.amountPaid || 0) / 100;
@@ -43,6 +143,7 @@ export function GuestDetailsModal({ isOpen, onClose, room }: GuestDetailsModalPr
   const balance = (guestInfo.balance || 0) / 100;
 
   return (
+    <>
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl border border-gray-100 flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
         
@@ -66,30 +167,95 @@ export function GuestDetailsModal({ isOpen, onClose, room }: GuestDetailsModalPr
                 <User size={14} /> Guest Information
              </h3>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               {allGuests.map((g, idx) => (
-                 <div key={idx} className={`p-4 rounded-xl border ${g.isLead ? 'bg-indigo-50/50 border-indigo-100' : 'bg-gray-50 border-gray-100'}`}>
-                    <div className="flex justify-between items-start mb-2">
-                       <div className={`text-sm font-bold ${g.isLead ? 'text-indigo-900' : 'text-gray-900'}`}>{g.name || 'Not provided'}</div>
-                       {g.isLead && <div className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase tracking-wider">Lead Guest</div>}
+               {allGuests.map((g, idx) => {
+                 const previewList = getGuestPreviewItems(g);
+                 const idDocs = previewList.filter(item => item.type === 'id');
+                 const photoItem = previewList.find(item => item.type === 'photo');
+
+                 return (
+                 <div key={idx} className={`p-4 rounded-xl border flex flex-col justify-between ${g.isLead ? 'bg-indigo-50/50 border-indigo-100' : 'bg-gray-50 border-gray-100'}`}>
+                    <div>
+                      <div className="flex items-start gap-3 mb-2.5">
+                        {/* Guest Photo Avatar */}
+                        {photoItem ? (
+                          <div
+                            onClick={() => handleOpenPreview(previewList, previewList.indexOf(photoItem))}
+                            className="relative group cursor-pointer w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-indigo-200 shadow-sm"
+                            title="Click to preview photo"
+                          >
+                            <img
+                              src={photoItem.url}
+                              alt={g.name || 'Guest Photo'}
+                              className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                            />
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                              <Eye size={14} className="text-white" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${g.isLead ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-200 text-gray-600 border-gray-300'}`}>
+                            <User size={20} />
+                          </div>
+                        )}
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className={`text-sm font-bold truncate ${g.isLead ? 'text-indigo-900' : 'text-gray-900'}`}>{g.name || 'Not provided'}</div>
+                            {g.isLead && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase tracking-wider shrink-0">Lead</span>}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">{g.phone || 'No phone provided'}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 mt-3 pt-2.5 border-t border-gray-200/50">
+                         <div className="flex justify-between text-xs">
+                            <span className="text-gray-500">Age / Gender:</span>
+                            <span className="font-semibold text-gray-900">{g.age || 'N/A'} / {g.gender || 'N/A'}</span>
+                         </div>
+                         <div className="flex justify-between text-xs items-center">
+                            <span className="text-gray-500">ID Status:</span>
+                            <span className="font-semibold text-gray-900">
+                               {idDocs.length > 0 || g.idProof || g.idNumber ? (
+                                 <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                   Provided ({idDocs.length || 1})
+                                 </span>
+                               ) : (
+                                 <span className="text-gray-400">Not provided</span>
+                               )}
+                            </span>
+                         </div>
+                      </div>
                     </div>
-                    <div className="space-y-1.5 mt-3">
-                       <div className="flex justify-between text-xs">
-                          <span className="text-gray-500">Mobile:</span>
-                          <span className="font-semibold text-gray-900">{g.phone || 'Not provided'}</span>
-                       </div>
-                       <div className="flex justify-between text-xs">
-                          <span className="text-gray-500">Age / Gender:</span>
-                          <span className="font-semibold text-gray-900">{g.age || 'N/A'} / {g.gender || 'N/A'}</span>
-                       </div>
-                       <div className="flex justify-between text-xs">
-                          <span className="text-gray-500">ID Status:</span>
-                          <span className="font-semibold text-gray-900">
-                             {g.idProof || g.idNumber || g.idUrl || (g.idDocuments && g.idDocuments.length > 0) ? 'Provided' : 'Not provided'}
-                          </span>
-                       </div>
+
+                    {/* Previews / Action buttons */}
+                    <div className="mt-3.5 pt-2.5 border-t border-gray-200/50 flex flex-wrap gap-2">
+                       {idDocs.length > 0 ? (
+                         <button
+                           type="button"
+                           onClick={() => handleOpenPreview(previewList, previewList.findIndex(i => i.type === 'id'))}
+                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition"
+                         >
+                           <FileText size={13} />
+                           <span>Preview ID ({idDocs.length})</span>
+                         </button>
+                       ) : (
+                         <span className="text-[11px] text-gray-400 italic">No ID uploaded</span>
+                       )}
+
+                       {photoItem && (
+                         <button
+                           type="button"
+                           onClick={() => handleOpenPreview(previewList, previewList.indexOf(photoItem))}
+                           className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition"
+                         >
+                           <Camera size={13} />
+                           <span>Photo</span>
+                         </button>
+                       )}
                     </div>
                  </div>
-               ))}
+               );})}
              </div>
           </section>
 
@@ -146,5 +312,14 @@ export function GuestDetailsModal({ isOpen, onClose, room }: GuestDetailsModalPr
         </div>
       </div>
     </div>
+
+    {/* Lightbox Preview Modal */}
+    <GuestMediaPreviewModal
+      isOpen={previewOpen}
+      onClose={() => setPreviewOpen(false)}
+      items={previewItems}
+      initialIndex={previewIndex}
+    />
+    </>
   );
 }

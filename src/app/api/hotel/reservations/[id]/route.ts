@@ -95,7 +95,11 @@ export async function GET(
     const reservation = await prisma.reservation.findUnique({
       where: { id: reservationId },
       include: {
-        guest: true,
+        guest: {
+          include: {
+            documents: true
+          }
+        },
         rooms: true,
         stay: {
            include: {

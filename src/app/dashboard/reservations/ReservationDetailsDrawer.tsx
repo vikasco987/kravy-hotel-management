@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Calendar, User, Phone, MapPin,
   CreditCard, Receipt, Building, CheckCircle2,
-  Clock, AlertCircle, Home, Mail, FileText, ChevronRight, ChevronDown, Printer, Edit2, Info
+  Clock, AlertCircle, Home, Mail, FileText, ChevronRight, ChevronDown, Printer, Edit2, Info, Eye, Camera
 } from 'lucide-react';
 import dayjs from 'dayjs';
+import { GuestMediaPreviewModal, PreviewItem } from '@/components/hotel/GuestMediaPreviewModal';
 
 function getStatusBadge(status: string) {
   switch (status) {
@@ -28,6 +29,16 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'INFO' | 'GUEST' | 'BILLING'>('INFO');
   const [receiptMenuOpen, setReceiptMenuOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewItems, setPreviewItems] = useState<PreviewItem[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
+  const openPreview = (items: PreviewItem[], startIdx = 0) => {
+    if (items.length === 0) return;
+    setPreviewItems(items);
+    setPreviewIndex(startIdx);
+    setPreviewOpen(true);
+  };
 
   useEffect(() => {
     fetchReservation();
@@ -472,65 +483,247 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
               <div className="space-y-6">
 
                 {/* Lead Guest */}
-                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                  <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                    <div className="flex items-center gap-2">
-                      <User size={16} className="text-[#4338ca]" />
-                      <h3 className="text-[13px] font-bold text-gray-900">Lead Guest Information</h3>
-                    </div>
-                  </div>
-                  <div className="p-5 grid grid-cols-2 gap-y-5">
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</p>
-                      <p className="text-sm font-bold text-gray-900">{guestName}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Mobile Number</p>
-                      <p className="text-sm font-bold text-gray-900">{reservation.guest?.phone || 'Not provided'}</p>
-                    </div>
-                    {reservation.guest?.email && (
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Email</p>
-                        <p className="text-sm font-bold text-gray-900">{reservation.guest.email}</p>
+                {/* Lead Guest */}
+                {(() => {
+                  const leadDocs: PreviewItem[] = [];
+                  const guest = reservation.guest;
+                  if (guest?.guestPhotoUrl) {
+                    leadDocs.push({
+                      url: guest.guestPhotoUrl,
+                      title: `${guestName} - Photo`,
+                      type: 'photo',
+                      subtitle: 'Lead Guest Photo',
+                    });
+                  }
+                  if (Array.isArray(guest?.documents) && guest.documents.length > 0) {
+                    guest.documents.forEach((d: any, dIdx: number) => {
+                      if (d.fileReference) {
+                        leadDocs.push({
+                          url: d.fileReference,
+                          title: `${guestName} - ID Document ${dIdx + 1}`,
+                          type: 'id',
+                          subtitle: d.documentType || 'Identity Proof',
+                          documentNumber: d.documentNumber,
+                          status: d.verificationStatus,
+                        });
+                      }
+                    });
+                  }
+                  const leadIdFiles = leadDocs.filter(i => i.type === 'id');
+                  const leadPhoto = leadDocs.find(i => i.type === 'photo');
+
+                  return (
+                    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs">
+                      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                        <div className="flex items-center gap-2">
+                          <User size={16} className="text-[#4338ca]" />
+                          <h3 className="text-[13px] font-bold text-gray-900">Lead Guest Information</h3>
+                        </div>
+                        {leadIdFiles.length > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            Verified ID
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {(reservation.guest?.address || reservation.guest?.city) && (
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Address</p>
-                        <p className="text-sm font-bold text-gray-900">{reservation.guest?.address || reservation.guest?.city}</p>
+                      <div className="p-5">
+                        <div className="flex items-start gap-4 mb-4">
+                          {leadPhoto ? (
+                            <div
+                              onClick={() => openPreview(leadDocs, leadDocs.indexOf(leadPhoto))}
+                              className="relative group cursor-pointer w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-indigo-200 shadow-sm"
+                              title="Click to preview photo"
+                            >
+                              <img
+                                src={leadPhoto.url}
+                                alt={guestName}
+                                className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                              />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                                <Eye size={16} className="text-white" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-14 h-14 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                              <User size={24} />
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-base font-bold text-gray-900 truncate">{guestName}</h4>
+                            <p className="text-xs text-gray-500 mt-0.5">{guest?.phone || 'Not provided'}</p>
+                            {guest?.email && <p className="text-xs text-gray-500">{guest.email}</p>}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-y-4 pt-3 border-t border-gray-100">
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">ID Status</p>
+                            <p className="text-xs font-bold text-gray-900">
+                              {leadIdFiles.length > 0 || guest?.idProof ? 'ID Submitted' : 'Not provided'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Address</p>
+                            <p className="text-xs font-medium text-gray-900 truncate">
+                              {guest?.address || guest?.city || 'Not provided'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Preview buttons */}
+                        <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
+                          {leadIdFiles.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => openPreview(leadDocs, leadDocs.findIndex(i => i.type === 'id'))}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition"
+                            >
+                              <FileText size={13} />
+                              <span>Preview ID Proof ({leadIdFiles.length})</span>
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">No ID document uploaded</span>
+                          )}
+
+                          {leadPhoto && (
+                            <button
+                              type="button"
+                              onClick={() => openPreview(leadDocs, leadDocs.indexOf(leadPhoto))}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition"
+                            >
+                              <Camera size={13} />
+                              <span>View Photo</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Additional Guests (Gathered from rooms) */}
                 {reservation.rooms.some((r: any) => r.guestsData && r.guestsData.length > 0) && (
-                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
-                      <User size={16} className="text-emerald-600" />
-                      <h3 className="text-[13px] font-bold text-gray-900">Additional Guests</h3>
+                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs">
+                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                      <div className="flex items-center gap-2">
+                        <User size={16} className="text-emerald-600" />
+                        <h3 className="text-[13px] font-bold text-gray-900">Additional Guests</h3>
+                      </div>
                     </div>
                     <div className="divide-y divide-gray-100">
                       {reservation.rooms.map((roomInfo: any) => (
-                        roomInfo.guestsData?.map((g: any, gIdx: number) => (
-                          <div key={gIdx} className="p-5 grid grid-cols-2 gap-y-4">
-                            <div>
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</p>
-                              <p className="text-sm font-bold text-gray-900">{g.name || 'Unknown'}</p>
+                        roomInfo.guestsData?.map((g: any, gIdx: number) => {
+                          const guestPreviews: PreviewItem[] = [];
+                          if (g.photoUrl) {
+                            guestPreviews.push({
+                              url: g.photoUrl,
+                              title: `${g.name || 'Additional Guest'} - Photo`,
+                              type: 'photo',
+                              subtitle: 'Guest Photo',
+                            });
+                          }
+                          if (Array.isArray(g.idDocuments) && g.idDocuments.length > 0) {
+                            g.idDocuments.forEach((doc: any, dIdx: number) => {
+                              const dUrl = typeof doc === 'string' ? doc : doc.url;
+                              if (dUrl && !guestPreviews.some(p => p.url === dUrl)) {
+                                guestPreviews.push({
+                                  url: dUrl,
+                                  title: `${g.name || 'Guest'} - ID Document ${dIdx + 1}`,
+                                  type: 'id',
+                                  subtitle: 'Identity Proof',
+                                  documentNumber: typeof doc === 'object' ? doc.number : null,
+                                });
+                              }
+                            });
+                          }
+                          if (Array.isArray(g.idUrls) && g.idUrls.length > 0) {
+                            g.idUrls.forEach((url: string, uIdx: number) => {
+                              if (url && !guestPreviews.some(p => p.url === url)) {
+                                guestPreviews.push({
+                                  url: url,
+                                  title: `${g.name || 'Guest'} - ID Document ${uIdx + 1}`,
+                                  type: 'id',
+                                  subtitle: 'Identity Proof',
+                                  documentNumber: g.idNumber || null,
+                                });
+                              }
+                            });
+                          }
+                          if (g.idUrl && !guestPreviews.some(p => p.url === g.idUrl)) {
+                            guestPreviews.push({
+                              url: g.idUrl,
+                              title: `${g.name || 'Guest'} - ID Document`,
+                              type: 'id',
+                              subtitle: 'Identity Proof',
+                              documentNumber: g.idNumber || null,
+                            });
+                          }
+
+                          const addIdDocs = guestPreviews.filter(p => p.type === 'id');
+                          const addPhoto = guestPreviews.find(p => p.type === 'photo');
+
+                          return (
+                          <div key={gIdx} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              {addPhoto ? (
+                                <div
+                                  onClick={() => openPreview(guestPreviews, guestPreviews.indexOf(addPhoto))}
+                                  className="relative group cursor-pointer w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-emerald-200 shadow-xs"
+                                  title="Click to preview photo"
+                                >
+                                  <img
+                                    src={addPhoto.url}
+                                    alt={g.name || 'Guest'}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition"
+                                  />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                                    <Eye size={12} className="text-white" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+                                  <User size={18} />
+                                </div>
+                              )}
+
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">{g.name || 'Unknown'}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {g.gender ? g.gender.charAt(0).toUpperCase() + g.gender.slice(1) : '-'}
+                                  {g.age ? `, ${g.age} yrs` : ''}
+                                  {g.phone ? ` • ${g.phone}` : ''}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Gender / Age</p>
-                              <p className="text-sm font-bold text-gray-900">
-                                {g.gender ? g.gender.charAt(0).toUpperCase() + g.gender.slice(1) : '-'}
-                                {g.age ? `, ${g.age} yrs` : ''}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">ID Document</p>
-                              <p className="text-sm font-bold text-gray-900">{g.isVerified ? 'Verified' : 'Not Verified'}</p>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {addIdDocs.length > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openPreview(guestPreviews, guestPreviews.findIndex(p => p.type === 'id'))}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition"
+                                >
+                                  <FileText size={13} />
+                                  <span>Preview ID ({addIdDocs.length})</span>
+                                </button>
+                              ) : (
+                                <span className="text-xs text-gray-400 italic">No ID uploaded</span>
+                              )}
+
+                              {addPhoto && (
+                                <button
+                                  type="button"
+                                  onClick={() => openPreview(guestPreviews, guestPreviews.indexOf(addPhoto))}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition"
+                                >
+                                  <Camera size={13} />
+                                  <span>Photo</span>
+                                </button>
+                              )}
                             </div>
                           </div>
-                        ))
+                        );})
                       ))}
                     </div>
                   </div>
@@ -729,6 +922,14 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
 
         </div>
       </div>
+
+      {/* Lightbox Preview Modal */}
+      <GuestMediaPreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        items={previewItems}
+        initialIndex={previewIndex}
+      />
     </>
   );
 }

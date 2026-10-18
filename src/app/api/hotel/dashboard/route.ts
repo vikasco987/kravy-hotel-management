@@ -54,6 +54,7 @@ export async function GET() {
                 checkInDate: true,
                 checkOutDate: true,
                 appliedRate: true,
+                guestsData: true,
                 stay: {
                   select: {
                     reservation: {
@@ -61,8 +62,24 @@ export async function GET() {
                         status: true,
                         advancePaid: true,
                         totalAmount: true,
-                        guest: { select: { name: true, phone: true, idProof: true } },
-                        rooms: { select: { roomId: true, checkOutDate: true } }
+                        guest: {
+                          select: {
+                            name: true,
+                            phone: true,
+                            idProof: true,
+                            guestPhotoUrl: true,
+                            documents: {
+                              select: {
+                                id: true,
+                                documentType: true,
+                                documentNumber: true,
+                                fileReference: true,
+                                verificationStatus: true,
+                              }
+                            }
+                          }
+                        },
+                        rooms: { select: { roomId: true, checkOutDate: true, guestsData: true } }
                       }
                     }
                   }
@@ -109,6 +126,9 @@ export async function GET() {
             name: guest.name,
             phone: guest.phone,
             idProof: guest.idProof || 'Not Provided',
+            guestPhotoUrl: guest.guestPhotoUrl || null,
+            documents: guest.documents || [],
+            guestsData: activeStayRoom.guestsData || (reservationRoom ? reservationRoom.guestsData : null) || null,
             checkInDate: activeStayRoom.checkInDate,
             expectedCheckOutDate: reservationRoom ? reservationRoom.checkOutDate : undefined,
             roomRate: activeStayRoom.appliedRate || room.roomType?.basePrice || 0,
