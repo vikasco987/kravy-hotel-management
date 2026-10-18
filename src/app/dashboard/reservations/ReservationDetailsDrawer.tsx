@@ -603,17 +603,87 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                 })()}
 
                 {/* Additional Guests (Gathered from rooms) */}
-                {reservation.rooms.some((r: any) => r.guestsData && r.guestsData.length > 0) && (
-                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs">
-                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                      <div className="flex items-center gap-2">
-                        <User size={16} className="text-emerald-600" />
-                        <h3 className="text-[13px] font-bold text-gray-900">Additional Guests</h3>
+                {(() => {
+                  const leadGuest = reservation.guest;
+                  const leadGuestId = leadGuest?.id;
+                  const leadName = (leadGuest?.name || '').trim().toLowerCase();
+                  const leadPhone = (leadGuest?.phone || '').trim().replace(/\D/g, '');
+
+                  // 1. Gather all guest objects across rooms safely
+                  const rawGuests: any[] = [];
+                  reservation.rooms?.forEach((roomInfo: any) => {
+                    let gData = roomInfo.guestsData;
+                    if (typeof gData === 'string') {
+                      try {
+                        gData = JSON.parse(gData);
+                      } catch {
+                        gData = [];
+                      }
+                    }
+                    if (Array.isArray(gData)) {
+                      gData.forEach((g: any) => {
+                        if (g && (g.name || g.phone)) rawGuests.push(g);
+                      });
+                    }
+                  });
+
+                  // 2. Filter out the single lead guest record from the additional guests list
+                  let leadGuestRemoved = false;
+                  const nonLeadGuests: any[] = [];
+
+                  for (const g of rawGuests) {
+                    const gName = (g.name || '').trim().toLowerCase();
+                    const gPhone = (g.phone || '').trim().replace(/\D/g, '');
+                    const gDbId = g.guestId || (typeof g.id === 'string' && g.id.length === 24 ? g.id : null);
+
+                    const isDbIdMatch = Boolean(leadGuestId && gDbId && gDbId === leadGuestId);
+                    const isBothMatch = Boolean(leadPhone && gPhone && leadPhone === gPhone && leadName && gName && leadName === gName);
+                    const isNameMatch = Boolean(leadName && gName && leadName === gName && (!leadPhone || !gPhone || leadPhone === gPhone));
+                    const isPhoneMatch = Boolean(leadPhone && gPhone && leadPhone === gPhone && (!gName || !leadName));
+
+                    const isLeadMatch = isDbIdMatch || isBothMatch || isNameMatch || isPhoneMatch;
+
+                    if (isLeadMatch && !leadGuestRemoved) {
+                      leadGuestRemoved = true;
+                      continue;
+                    }
+
+                    nonLeadGuests.push(g);
+                  }
+
+                  // 3. De-duplicate remaining additional guests across rooms
+                  const seenKeys = new Set<string>();
+                  const uniqueAdditionalGuests: any[] = [];
+
+                  nonLeadGuests.forEach((g: any, i: number) => {
+                    const normName = (g.name || '').trim().toLowerCase();
+                    const normPhone = (g.phone || '').trim().replace(/\D/g, '');
+                    const key = (normName || normPhone)
+                      ? `${normName}|${normPhone}|${(g.age || '').trim()}|${(g.gender || '').trim().toLowerCase()}`
+                      : (g.id ? `id-${g.id}` : `idx-${i}`);
+
+                    if (!seenKeys.has(key)) {
+                      seenKeys.add(key);
+                      uniqueAdditionalGuests.push(g);
+                    }
+                  });
+
+                  // 4. Hide entire section if no additional guests exist
+                  if (uniqueAdditionalGuests.length === 0) return null;
+
+                  return (
+                    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs">
+                      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                        <div className="flex items-center gap-2">
+                          <User size={16} className="text-emerald-600" />
+                          <h3 className="text-[13px] font-bold text-gray-900">Additional Guests</h3>
+                        </div>
+                        <span className="text-xs font-semibold text-gray-500">
+                          {uniqueAdditionalGuests.length} Guest{uniqueAdditionalGuests.length > 1 ? 's' : ''}
+                        </span>
                       </div>
-                    </div>
-                    <div className="divide-y divide-gray-100">
-                      {reservation.rooms.map((roomInfo: any) => (
-                        roomInfo.guestsData?.map((g: any, gIdx: number) => {
+                      <div className="divide-y divide-gray-100">
+                        {uniqueAdditionalGuests.map((g: any, gIdx: number) => {
                           const guestPreviews: PreviewItem[] = [];
                           if (g.photoUrl) {
                             guestPreviews.push({
@@ -664,70 +734,71 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                           const addPhoto = guestPreviews.find(p => p.type === 'photo');
 
                           return (
-                          <div key={gIdx} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex items-start gap-3">
-                              {addPhoto ? (
-                                <div
-                                  onClick={() => openPreview(guestPreviews, guestPreviews.indexOf(addPhoto))}
-                                  className="relative group cursor-pointer w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-emerald-200 shadow-xs"
-                                  title="Click to preview photo"
-                                >
-                                  <img
-                                    src={addPhoto.url}
-                                    alt={g.name || 'Guest'}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition"
-                                  />
-                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                                    <Eye size={12} className="text-white" />
+                            <div key={g.id || gIdx} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                              <div className="flex items-start gap-3">
+                                {addPhoto ? (
+                                  <div
+                                    onClick={() => openPreview(guestPreviews, guestPreviews.indexOf(addPhoto))}
+                                    className="relative group cursor-pointer w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-emerald-200 shadow-xs"
+                                    title="Click to preview photo"
+                                  >
+                                    <img
+                                      src={addPhoto.url}
+                                      alt={g.name || 'Guest'}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition"
+                                    />
+                                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                                      <Eye size={12} className="text-white" />
+                                    </div>
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
-                                  <User size={18} />
-                                </div>
-                              )}
+                                ) : (
+                                  <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+                                    <User size={18} />
+                                  </div>
+                                )}
 
-                              <div>
-                                <p className="text-sm font-bold text-gray-900">{g.name || 'Unknown'}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  {g.gender ? g.gender.charAt(0).toUpperCase() + g.gender.slice(1) : '-'}
-                                  {g.age ? `, ${g.age} yrs` : ''}
-                                  {g.phone ? ` • ${g.phone}` : ''}
-                                </p>
+                                <div>
+                                  <p className="text-sm font-bold text-gray-900">{g.name || 'Unknown'}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    {g.gender ? g.gender.charAt(0).toUpperCase() + g.gender.slice(1) : '-'}
+                                    {g.age ? `, ${g.age} yrs` : ''}
+                                    {g.phone ? ` • ${g.phone}` : ''}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                {addIdDocs.length > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openPreview(guestPreviews, guestPreviews.findIndex(p => p.type === 'id'))}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition"
+                                  >
+                                    <FileText size={13} />
+                                    <span>Preview ID ({addIdDocs.length})</span>
+                                  </button>
+                                ) : (
+                                  <span className="text-xs text-gray-400 italic">No ID uploaded</span>
+                                )}
+
+                                {addPhoto && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openPreview(guestPreviews, guestPreviews.indexOf(addPhoto))}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition"
+                                  >
+                                    <Camera size={13} />
+                                    <span>Photo</span>
+                                  </button>
+                                )}
                               </div>
                             </div>
-
-                            <div className="flex items-center gap-2 shrink-0">
-                              {addIdDocs.length > 0 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openPreview(guestPreviews, guestPreviews.findIndex(p => p.type === 'id'))}
-                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition"
-                                >
-                                  <FileText size={13} />
-                                  <span>Preview ID ({addIdDocs.length})</span>
-                                </button>
-                              ) : (
-                                <span className="text-xs text-gray-400 italic">No ID uploaded</span>
-                              )}
-
-                              {addPhoto && (
-                                <button
-                                  type="button"
-                                  onClick={() => openPreview(guestPreviews, guestPreviews.indexOf(addPhoto))}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition"
-                                >
-                                  <Camera size={13} />
-                                  <span>Photo</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );})
-                      ))}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
               </div>
             )}
