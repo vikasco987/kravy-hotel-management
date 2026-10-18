@@ -423,40 +423,63 @@ function QuickActionCard({
   disabled,
 }: any) {
   return (
-    <button
-      onClick={disabled ? undefined : onClick}
-      disabled={disabled}
-      title={
-        disabled
-          ? "Access Denied: You do not have permission for this section"
-          : title
-      }
-      className={`flex items-center justify-between p-3.5 rounded-[18px] border border-gray-100 shadow-sm transition-all duration-300 bg-white w-full text-left group ${
-        disabled
-          ? "opacity-40 cursor-not-allowed hover:shadow-none"
-          : "hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
-      }`}
-    >
-      <div className="flex items-center gap-3.5 min-w-0">
-        <div
-          className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${colorTheme.bg} ${colorTheme.text}`}
-        >
-          <Icon size={20} strokeWidth={2.5} />
-        </div>
-        <div className="min-w-0">
-          <div className="text-[13px] font-extrabold text-gray-900 truncate mb-0.5">
-            {title}
-          </div>
-          <div className="text-[10px] font-semibold text-gray-400 truncate">
-            {subtitle}
-          </div>
-        </div>
-      </div>
-      <ChevronRight
-        size={16}
-        className={`shrink-0 ${disabled ? "text-gray-200" : "text-gray-300 group-hover:text-gray-400"}`}
+    <div className="relative group">
+      {/* Ambient colorful card glow behind the card */}
+      <div
+        className={`absolute -inset-1 rounded-[26px] opacity-25 group-hover:opacity-45 blur-lg transition duration-500 pointer-events-none ${
+          colorTheme.bg || 'bg-blue-100'
+        }`}
       />
-    </button>
+
+      <button
+        onClick={disabled ? undefined : onClick}
+        disabled={disabled}
+        title={
+          disabled
+            ? "Access Denied: You do not have permission for this section"
+            : title
+        }
+        className={`relative flex items-center justify-between p-3.5 rounded-[22px] transition-all duration-300 w-full text-left overflow-hidden ${
+          disabled
+            ? "bg-white/40 border border-white/40 opacity-40 cursor-not-allowed shadow-none"
+            : "bg-white/70 hover:bg-white/85 border border-white/90 hover:border-white cursor-pointer hover:-translate-y-1 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05),0_4px_10px_-2px_rgba(0,0,0,0.02)] hover:shadow-[0_20px_35px_-5px_rgba(0,0,0,0.08),0_6px_15px_-3px_rgba(0,0,0,0.03)]"
+        }`}
+        style={{
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          boxShadow: disabled
+            ? undefined
+            : "0 10px 30px -5px rgba(0, 0, 0, 0.04), inset 0 2px 2px 0 rgba(255, 255, 255, 1), inset 0 -1px 2px 0 rgba(255, 255, 255, 0.5)",
+        }}
+      >
+        {/* Glossy top light sheen */}
+        <div className="absolute inset-x-0 top-0 h-[48%] bg-gradient-to-b from-white/70 via-white/20 to-transparent pointer-events-none rounded-t-[22px]" />
+
+        <div className="relative z-10 flex items-center gap-3.5 min-w-0">
+          <div
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border border-white/90 shadow-[0_4px_12px_rgba(0,0,0,0.04),inset_0_1.5px_1px_rgba(255,255,255,0.9)] transition-transform duration-300 group-hover:scale-105 ${colorTheme.bg} ${colorTheme.text}`}
+          >
+            <Icon size={20} strokeWidth={2.4} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[13px] font-extrabold text-gray-900 truncate mb-0.5 tracking-tight">
+              {title}
+            </div>
+            <div className="text-[10px] font-medium text-gray-500 truncate">
+              {subtitle}
+            </div>
+          </div>
+        </div>
+        <ChevronRight
+          size={15}
+          className={`relative z-10 shrink-0 transition-all duration-200 ${
+            disabled
+              ? "text-gray-200"
+              : "text-gray-300 group-hover:text-gray-600 group-hover:translate-x-0.5"
+          }`}
+        />
+      </button>
+    </div>
   );
 }
 interface GreetingInfo {
@@ -1047,30 +1070,30 @@ function DashboardContent() {
       <div className="flex-1 flex flex-col h-screen overflow-y-auto relative bg-[#F4F6F9]">
         <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-8">
           {/* HERO BANNER */}
-          <div className="relative w-full h-[140px] rounded-2xl overflow-hidden flex items-center shadow-sm">
+          <div className="relative w-full h-[140px] rounded-2xl overflow-hidden flex items-center shadow-md">
             <img
-              src="/images/hero-hotel.jpg"
-              className="absolute inset-0 w-full h-full object-cover object-center brightness-[0.85]"
+              src="/images/twilight-infinity-pool.png"
+              className="absolute inset-0 w-full h-full object-cover object-[center_38%] brightness-[1.02] contrast-[1.05]"
               alt="Hotel Banner"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 via-blue-900/60 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-950/75 via-indigo-950/40 to-transparent"></div>
 
             <div className="relative z-10 flex w-full items-center justify-between px-8">
               <div className="flex items-center gap-4">
                 <greetingInfo.icon size={48} className={greetingInfo.iconClass} />
                 <div>
-                  <h1 className="text-3xl font-bold text-white tracking-tight">
+                  <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-sm">
                     {greetingInfo.text}, {formatGreetingName(user?.name, user?.email)}!
                   </h1>
-                  <p className="text-blue-100 text-sm mt-1">
+                  <p className="text-blue-100 text-sm mt-1 drop-shadow-sm">
                     Here&apos;s what&apos;s happening at {profile?.businessName || "My Hotel"} today.
                   </p>
                 </div>
               </div>
 
               {/* Banner Widget */}
-              <div className="bg-white rounded-xl p-4 shadow-lg w-[260px] flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0">
+              <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.12)] border border-white/80 w-[260px] flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 shadow-md">
                   <BedDouble size={24} />
                 </div>
                 <div>
@@ -1088,12 +1111,20 @@ function DashboardContent() {
             </div>
           </div>
 
-          {/* QUICK ACTIONS GRID */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <QuickActionCard
-              title="Guest Check-in"
-              subtitle="New arrivals"
-              icon={UserRound}
+          {/* QUICK ACTIONS GRID WITH AMBIENT GLOSS GLOW */}
+          <div className="relative isolate py-1">
+            {/* Ambient luxury pastel diffuse glow orbs behind translucent frosted cards */}
+            <div className="absolute -top-12 -left-8 w-80 h-44 bg-purple-300/40 rounded-full blur-[60px] pointer-events-none -z-10" />
+            <div className="absolute -top-6 left-1/3 w-96 h-48 bg-blue-300/35 rounded-full blur-[65px] pointer-events-none -z-10" />
+            <div className="absolute -top-8 right-10 w-80 h-44 bg-rose-200/30 rounded-full blur-[60px] pointer-events-none -z-10" />
+            <div className="absolute -bottom-10 left-1/4 w-96 h-48 bg-indigo-300/30 rounded-full blur-[70px] pointer-events-none -z-10" />
+            <div className="absolute -bottom-8 right-1/4 w-80 h-40 bg-teal-200/25 rounded-full blur-[60px] pointer-events-none -z-10" />
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <QuickActionCard
+                title="Guest Check-in"
+                subtitle="New arrivals"
+                icon={UserRound}
               onClick={() => router.push("/dashboard/book")}
               disabled={
                 !isAdmin &&
@@ -1202,6 +1233,7 @@ function DashboardContent() {
               colorTheme={{ bg: "bg-rose-50", text: "text-rose-600" }}
             />
           </div>
+        </div>
 
           {/* LOWER SECTION: FLOORS (LEFT) AND WIDGETS (RIGHT) */}
           <div className="flex flex-col xl:flex-row gap-8">
