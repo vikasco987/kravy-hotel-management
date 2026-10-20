@@ -183,88 +183,188 @@ export default function ReservationsPage() {
       <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-6">
 
         {/* HERO HEADER */}
-        <div className="relative w-full h-[180px] md:h-[220px] rounded-2xl overflow-hidden flex flex-col justify-center shadow-md">
-           <img src="/images/reservations-banner.jpg" className="absolute inset-0 w-full h-full object-cover object-center" alt="Background" />
-           <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-transparent w-[90%] md:w-[70%]"></div>
+        <div className="relative w-full h-[180px] md:h-[220px] rounded-3xl overflow-hidden flex flex-col justify-center shadow-[0_12px_36px_-6px_rgba(30,41,59,0.12)] border border-white/60">
+           {/* Background Image with warm saturation and brightness */}
+           <img
+             src="/images/reservations-banner.jpg"
+             className="absolute inset-0 w-full h-full object-cover object-[center_35%] scale-[1.02] filter brightness-[1.04] contrast-[1.05] saturate-[1.12]"
+             alt="Background"
+           />
 
-           <div className="relative z-10 px-6 md:px-10 flex flex-col md:flex-row items-start md:items-center gap-5 mb-4">
-             <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-white/80 backdrop-blur-md flex items-center justify-center text-indigo-600 shadow-sm border border-white/50">
-               <CalendarDays size={32} strokeWidth={2.5} />
+           {/* Cinematic Golden-Hour Sunbeam & Warm Light Overlays */}
+           <div className="absolute inset-0 bg-gradient-to-r from-amber-500/15 via-orange-400/10 to-yellow-200/20 mix-blend-color-dodge pointer-events-none"></div>
+           <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-amber-200/15 pointer-events-none"></div>
+
+           {/* Soft Left Frosted Glow for Text Contrast matching reference */}
+           <div className="absolute inset-y-0 left-0 w-full md:w-[58%] bg-gradient-to-r from-white/95 via-white/80 to-transparent backdrop-blur-[2px]"></div>
+
+           {/* Content Box */}
+           <div className="relative z-10 px-6 md:px-10 flex items-center gap-5">
+             <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-white/90 backdrop-blur-md flex items-center justify-center text-indigo-600 shadow-[0_8px_20px_rgba(79,70,229,0.12)] border border-white/80 shrink-0">
+               <CalendarDays size={32} strokeWidth={2.2} />
              </div>
              <div>
-               <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">Reservations</h1>
-               <p className="text-gray-600 font-bold text-xs md:text-sm mt-1">Manage guest reservations and bookings</p>
+               <h1 className="text-2xl md:text-[28px] font-black text-gray-900 tracking-tight leading-tight drop-shadow-xs">Reservations</h1>
+               <p className="text-gray-600 font-semibold text-xs md:text-sm mt-1">Manage guest reservations and bookings</p>
              </div>
            </div>
         </div>
 
         {/* STATS CARDS */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 -mt-10 relative z-20 px-4">
-           {/* Card 1 */}
-           <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 flex items-center justify-between col-span-2 md:col-span-1 min-w-[220px]">
-             <div>
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Reservations</div>
-                <div className="text-3xl font-black text-gray-900 mt-1">{stats.total}</div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 -mt-10 relative z-20 px-2 md:px-4">
+           {/* Card 1: Total Reservations */}
+           <div className="group relative bg-white/95 backdrop-blur-md rounded-2xl p-5 shadow-[0_10px_25px_-5px_rgba(59,130,246,0.1),0_4px_12px_rgba(0,0,0,0.04)] border border-white hover:border-blue-200 transition-all duration-300 hover:shadow-[0_14px_30px_-5px_rgba(59,130,246,0.16)] flex flex-col justify-between overflow-hidden col-span-2 md:col-span-1 min-h-[105px]">
+             <div className="flex items-center gap-3.5 relative z-10">
+                <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs border border-blue-100/60 shrink-0">
+                   <CalendarDays size={20} strokeWidth={2.2} />
+                </div>
+                <div className="min-w-0">
+                   <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">TOTAL RESERVATIONS</div>
+                   <div className="text-2xl md:text-3xl font-black text-gray-900 mt-1 leading-none tracking-tight">{stats.total}</div>
+                </div>
              </div>
-             <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-                <CalendarDays size={20} />
+             {/* Decorative Sparkline Wave Graphic */}
+             <div className="absolute right-0 bottom-0 w-[55%] h-12 pointer-events-none opacity-85 group-hover:opacity-100 transition-opacity">
+                <svg viewBox="0 0 120 40" fill="none" preserveAspectRatio="none" className="w-full h-full">
+                  <defs>
+                    <linearGradient id="blueWave" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#93c5fd" stopOpacity="0.1" />
+                      <stop offset="50%" stopColor="#60a5fa" stopOpacity="0.45" />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.75" />
+                    </linearGradient>
+                    <linearGradient id="blueFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#bfdbfe" stopOpacity="0.4" />
+                      <stop offset="100%" stopColor="#eff6ff" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M0 32 Q 30 18, 55 26 T 100 12 T 120 16 L 120 40 L 0 40 Z" fill="url(#blueFill)" />
+                  <path d="M0 32 Q 30 18, 55 26 T 100 12 T 120 16" stroke="url(#blueWave)" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
              </div>
            </div>
 
-           {/* Card 2 */}
-           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
-             <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                  <CheckCircle2 size={20} />
+           {/* Card 2: Checked In */}
+           <div className="group relative bg-white/95 backdrop-blur-md rounded-2xl p-5 shadow-[0_10px_25px_-5px_rgba(16,185,129,0.1),0_4px_12px_rgba(0,0,0,0.04)] border border-white hover:border-emerald-200 transition-all duration-300 hover:shadow-[0_14px_30px_-5px_rgba(16,185,129,0.16)] flex flex-col justify-between overflow-hidden min-h-[105px]">
+             <div className="flex items-center gap-3.5 relative z-10">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs border border-emerald-100/60 shrink-0">
+                   <CheckCircle2 size={20} strokeWidth={2.4} />
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Checked In</div>
-                  <div className="text-2xl font-black text-gray-900 leading-none mt-1">{stats.checkedIn}</div>
+                <div className="min-w-0">
+                   <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">CHECKED IN</div>
+                   <div className="text-2xl md:text-3xl font-black text-gray-900 mt-1 leading-none tracking-tight">{stats.checkedIn}</div>
                 </div>
              </div>
-             <ChevronRight size={16} className="text-gray-300" />
+             {/* Decorative Sparkline Wave Graphic */}
+             <div className="absolute right-0 bottom-0 w-[55%] h-12 pointer-events-none opacity-85 group-hover:opacity-100 transition-opacity">
+                <svg viewBox="0 0 120 40" fill="none" preserveAspectRatio="none" className="w-full h-full">
+                  <defs>
+                    <linearGradient id="emeraldWave" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#a7f3d0" stopOpacity="0.1" />
+                      <stop offset="50%" stopColor="#34d399" stopOpacity="0.45" />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity="0.75" />
+                    </linearGradient>
+                    <linearGradient id="emeraldFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#bbf7d0" stopOpacity="0.4" />
+                      <stop offset="100%" stopColor="#f0fdf4" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M0 34 Q 30 24, 60 22 T 95 10 T 120 18 L 120 40 L 0 40 Z" fill="url(#emeraldFill)" />
+                  <path d="M0 34 Q 30 24, 60 22 T 95 10 T 120 18" stroke="url(#emeraldWave)" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+             </div>
            </div>
 
-           {/* Card 3 */}
-           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
-             <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                  <LogOut size={20} />
+           {/* Card 3: Checked Out */}
+           <div className="group relative bg-white/95 backdrop-blur-md rounded-2xl p-5 shadow-[0_10px_25px_-5px_rgba(168,85,247,0.1),0_4px_12px_rgba(0,0,0,0.04)] border border-white hover:border-purple-200 transition-all duration-300 hover:shadow-[0_14px_30px_-5px_rgba(168,85,247,0.16)] flex flex-col justify-between overflow-hidden min-h-[105px]">
+             <div className="flex items-center gap-3.5 relative z-10">
+                <div className="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-xs border border-purple-100/60 shrink-0">
+                   <LogOut size={20} strokeWidth={2.3} />
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Checked Out</div>
-                  <div className="text-2xl font-black text-gray-900 leading-none mt-1">{stats.checkedOut}</div>
+                <div className="min-w-0">
+                   <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">CHECKED OUT</div>
+                   <div className="text-2xl md:text-3xl font-black text-gray-900 mt-1 leading-none tracking-tight">{stats.checkedOut}</div>
                 </div>
              </div>
-             <ChevronRight size={16} className="text-gray-300" />
+             {/* Decorative Sparkline Wave Graphic */}
+             <div className="absolute right-0 bottom-0 w-[55%] h-12 pointer-events-none opacity-85 group-hover:opacity-100 transition-opacity">
+                <svg viewBox="0 0 120 40" fill="none" preserveAspectRatio="none" className="w-full h-full">
+                  <defs>
+                    <linearGradient id="purpleWave" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#e9d5ff" stopOpacity="0.1" />
+                      <stop offset="50%" stopColor="#c084fc" stopOpacity="0.45" />
+                      <stop offset="100%" stopColor="#a855f7" stopOpacity="0.75" />
+                    </linearGradient>
+                    <linearGradient id="purpleFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#e9d5ff" stopOpacity="0.45" />
+                      <stop offset="100%" stopColor="#faf5ff" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M0 36 Q 35 28, 65 24 T 100 14 T 120 20 L 120 40 L 0 40 Z" fill="url(#purpleFill)" />
+                  <path d="M0 36 Q 35 28, 65 24 T 100 14 T 120 20" stroke="url(#purpleWave)" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+             </div>
            </div>
 
-           {/* Card 4 */}
-           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
-             <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                  <CalendarPlus size={20} />
+           {/* Card 4: Upcoming Check-ins */}
+           <div className="group relative bg-white/95 backdrop-blur-md rounded-2xl p-5 shadow-[0_10px_25px_-5px_rgba(245,158,11,0.1),0_4px_12px_rgba(0,0,0,0.04)] border border-white hover:border-amber-200 transition-all duration-300 hover:shadow-[0_14px_30px_-5px_rgba(245,158,11,0.16)] flex flex-col justify-between overflow-hidden min-h-[105px]">
+             <div className="flex items-center gap-3.5 relative z-10">
+                <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-xs border border-amber-100/60 shrink-0">
+                   <CalendarPlus size={20} strokeWidth={2.3} />
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Upcoming Check-ins</div>
-                  <div className="text-2xl font-black text-gray-900 leading-none mt-1">{stats.upcomingCheckIns}</div>
+                <div className="min-w-0">
+                   <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">UPCOMING CHECK-INS</div>
+                   <div className="text-2xl md:text-3xl font-black text-gray-900 mt-1 leading-none tracking-tight">{stats.upcomingCheckIns}</div>
                 </div>
              </div>
-             <ChevronRight size={16} className="text-gray-300" />
+             {/* Decorative Sparkline Wave Graphic */}
+             <div className="absolute right-0 bottom-0 w-[55%] h-12 pointer-events-none opacity-85 group-hover:opacity-100 transition-opacity">
+                <svg viewBox="0 0 120 40" fill="none" preserveAspectRatio="none" className="w-full h-full">
+                  <defs>
+                    <linearGradient id="amberWave" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#fde68a" stopOpacity="0.1" />
+                      <stop offset="50%" stopColor="#fbbf24" stopOpacity="0.45" />
+                      <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.75" />
+                    </linearGradient>
+                    <linearGradient id="amberFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#fef3c7" stopOpacity="0.45" />
+                      <stop offset="100%" stopColor="#fffbeb" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M0 35 Q 35 25, 65 24 T 100 12 T 120 18 L 120 40 L 0 40 Z" fill="url(#amberFill)" />
+                  <path d="M0 35 Q 35 25, 65 24 T 100 12 T 120 18" stroke="url(#amberWave)" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+             </div>
            </div>
 
-           {/* Card 5 */}
-           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
-             <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                  <CalendarCheck size={20} />
+           {/* Card 5: Upcoming Check-outs */}
+           <div className="group relative bg-white/95 backdrop-blur-md rounded-2xl p-5 shadow-[0_10px_25px_-5px_rgba(244,63,94,0.1),0_4px_12px_rgba(0,0,0,0.04)] border border-white hover:border-rose-200 transition-all duration-300 hover:shadow-[0_14px_30px_-5px_rgba(244,63,94,0.16)] flex flex-col justify-between overflow-hidden min-h-[105px]">
+             <div className="flex items-center gap-3.5 relative z-10">
+                <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-xs border border-rose-100/60 shrink-0">
+                   <CalendarCheck size={20} strokeWidth={2.3} />
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Upcoming Check-outs</div>
-                  <div className="text-2xl font-black text-gray-900 leading-none mt-1">{stats.upcomingCheckOuts}</div>
+                <div className="min-w-0">
+                   <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">UPCOMING CHECK-OUTS</div>
+                   <div className="text-2xl md:text-3xl font-black text-gray-900 mt-1 leading-none tracking-tight">{stats.upcomingCheckOuts}</div>
                 </div>
              </div>
-             <ChevronRight size={16} className="text-gray-300" />
+             {/* Decorative Sparkline Wave Graphic */}
+             <div className="absolute right-0 bottom-0 w-[55%] h-12 pointer-events-none opacity-85 group-hover:opacity-100 transition-opacity">
+                <svg viewBox="0 0 120 40" fill="none" preserveAspectRatio="none" className="w-full h-full">
+                  <defs>
+                    <linearGradient id="roseWave" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#fecdd3" stopOpacity="0.1" />
+                      <stop offset="50%" stopColor="#fb7185" stopOpacity="0.45" />
+                      <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.75" />
+                    </linearGradient>
+                    <linearGradient id="roseFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#ffe4e6" stopOpacity="0.45" />
+                      <stop offset="100%" stopColor="#fff1f2" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M0 36 Q 30 26, 60 22 T 95 10 T 120 16 L 120 40 L 0 40 Z" fill="url(#roseFill)" />
+                  <path d="M0 36 Q 30 26, 60 22 T 95 10 T 120 16" stroke="url(#roseWave)" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+             </div>
            </div>
         </div>
 
