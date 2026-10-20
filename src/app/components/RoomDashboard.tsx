@@ -1070,7 +1070,7 @@ function DashboardContent() {
       <div className="flex-1 flex flex-col h-screen overflow-y-auto relative bg-[#F4F6F9]">
         <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-8">
           {/* HERO BANNER */}
-          <div className="relative w-full h-[140px] rounded-2xl overflow-hidden flex items-center shadow-md">
+          <div className="relative w-full h-[175px] md:h-[190px] rounded-2xl overflow-hidden flex items-center shadow-md">
             <img
               src="/images/twilight-infinity-pool.png"
               className="absolute inset-0 w-full h-full object-cover object-[center_38%] brightness-[1.02] contrast-[1.05]"
