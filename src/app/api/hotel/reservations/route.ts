@@ -120,6 +120,7 @@ export async function GET(req: Request) {
         },
         stay: {
           select: {
+            id: true,
             stayRooms: {
               select: {
                 roomId: true,
@@ -186,6 +187,7 @@ export async function GET(req: Request) {
       }
 
       return {
+        stayId: res.stay?.id || null,
         firstActiveRoomId,
         id: res.id,
         shortId: String(res.reservationNumber),

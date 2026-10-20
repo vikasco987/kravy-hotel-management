@@ -17,7 +17,8 @@ import {
   Code,
   Copy,
   Check,
-  X
+  X,
+  Printer
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useRouter } from 'next/navigation';
@@ -27,6 +28,7 @@ import { ApiJsonDebugger } from '@/components/ui/ApiJsonDebugger';
 
 interface Reservation {
   id: string;
+  stayId?: string;
   reservationNumber: number;
   guestName: string;
   guestPhone: string;
@@ -62,6 +64,9 @@ export default function ReservationsPage() {
 
   const [canPrintInvoice, setCanPrintInvoice] = useState(true);
   const [canPrintReceipt, setCanPrintReceipt] = useState(true);
+  const [canPrint80mm, setCanPrint80mm] = useState(true);
+  const [canPrint58mm, setCanPrint58mm] = useState(true);
+  const [printSubmenuOpenId, setPrintSubmenuOpenId] = useState<string | null>(null);
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [apiRequests, setApiRequests] = useState<any[]>([]);
@@ -121,6 +126,8 @@ export default function ReservationsPage() {
           if (d.isAdmin !== undefined) setIsAdmin(d.isAdmin);
           if (d.canPrintInvoice !== undefined) setCanPrintInvoice(d.canPrintInvoice);
           if (d.canPrintReceipt !== undefined) setCanPrintReceipt(d.canPrintReceipt);
+          if (d.canPrint80mm !== undefined) setCanPrint80mm(d.canPrint80mm);
+          if (d.canPrint58mm !== undefined) setCanPrint58mm(d.canPrint58mm);
         }
         setLoading(false);
       })
@@ -535,7 +542,7 @@ export default function ReservationsPage() {
                          <MoreHorizontal size={16} />
                        </button>
                        {actionMenuOpenId === res.id && (
-    <div className="absolute right-8 top-10 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden text-left">
+    <div className="absolute right-8 top-10 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 text-left">
       <button onClick={() => { setActionMenuOpenId(null); setDetailsReservationId(res.id); }} className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">View Details</button>
       {(res.status === "RESERVED" || res.status === "CONFIRMED") && (
          <>
@@ -548,32 +555,91 @@ export default function ReservationsPage() {
          </>
       )}
       {res.status === "CHECKED_IN" && (
-         <>
-           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Add Payment</button>
-           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Add Extra Service</button>
-           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Change Room</button>
-           <button onClick={() => {
-             if (!res.firstActiveRoomId) {
-               alert('No active room assigned for checkout.');
-               return;
-             }
-             router.push(`/dashboard/checkout?roomId=${res.firstActiveRoomId}`);
-           }} className="w-full text-left px-4 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Check-out</button>
-           {canPrintInvoice && (
-             <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Print Invoice</button>
-           )}
-         </>
+         <button onClick={() => {
+           setActionMenuOpenId(null);
+           setPrintSubmenuOpenId(null);
+           if (!res.firstActiveRoomId) {
+             alert('No active room assigned for checkout.');
+             return;
+           }
+           router.push(`/dashboard/checkout?roomId=${res.firstActiveRoomId}`);
+         }} className="w-full text-left px-4 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Check-out</button>
       )}
       {res.status === "CHECKED_OUT" && (
-         <>
-           {canPrintInvoice && (
-             <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Print Invoice</button>
+         <div
+           className="relative group"
+           onMouseEnter={() => setPrintSubmenuOpenId(res.id)}
+           onMouseLeave={() => setPrintSubmenuOpenId(null)}
+         >
+           <button
+             type="button"
+             onClick={(e) => {
+               e.stopPropagation();
+               setPrintSubmenuOpenId(prev => (prev === res.id ? null : res.id));
+             }}
+             className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+           >
+             <span className="flex items-center gap-1.5">
+               <Printer size={13} className="text-gray-500" />
+               Print Invoice
+             </span>
+             <ChevronRight size={13} className="text-gray-400 group-hover:text-gray-600" />
+           </button>
+           {printSubmenuOpenId === res.id && (
+             <div
+               onClick={(e) => e.stopPropagation()}
+               className="absolute right-full top-0 pr-1.5 -mr-1.5 z-[60]"
+             >
+               <div className="w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1 overflow-hidden text-left">
+               {(canPrintInvoice ?? true) && (
+                 <button
+                   type="button"
+                   onClick={() => {
+                     setActionMenuOpenId(null);
+                     setPrintSubmenuOpenId(null);
+                     const targetStayId = res.stayId || res.id;
+                     window.open(`/dashboard/print/invoice/${targetStayId}?format=A4`, "_blank");
+                   }}
+                   className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                 >
+                   <span>A4 Invoice</span>
+                 </button>
+               )}
+               {(canPrint80mm ?? canPrintReceipt ?? true) && (
+                 <button
+                   type="button"
+                   onClick={() => {
+                     setActionMenuOpenId(null);
+                     setPrintSubmenuOpenId(null);
+                     const targetStayId = res.stayId || res.id;
+                     window.open(`/dashboard/print/invoice/${targetStayId}?format=80mm`, "_blank");
+                   }}
+                   className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                 >
+                   <span>3-inch Thermal Receipt (80mm)</span>
+                 </button>
+               )}
+               {(canPrint58mm ?? canPrintReceipt ?? true) && (
+                 <button
+                   type="button"
+                   onClick={() => {
+                     setActionMenuOpenId(null);
+                     setPrintSubmenuOpenId(null);
+                     const targetStayId = res.stayId || res.id;
+                     window.open(`/dashboard/print/invoice/${targetStayId}?format=58mm`, "_blank");
+                   }}
+                   className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                 >
+                   <span>2-inch Thermal Receipt (58mm)</span>
+                 </button>
+               )}
+               </div>
+             </div>
            )}
-           <button className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Payment/History</button>
-         </>
+         </div>
       )}
       {(res.status !== "CHECKED_IN" && res.status !== "CHECKED_OUT") && (
-         <button onClick={() => setDeleteModalRes(res)} className="w-full text-left px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 border-t border-gray-100 mt-1">Delete Reservation</button>
+         <button onClick={() => { setActionMenuOpenId(null); setPrintSubmenuOpenId(null); setDeleteModalRes(res); }} className="w-full text-left px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 border-t border-gray-100 mt-1">Delete Reservation</button>
       )}
     </div>
   )}
