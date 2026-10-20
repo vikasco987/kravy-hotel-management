@@ -34,7 +34,6 @@ import {
   ChevronDown,
   UserCheck,
   CalendarDays,
-  UtensilsCrossed,
   MessageCircle,
   BarChart3,
   Wallet,
@@ -1164,16 +1163,6 @@ function DashboardContent() {
                 !isAdmin && !userPermissions.includes("page:housekeeping")
               }
               colorTheme={{ bg: "bg-amber-50", text: "text-amber-600" }}
-            />
-            <QuickActionCard
-              title="Restaurant"
-              subtitle="View orders"
-              icon={UtensilsCrossed}
-              onClick={() => router.push("/dashboard/restaurant")}
-              disabled={
-                !isAdmin && !userPermissions.includes("page:restaurant")
-              }
-              colorTheme={{ bg: "bg-rose-50", text: "text-rose-600" }}
             />
             <QuickActionCard
               title="WhatsApp"
