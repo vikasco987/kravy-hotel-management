@@ -34,7 +34,6 @@ import {
   ChevronDown,
   UserCheck,
   CalendarDays,
-  MessageCircle,
   BarChart3,
   Settings,
   MoreVertical,
@@ -1163,15 +1162,6 @@ function DashboardContent() {
               }
               colorTheme={{ bg: "bg-amber-50", text: "text-amber-600" }}
             />
-            <QuickActionCard
-              title="WhatsApp"
-              subtitle="Guest messaging"
-              icon={MessageCircle}
-              onClick={() => router.push("/dashboard/whatsapp")}
-              disabled={!isAdmin && !userPermissions.includes("page:whatsapp")}
-              colorTheme={{ bg: "bg-emerald-50", text: "text-emerald-600" }}
-            />
-
             <QuickActionCard
               title="Rooms"
               subtitle="Room inventory"
