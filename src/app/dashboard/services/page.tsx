@@ -178,7 +178,7 @@ export default function ServicesPage() {
                   required
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
                   placeholder="e.g. Breakfast, Laundry"
                 />
               </div>
@@ -192,7 +192,7 @@ export default function ServicesPage() {
                   min="0"
                   value={price}
                   onChange={e => setPrice(e.target.value)}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
                   placeholder="e.g. 300"
                 />
               </div>
@@ -202,7 +202,7 @@ export default function ServicesPage() {
                 <textarea 
                   value={description}
                   onChange={e => setDescription(e.target.value)}
-                  className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none resize-none h-20"
+                  className="w-full p-3 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none resize-none h-20"
                   placeholder="Brief description about the service"
                 />
               </div>
