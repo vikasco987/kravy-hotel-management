@@ -164,16 +164,26 @@ function GuestCheckInSuite() {
 
   fetchedRooms.forEach(room => {
      const pricing = roomPricing[room.id];
-     if (pricing) {
+     const guests = roomGuests[room.id] || [];
+     const isSetupComplete = guests.length > 0;
+
+     if (pricing && isSetupComplete) {
         totalRoomCharge += pricing.baseRate / 100 - pricing.discountAmount / 100; // Net rent
         totalExtraCharges += (pricing.extraChargesAmount || 0) / 100;
         totalGst += (pricing.cgstAmount + pricing.sgstAmount) / 100;
         totalAmount += pricing.finalAmount / 100;
+     } else if (pricing && !isSetupComplete) {
+        const netRent = pricing.baseRate / 100 - pricing.discountAmount / 100;
+        const extras = (pricing.extraChargesAmount || 0) / 100;
+        totalRoomCharge += netRent;
+        totalExtraCharges += extras;
+        totalGst += 0;
+        totalAmount += netRent + extras;
      } else {
         const base = ((room.customPrice !== null && room.customPrice !== undefined) ? room.customPrice : (room.roomType?.basePrice || 0)) / 100;
         totalRoomCharge += base;
-        totalGst += base * 0.12;
-        totalAmount += base * 1.12;
+        totalGst += 0;
+        totalAmount += base;
      }
   });
 
@@ -474,12 +484,23 @@ function GuestCheckInSuite() {
                         let extraVal = 0;
                         let finalRent = rentVal;
 
-                        if (pricing) {
+                        const guests = roomGuests[roomId] || [];
+                        const isSetupComplete = guests.length > 0;
+
+                        if (pricing && isSetupComplete) {
                            rentVal = pricing.baseRate / 100;
                            discountVal = pricing.discountAmount / 100;
                            gstVal = (pricing.cgstAmount + pricing.sgstAmount) / 100;
                            extraVal = (pricing.extraChargesAmount || 0) / 100;
                            finalRent = rentVal - discountVal;
+                        } else if (pricing && !isSetupComplete) {
+                           rentVal = pricing.baseRate / 100;
+                           discountVal = pricing.discountAmount / 100;
+                           gstVal = 0;
+                           extraVal = (pricing.extraChargesAmount || 0) / 100;
+                           finalRent = rentVal - discountVal;
+                        } else {
+                           gstVal = 0;
                         }
 
                         const rentStr = rentVal.toLocaleString('en-IN', { minimumFractionDigits: 2 });
@@ -491,7 +512,6 @@ function GuestCheckInSuite() {
                           ? `${pricing.discountType === 'PERCENTAGE' ? pricing.discountValue + '%' : '₹' + pricing.discountValue} (₹${discountVal})`
                           : `0% (₹0)`;
 
-                        const guests = roomGuests[roomId] || [];
                         const leadGuest = guests.find(g => g.isLead) || guests[0];
                         const actualAdults = guests.length > 0 ? guests.filter(g => !g.age || Number(g.age) >= 18).length : 1;
                         const actualChildren = guests.length > 0 ? guests.filter(g => g.age && Number(g.age) < 18).length : 0;
