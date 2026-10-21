@@ -34,7 +34,6 @@ import {
   ChevronDown,
   UserCheck,
   CalendarDays,
-  BarChart3,
   Settings,
   MoreVertical,
   Layers,
@@ -1185,14 +1184,6 @@ function DashboardContent() {
               onClick={() => router.push("/dashboard/floors")}
               disabled={!isAdmin && !userPermissions.includes("page:floors")}
               colorTheme={{ bg: "bg-emerald-50", text: "text-emerald-600" }}
-            />
-            <QuickActionCard
-              title="Reports"
-              subtitle="Analytics & reports"
-              icon={BarChart3}
-              onClick={() => router.push("/dashboard/reports")}
-              disabled={!isAdmin && !userPermissions.includes("page:reports")}
-              colorTheme={{ bg: "bg-amber-50", text: "text-amber-600" }}
             />
             <QuickActionCard
               title="Settings"
