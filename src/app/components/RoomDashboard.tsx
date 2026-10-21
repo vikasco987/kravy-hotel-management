@@ -36,7 +36,6 @@ import {
   CalendarDays,
   MessageCircle,
   BarChart3,
-  Wallet,
   Settings,
   MoreVertical,
   Layers,
@@ -1212,14 +1211,6 @@ function DashboardContent() {
               onClick={() => router.push("/dashboard/settings")}
               disabled={!isAdmin && !userPermissions.includes("page:settings")}
               colorTheme={{ bg: "bg-indigo-50", text: "text-indigo-600" }}
-            />
-            <QuickActionCard
-              title="Expenses & P&L"
-              subtitle="Financial reports"
-              icon={Wallet}
-              onClick={() => router.push("/dashboard/expenses")}
-              disabled={!isAdmin && !userPermissions.includes("page:expenses")}
-              colorTheme={{ bg: "bg-rose-50", text: "text-rose-600" }}
             />
           </div>
         </div>

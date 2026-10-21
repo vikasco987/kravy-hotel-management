@@ -14,7 +14,6 @@ import {
   Users,
   Building2,
   BarChart3,
-  Wallet,
   Settings,
   ChevronRight,
   ChevronDown,
@@ -33,7 +32,6 @@ const MENU_ITEMS = [
   { name: 'Staff', icon: Users, href: '/dashboard/staff' },
   { name: 'Floors', icon: Building2, href: '/dashboard/floors' },
   { name: 'Reports', icon: BarChart3, href: '/dashboard/reports' },
-  { name: 'Expenses & P&L', icon: Wallet, href: '/dashboard/expenses' },
   { name: 'Extra Services', icon: Sparkles, href: '/dashboard/services' },
   { name: 'Settings', icon: Settings, href: '/dashboard/settings' },
 ];
