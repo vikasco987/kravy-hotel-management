@@ -16,8 +16,10 @@ export default function SetupRoomPage() {
   const defaultRent = basePriceParam ? (parseInt(basePriceParam) / 100).toString() : undefined;
   const taxRateParam = searchParams.get('taxRate');
   const taxModeParam = searchParams.get('taxMode') as 'INCLUSIVE' | 'EXCLUSIVE' | null;
+  const taxEnabledParam = searchParams.get('taxEnabled');
   const initialTaxRate = taxRateParam ? parseInt(taxRateParam) : undefined;
   const initialTaxMode = taxModeParam || undefined;
+  const taxEnabled = taxEnabledParam !== null ? taxEnabledParam !== 'false' : undefined;
   const displayRoomNo = roomNumberParam || roomId;
 
   const { roomPricing, roomGuests, checkInDate, checkOutDate, setRoomPricing, setRoomGuests, setCheckInDate, setCheckOutDate } = useBookingStore();
@@ -43,6 +45,7 @@ export default function SetupRoomPage() {
       defaultRent={defaultRent}
       initialTaxRate={initialTaxRate}
       initialTaxMode={initialTaxMode}
+      taxEnabled={taxEnabled}
       onClose={handleClose}
       onSave={handleSave}
       onCheckInDateChange={setCheckInDate}

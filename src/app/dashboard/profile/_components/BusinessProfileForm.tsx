@@ -738,12 +738,14 @@ export default function BusinessProfileForm({
       </div>
 
       {/* Configuration Status Strip */}
-      <div className="px-6 py-2.5 bg-gray-50 dark:bg-gray-900 border-b border-[var(--kravy-border)] flex items-center justify-between text-[11px] font-semibold">
-        <span className="text-[var(--kravy-text-muted)]">Applied Configuration:</span>
-        <span className="font-mono font-bold text-[var(--kravy-text-primary)]">
-          {hotelGstEnabled ? `${(hotelGstRate / 100).toFixed(0)}% GST • ${hotelTaxMode}` : '0% GST (Tax Exempt)'}
-        </span>
-      </div>
+      {hotelGstEnabled && (
+        <div className="px-6 py-2.5 bg-gray-50 dark:bg-gray-900 border-b border-[var(--kravy-border)] flex items-center justify-between text-[11px] font-semibold">
+          <span className="text-[var(--kravy-text-muted)]">Applied Configuration:</span>
+          <span className="font-mono font-bold text-[var(--kravy-text-primary)]">
+            {`${(hotelGstRate / 100).toFixed(0)}% GST • ${hotelTaxMode}`}
+          </span>
+        </div>
+      )}
 
       <div className="p-4 sm:p-6 bg-[#E5E5E5] dark:bg-[#151515] flex justify-center overflow-x-auto min-h-[460px]">
         {(() => {
@@ -843,7 +845,7 @@ export default function BusinessProfileForm({
                     <div>Guest: <span className="font-bold">Rahul Sharma</span></div>
                     <div>Room: <span className="font-bold">Room 102 (Deluxe)</span></div>
                     <div className="text-[7.5px] text-gray-600">
-                      Stay: 1 Night • Pricing: <span className="font-semibold">{hotelGstEnabled ? `GST ${hotelTaxMode}` : 'Exempt'}</span>
+                      Stay: 1 Night{hotelGstEnabled ? <> • Pricing: <span className="font-semibold">{`GST ${hotelTaxMode}`}</span></> : ''}
                     </div>
                   </div>
                 </div>
@@ -867,32 +869,23 @@ export default function BusinessProfileForm({
                 </div>
 
                 {/* Tax Breakdown */}
-                {hotelGstEnabled && activeRate > 0 ? (
-                  <>
-                    <div className="border-t border-dotted border-gray-300 my-1 pt-1 text-[8px] text-gray-600">
-                      <div className="flex justify-between">
-                        <span>Taxable Value:</span>
-                        <span>₹{sampleTaxable.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>CGST ({halfRate}%):</span>
-                        <span>₹{sampleCgst.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>SGST ({halfRate}%):</span>
-                        <span>₹{sampleSgst.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between font-semibold text-gray-800">
-                        <span>Total GST ({(activeRate / 100).toFixed(0)}%):</span>
-                        <span>₹{sampleTaxTotal.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
+                {hotelGstEnabled && activeRate > 0 && (
                   <div className="border-t border-dotted border-gray-300 my-1 pt-1 text-[8px] text-gray-600">
-                    <div className="flex justify-between italic">
-                      <span>GST (Tax Exempt / 0%):</span>
-                      <span>₹0.00</span>
+                    <div className="flex justify-between">
+                      <span>Taxable Value:</span>
+                      <span>₹{sampleTaxable.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>CGST ({halfRate}%):</span>
+                      <span>₹{sampleCgst.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>SGST ({halfRate}%):</span>
+                      <span>₹{sampleSgst.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-gray-800">
+                      <span>Total GST ({(activeRate / 100).toFixed(0)}%):</span>
+                      <span>₹{sampleTaxTotal.toFixed(2)}</span>
                     </div>
                   </div>
                 )}
@@ -906,13 +899,13 @@ export default function BusinessProfileForm({
                 </div>
 
                 {/* Mode Indicator Note */}
-                <div className="text-[7.5px] text-gray-500 italic mt-0.5">
-                  * {hotelGstEnabled
-                    ? (hotelTaxMode === 'INCLUSIVE'
-                      ? 'Inclusive Pricing: GST is included within the ₹2,500 rent.'
-                      : 'Exclusive Pricing: GST is added on top of base rent.')
-                    : 'GST Disabled: 0% tax applied.'}
-                </div>
+                {hotelGstEnabled && (
+                  <div className="text-[7.5px] text-gray-500 italic mt-0.5">
+                    * {hotelTaxMode === 'INCLUSIVE'
+                        ? 'Inclusive Pricing: GST is included within the ₹2,500 rent.'
+                        : 'Exclusive Pricing: GST is added on top of base rent.'}
+                  </div>
+                )}
 
                 <div className="border-t border-dashed border-gray-400 my-1.5" />
 

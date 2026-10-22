@@ -66,13 +66,14 @@ interface RoomSetupModalProps {
   defaultRent?: string;
   initialTaxRate?: number; // basis points, e.g. 1200 for 12%
   initialTaxMode?: 'INCLUSIVE' | 'EXCLUSIVE';
+  taxEnabled?: boolean;
   onClose: () => void;
   onSave?: (snapshot: RoomPricingSnapshot, guests: GuestData[]) => void;
   onCheckInDateChange?: (date: string) => void;
   onCheckOutDateChange?: (date: string) => void;
 }
 
-export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, initialData, initialGuests, defaultRent, initialTaxRate, initialTaxMode, onClose, onSave, onCheckInDateChange, onCheckOutDateChange }: RoomSetupModalProps) {
+export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, initialData, initialGuests, defaultRent, initialTaxRate, initialTaxMode, taxEnabled, onClose, onSave, onCheckInDateChange, onCheckOutDateChange }: RoomSetupModalProps) {
   const [rent, setRent] = useState(() => {
     if (initialData) {
       if (defaultRent && initialData.baseRate === 250000 && defaultRent !== "2500" && defaultRent !== "2500.00") {
@@ -95,6 +96,8 @@ export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, init
     if (initialTaxRate !== undefined) return initialTaxRate / 100;
     return 12;
   });
+
+  const isGstActive = taxEnabled !== false && taxRate > 0;
   
   const [bedCharge, setBedCharge] = useState(initialData?.bedCharge ? (initialData.bedCharge / 100).toString() : "0");
   const [bedMode, setBedMode] = useState<"FIXED" | "DAILY">(initialData?.bedMode || "FIXED");
@@ -426,6 +429,7 @@ export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, init
 
                  <MiniCard icon={<IndianRupee size={16} />} label="Final Rent (₹)" value={snapshot ? (snapshot.grossAmount/100).toFixed(2) : "0.00"} green readOnly />
                  
+                 {isGstActive && (
                  <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
                     <div className="mb-1.5 flex items-center gap-1.5">
                        <span className="text-blue-600"><Receipt size={16} /></span>
@@ -439,6 +443,7 @@ export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, init
                        <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
                     </div>
                  </div>
+                 )}
 
                  <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
                     <div className="mb-1.5 flex items-center gap-1.5">
@@ -608,21 +613,25 @@ export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, init
                   {snapshot && snapshot.extraChargesAmount > 0 && (
                      <PriceRow label="Extra Charges" value={`₹${(snapshot.extraChargesAmount/100).toFixed(2)}`} />
                   )}
-                  <div className="border-t border-slate-200 pt-3">
-                    <PriceRow label="Taxable Amount" value={`₹${snapshot ? (snapshot.taxableAmount/100).toFixed(2) : '0.00'}`} bold />
-                    <div className="mt-2 space-y-2">
-                      <PriceRow label={`CGST (${taxRate/2}%)`} value={`₹${snapshot ? (snapshot.cgstAmount/100).toFixed(2) : '0.00'}`} muted />
-                      <PriceRow label={`SGST (${taxRate/2}%)`} value={`₹${snapshot ? (snapshot.sgstAmount/100).toFixed(2) : '0.00'}`} muted />
+                  {isGstActive && (
+                    <div className="border-t border-slate-200 pt-3">
+                      <PriceRow label="Taxable Amount" value={`₹${snapshot ? (snapshot.taxableAmount/100).toFixed(2) : '0.00'}`} bold />
+                      <div className="mt-2 space-y-2">
+                        <PriceRow label={`CGST (${taxRate/2}%)`} value={`₹${snapshot ? (snapshot.cgstAmount/100).toFixed(2) : '0.00'}`} muted />
+                        <PriceRow label={`SGST (${taxRate/2}%)`} value={`₹${snapshot ? (snapshot.sgstAmount/100).toFixed(2) : '0.00'}`} muted />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
                 {/* GRAND TOTAL */}
                 <div className="flex items-center justify-between bg-emerald-100/50 px-4 py-4 border-t border-emerald-100">
                   <div>
                     <p className="text-[13px] font-bold text-emerald-900">GRAND TOTAL</p>
-                    <p className="mt-1 text-[9px] uppercase text-emerald-700">
-                      {taxMode === 'INCLUSIVE' ? 'Tax included in total' : 'Tax added to total'}
-                    </p>
+                    {isGstActive && (
+                      <p className="mt-1 text-[9px] uppercase text-emerald-700">
+                        {taxMode === 'INCLUSIVE' ? 'Tax included in total' : 'Tax added to total'}
+                      </p>
+                    )}
                   </div>
                   <p className="text-[21px] font-extrabold text-emerald-700">
                     ₹{snapshot ? (snapshot.finalAmount/100).toFixed(2) : '0.00'}

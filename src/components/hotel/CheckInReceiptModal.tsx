@@ -53,6 +53,7 @@ interface CheckInReceiptModalProps {
     hotelGstin?: string;
     hotelPhone?: string;
     hotelEmail?: string;
+    hotelGstEnabled?: boolean;
   };
   canPrintReceipt?: boolean;
   canPrintA4?: boolean;
@@ -77,6 +78,7 @@ export default function CheckInReceiptModal({
   const formatAmt = (amt: number) => amt.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 });
   const d = bookingData;
   const leadGuest = d.rooms[0] || {} as ReceiptRoomData;
+  const isGstActive = d.hotelGstEnabled !== undefined ? d.hotelGstEnabled : (d.totalGst > 0 || d.rooms.some(r => r.gst > 0));
 
   const branding = {
     logoSize: normalizeLogoSize(profile?.printBranding?.logoSize),
@@ -322,7 +324,7 @@ export default function CheckInReceiptModal({
                       <th className="py-2 px-2 font-bold text-right">Final Rent</th>
                       <th className="py-2 px-2 font-bold text-right thermal-hide">Room Total</th>
                       <th className="py-2 px-2 font-bold text-right">Extra</th>
-                      <th className="py-2 px-2 font-bold text-right thermal-hide">GST Tax</th>
+                      {isGstActive && <th className="py-2 px-2 font-bold text-right thermal-hide">GST Tax</th>}
                       <th className="py-2 px-2 font-bold text-right text-gray-900">Net Total</th>
                     </tr>
                   </thead>
@@ -337,7 +339,7 @@ export default function CheckInReceiptModal({
                         <td className="py-2 px-2 text-right font-bold text-green-700">{formatAmt(r.finalRent)}</td>
                         <td className="py-2 px-2 text-right thermal-hide">{formatAmt(r.finalRent * r.nights)}</td>
                         <td className="py-2 px-2 text-right text-orange-600">{formatAmt(r.extra)}</td>
-                        <td className="py-2 px-2 text-right text-gray-500 thermal-hide">{formatAmt(r.gst)}</td>
+                        {isGstActive && <td className="py-2 px-2 text-right text-gray-500 thermal-hide">{formatAmt(r.gst)}</td>}
                         <td className="py-2 px-2 text-right font-black text-[#0e2a6d] bg-blue-50/30">{formatAmt(r.netTotal)}</td>
                       </tr>
                     ))}
@@ -366,16 +368,18 @@ export default function CheckInReceiptModal({
                     <span>Extra Charges:</span>
                     <span>{formatAmt(d.totalExtraCharges)}</span>
                   </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>
-                      {d.totalGst > 0 && d.totalRoomRent > 0
-                        ? `GST Tax (${Math.round((d.totalGst / d.totalRoomRent) * 100)}%):`
-                        : d.totalGst > 0
-                        ? 'GST Tax:'
-                        : 'GST Tax (0% / Exempt):'}
-                    </span>
-                    <span>{formatAmt(d.totalGst)}</span>
-                  </div>
+                  {isGstActive && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>
+                        {d.totalGst > 0 && d.totalRoomRent > 0
+                          ? `GST Tax (${Math.round((d.totalGst / d.totalRoomRent) * 100)}%):`
+                          : d.totalGst > 0
+                          ? 'GST Tax:'
+                          : 'GST Tax (0% / Exempt):'}
+                      </span>
+                      <span>{formatAmt(d.totalGst)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold text-[#0e2a6d]">
                     <span>Current Rooms Subtotal:</span>
                     <span>{formatAmt(d.subtotal)}</span>

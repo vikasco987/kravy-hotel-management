@@ -39,11 +39,22 @@ function GuestCheckInSuite() {
   const [canPrint80mm, setCanPrint80mm] = useState(true);
   const [canPrint58mm, setCanPrint58mm] = useState(true);
 
+  const [hotelGstEnabled, setHotelGstEnabled] = useState(true);
+
   const { roomPricing, roomGuests, setRoomPricing, setRoomGuests, checkInDate, checkOutDate } = useBookingStore();
   const roomPricingRef = useRef(roomPricing);
   useEffect(() => { roomPricingRef.current = roomPricing; }, [roomPricing]);
 
   useEffect(() => {
+    fetch('/api/hotel/settings')
+      .then(res => res.json())
+      .then(result => {
+        if (result.success && result.data) {
+          setHotelGstEnabled(result.data.taxEnabled !== false && result.data.taxRate !== 0);
+        }
+      })
+      .catch(console.error);
+
     fetch('/api/auth/me')
       .then(res => res.json())
       .then(me => {
@@ -133,6 +144,9 @@ function GuestCheckInSuite() {
         .then(data => {
           if (data.rooms && data.rooms.length > 0) {
             setFetchedRooms(data.rooms);
+            if (data.rooms[0]?.taxConfig?.taxEnabled !== undefined) {
+              setHotelGstEnabled(data.rooms[0].taxConfig.taxEnabled);
+            }
           } else {
             const fallbackRooms = roomIds.map(id => ({
               id: id,
@@ -337,7 +351,8 @@ function GuestCheckInSuite() {
           hotelAddress: 'Keralala Main Road, Civil Lines, Near Railway Station',
           hotelGstin: '4567876543456',
           hotelPhone: '8606093110',
-          hotelEmail: 'info@raintechpos.com'
+          hotelEmail: 'info@raintechpos.com',
+          hotelGstEnabled: hotelGstEnabled
         });
 
         setShowReceipt(true);
@@ -441,7 +456,7 @@ function GuestCheckInSuite() {
                         <th className="px-3 py-3 text-right">Room Rent</th>
                         {columnSettings.discount && <th className="px-3 py-3 text-right">Discount</th>}
                         <th className="px-3 py-3 text-right">Final Rent</th>
-                        {columnSettings.gst && <th className="px-3 py-3 text-right">GST (T)</th>}
+                        {columnSettings.gst && hotelGstEnabled && <th className="px-3 py-3 text-right">GST (T)</th>}
                         <th className="px-3 py-3 text-center">All Occupants / Guest No.</th>
                         {columnSettings.adults && <th className="px-3 py-3 text-center">No. Of Adults</th>}
                         {columnSettings.checkInOut && (
@@ -533,7 +548,7 @@ function GuestCheckInSuite() {
                                 </td>
                               )}
                               <td className="px-3 py-4 text-right text-xs font-black text-green-700">₹{finalRentStr}</td>
-                              {columnSettings.gst && (
+                              {columnSettings.gst && hotelGstEnabled && (
                                 <td className="px-3 py-4 text-right text-xs text-gray-500">₹{gstStr}</td>
                               )}
 
@@ -545,7 +560,11 @@ function GuestCheckInSuite() {
                                    </div>
                                  ) : (
                                    <span
-                                     onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${(roomData.customPrice ?? roomData.roomType?.basePrice ?? 250000)}&roomNumber=${encodeURIComponent(roomData.roomNumber || roomId.slice(-4))}&taxRate=${roomData.taxConfig?.taxRate ?? 1200}&taxMode=${roomData.taxConfig?.taxMode ?? 'INCLUSIVE'}`)}
+                                     onClick={() => {
+                                       const effectiveTaxRate = (!hotelGstEnabled || roomData.taxConfig?.taxEnabled === false) ? 0 : (roomData.taxConfig?.taxRate ?? 1200);
+                                       const effectiveTaxEnabled = hotelGstEnabled && (roomData.taxConfig?.taxEnabled !== false);
+                                       router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${(roomData.customPrice ?? roomData.roomType?.basePrice ?? 250000)}&roomNumber=${encodeURIComponent(roomData.roomNumber || roomId.slice(-4))}&taxRate=${effectiveTaxRate}&taxMode=${roomData.taxConfig?.taxMode ?? 'INCLUSIVE'}&taxEnabled=${effectiveTaxEnabled}`);
+                                     }}
                                      className="text-[10px] font-bold text-orange-600 cursor-pointer hover:bg-orange-100 flex items-center justify-center gap-1 bg-orange-50 px-2 py-1 rounded-full border border-orange-200 transition-colors"
                                    >
                                      <TriangleAlert size={10} /> Setup Missing
@@ -608,7 +627,11 @@ function GuestCheckInSuite() {
                               <td className="px-3 py-4">
                                  <div className="flex items-center justify-center gap-1">
                                     <button
-                                      onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${(roomData.customPrice ?? roomData.roomType?.basePrice ?? 250000)}&roomNumber=${encodeURIComponent(roomData.roomNumber || roomId.slice(-4))}&taxRate=${roomData.taxConfig?.taxRate ?? 1200}&taxMode=${roomData.taxConfig?.taxMode ?? 'INCLUSIVE'}`)}
+                                      onClick={() => {
+                                        const effectiveTaxRate = (!hotelGstEnabled || roomData.taxConfig?.taxEnabled === false) ? 0 : (roomData.taxConfig?.taxRate ?? 1200);
+                                        const effectiveTaxEnabled = hotelGstEnabled && (roomData.taxConfig?.taxEnabled !== false);
+                                        router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${(roomData.customPrice ?? roomData.roomType?.basePrice ?? 250000)}&roomNumber=${encodeURIComponent(roomData.roomNumber || roomId.slice(-4))}&taxRate=${effectiveTaxRate}&taxMode=${roomData.taxConfig?.taxMode ?? 'INCLUSIVE'}&taxEnabled=${effectiveTaxEnabled}`);
+                                      }}
                                       className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[10px] font-bold px-2 py-1.5 rounded-md flex items-center gap-1 shadow-sm transition-colors"
                                     >
                                        <Settings2 size={12} className="text-[#0070f3]" /> Setup
@@ -675,10 +698,12 @@ function GuestCheckInSuite() {
                         <span>Extra Charges</span>
                         <span className="font-bold text-orange-500">₹{totalExtraCharges.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                      </div>
-                     <div className="flex justify-between items-center text-xs text-gray-600 font-medium">
-                        <span className="flex items-center gap-1">Tax (GST) <span className="bg-blue-100 text-blue-700 text-[8px] font-bold px-1 rounded">Avg</span></span>
-                        <span className="font-bold text-gray-900">₹{totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                     </div>
+                     {hotelGstEnabled && (
+                       <div className="flex justify-between items-center text-xs text-gray-600 font-medium">
+                          <span className="flex items-center gap-1">Tax (GST) <span className="bg-blue-100 text-blue-700 text-[8px] font-bold px-1 rounded">Avg</span></span>
+                          <span className="font-bold text-gray-900">₹{totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                       </div>
+                     )}
                   </div>
 
                   {/* Total */}

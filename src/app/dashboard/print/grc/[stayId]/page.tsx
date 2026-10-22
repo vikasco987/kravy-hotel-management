@@ -184,6 +184,8 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
     taxRate: leadStayRoom.taxRate || 0,
   };
 
+  const hasGst = displayTax.taxAmount > 0 || displayTax.taxRate > 0;
+
   const balanceDue = Math.max(0, displayTax.finalAmount - totalPaid);
 
   return (
@@ -320,16 +322,20 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
            {/* Aggregated Totals Breakdown */}
            <div className="flex justify-end mt-4">
               <div className="w-72 space-y-1.5 text-sm">
-                 <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-600">Pricing Mode:</span>
-                    <span className="font-bold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 border">
-                       {displayTax.taxMode === 'INCLUSIVE' ? 'GST Inclusive' : 'GST Exclusive'}
-                    </span>
-                 </div>
-                 <div className="flex justify-between text-xs">
-                    <span className="text-gray-600">Taxable Amount:</span>
-                    <span className="font-bold">₹{(displayTax.taxableAmount / 100).toFixed(2)}</span>
-                 </div>
+                 {hasGst && (
+                   <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-600">Pricing Mode:</span>
+                      <span className="font-bold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 border">
+                         {displayTax.taxMode === 'INCLUSIVE' ? 'GST Inclusive' : 'GST Exclusive'}
+                      </span>
+                   </div>
+                 )}
+                 {hasGst && (
+                   <div className="flex justify-between text-xs">
+                      <span className="text-gray-600">Taxable Amount:</span>
+                      <span className="font-bold">₹{(displayTax.taxableAmount / 100).toFixed(2)}</span>
+                   </div>
+                 )}
                  {displayTax.taxAmount > 0 ? (
                     <>
                        <div className="flex justify-between text-xs">
@@ -341,12 +347,12 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
                           <span className="font-bold">₹{(displayTax.sgstAmount / 100).toFixed(2)}</span>
                        </div>
                     </>
-                 ) : (
+                 ) : hasGst ? (
                     <div className="flex justify-between text-xs text-gray-500">
                        <span>GST (0% / Exempt):</span>
                        <span>₹0.00</span>
                     </div>
-                 )}
+                 ) : null}
                  <div className="flex justify-between border-t-2 border-black pt-2 font-black text-base">
                     <span>TOTAL:</span>
                     <span>₹{(displayTax.finalAmount / 100).toFixed(2)}</span>
@@ -478,6 +484,7 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
               </tbody>
            </table>
 
+           {hasGst && (
            <div className="border-t border-dashed border-gray-400 pt-2 mb-3 text-[11px]">
               <div className="flex justify-between text-[10px] text-gray-600 mb-1">
                  <span>Mode</span>
@@ -505,6 +512,7 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
                  </div>
               )}
            </div>
+           )}
 
            <div className="border-t-2 border-black pt-2 mb-2 flex justify-between font-black text-sm">
               <span>TOTAL</span>
