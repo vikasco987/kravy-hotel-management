@@ -325,7 +325,20 @@ function CheckoutSuite() {
                                      <BedDouble size={14}/> <span className="font-black text-[15px]">{r.roomNumber}</span>
                                   </div>
                                   <div className="flex flex-col pr-4 border-r border-gray-100">
-                                     <div className="text-xs font-bold text-gray-800">{r.roomType} <span className="text-gray-400 font-normal">·</span> <span className="text-gray-700">{data.leadGuest?.name}</span></div>
+                                     <div className="text-xs font-bold text-gray-800">{r.roomType} <span className="text-gray-400 font-normal">·</span> <span className="text-gray-700">{(() => {
+                                        let guestsList: any[] = [];
+                                        try {
+                                           if (r.guestsData && typeof r.guestsData === 'string') {
+                                              guestsList = JSON.parse(r.guestsData);
+                                           } else if (r.guestsData && Array.isArray(r.guestsData)) {
+                                              guestsList = r.guestsData;
+                                           }
+                                        } catch (e) {
+                                           console.error("Failed to parse guestsData for room card", e);
+                                        }
+                                        const roomLead = guestsList.find((g: any) => g.isLead) || guestsList[0];
+                                        return roomLead?.name || data.leadGuest?.name || 'Lead Guest';
+                                     })()}</span></div>
                                      <div className="text-[10px] text-gray-500">Tariff: {formatMoney(r.tariff)}/night</div>
                                   </div>
                                   <div className={`text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider border ${badgeConfig.bg} ${badgeConfig.text} ${badgeConfig.border}`}>
