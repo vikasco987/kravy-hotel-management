@@ -137,6 +137,55 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
 
   const totalPaid = stay.payments.reduce((sum, p) => sum + p.amount, 0);
 
+  const stayRooms = stay.stayRooms.length > 0 ? stay.stayRooms : [leadStayRoom];
+  const roomNumbersList = stayRooms
+    .map((sr) => sr.room?.roomNumber)
+    .filter(Boolean)
+    .join(', ') || leadStayRoom.room.roomNumber;
+
+  // Aggregate financial snapshot across all rooms in the stay
+  let aggGross = 0;
+  let aggDiscount = 0;
+  let aggExtra = 0;
+  let aggTaxable = 0;
+  let aggCgst = 0;
+  let aggSgst = 0;
+  let aggTax = 0;
+  let aggFinal = 0;
+
+  for (const sr of stayRooms) {
+    aggGross += (sr.grossAmount || 0);
+    aggDiscount += (sr.discountAmount || 0);
+    aggExtra += (sr.extraChargesAmount || 0);
+    aggTaxable += (sr.taxableAmount || 0);
+    aggCgst += (sr.cgstAmount || 0);
+    aggSgst += (sr.sgstAmount || 0);
+    aggTax += (sr.taxAmount || 0);
+    aggFinal += (sr.finalAmount || 0);
+  }
+
+  // Also include any roomCharges attached directly to the stay if not already in stayRooms extraCharges
+  const directRoomChargesTotal = stay.roomCharges.reduce(
+    (acc, c) => acc + (c.amount * (c.quantity || 1)),
+    0
+  );
+  const totalExtraAmount = Math.max(aggExtra, directRoomChargesTotal);
+
+  const displayTax = {
+    grossAmount: aggGross,
+    discountAmount: aggDiscount,
+    extraChargesAmount: totalExtraAmount,
+    taxableAmount: aggTaxable,
+    cgstAmount: aggCgst,
+    sgstAmount: aggSgst,
+    taxAmount: aggTax,
+    finalAmount: aggFinal,
+    taxMode: leadStayRoom.taxMode || 'INCLUSIVE',
+    taxRate: leadStayRoom.taxRate || 0,
+  };
+
+  const balanceDue = Math.max(0, displayTax.finalAmount - totalPaid);
+
   return (
     <div className="bg-gray-100 min-h-screen p-8 print:p-0 print:bg-white flex flex-col items-center">
 
@@ -208,8 +257,8 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
            <div>
               <h3 className="font-bold text-sm text-gray-500 uppercase mb-2">Stay Details</h3>
               <div className="grid grid-cols-3 gap-2 text-sm mb-1">
-                 <span className="font-semibold text-gray-600 col-span-1">Room No:</span>
-                 <span className="col-span-2 font-bold">{leadStayRoom.room.roomNumber} ({leadStayRoom.room.roomType.name})</span>
+                 <span className="font-semibold text-gray-600 col-span-1">Room{stayRooms.length > 1 ? 's' : ''}:</span>
+                 <span className="col-span-2 font-bold">{roomNumbersList}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm mb-1">
                  <span className="font-semibold text-gray-600 col-span-1">Check-in:</span>
@@ -233,37 +282,88 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
               <thead className="bg-gray-100">
                  <tr>
                     <th className="border border-gray-300 p-2">Description</th>
+                    <th className="border border-gray-300 p-2 text-center">Nights</th>
                     <th className="border border-gray-300 p-2 text-right">Amount (₹)</th>
                  </tr>
               </thead>
               <tbody>
-                 <tr>
-                    <td className="border border-gray-300 p-2">Room Rent (Base) x {leadStayRoom.nights}</td>
-                    <td className="border border-gray-300 p-2 text-right">{(leadStayRoom.grossAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 {leadStayRoom.discountAmount > 0 && (
-                    <tr>
-                       <td className="border border-gray-300 p-2">Discount</td>
-                       <td className="border border-gray-300 p-2 text-right text-green-700">-{(leadStayRoom.discountAmount / 100).toFixed(2)}</td>
-                    </tr>
-                 )}
-                 {leadStayRoom.extraChargesAmount > 0 && (
-                    <tr>
-                       <td className="border border-gray-300 p-2">Extra Charges</td>
-                       <td className="border border-gray-300 p-2 text-right">{(leadStayRoom.extraChargesAmount / 100).toFixed(2)}</td>
-                    </tr>
-                 )}
-                 <tr>
-                    <td className="border border-gray-300 p-2">Tax ({leadStayRoom.taxMode})</td>
-                    <td className="border border-gray-300 p-2 text-right">{(leadStayRoom.taxAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 <tr className="font-bold bg-gray-50">
-                    <td className="border border-gray-300 p-2 text-right">Total Stay Amount</td>
-                    <td className="border border-gray-300 p-2 text-right">{(leadStayRoom.finalAmount / 100).toFixed(2)}</td>
-                 </tr>
+                 {stayRooms.map((sr, index) => {
+                    const rNum = sr.room?.roomNumber || `Room ${index + 1}`;
+                    const typeName = sr.room?.roomType?.name ? ` (${sr.room.roomType.name})` : '';
+                    return (
+                       <React.Fragment key={sr.id || index}>
+                          <tr>
+                             <td className="border border-gray-300 p-2">Room {rNum}{typeName} — Rent</td>
+                             <td className="border border-gray-300 p-2 text-center">{sr.nights}</td>
+                             <td className="border border-gray-300 p-2 text-right">{(sr.grossAmount / 100).toFixed(2)}</td>
+                          </tr>
+                          {sr.discountAmount > 0 && (
+                             <tr>
+                                <td className="border border-gray-300 p-2 text-green-700 pl-6">↳ Discount (Room {rNum})</td>
+                                <td className="border border-gray-300 p-2 text-center">-</td>
+                                <td className="border border-gray-300 p-2 text-right text-green-700">-{(sr.discountAmount / 100).toFixed(2)}</td>
+                             </tr>
+                          )}
+                          {sr.extraChargesAmount > 0 && (
+                             <tr>
+                                <td className="border border-gray-300 p-2 pl-6">↳ Extra Charges (Room {rNum})</td>
+                                <td className="border border-gray-300 p-2 text-center">1</td>
+                                <td className="border border-gray-300 p-2 text-right">{(sr.extraChargesAmount / 100).toFixed(2)}</td>
+                             </tr>
+                          )}
+                       </React.Fragment>
+                    );
+                 })}
               </tbody>
            </table>
-           <p className="text-xs text-gray-500 mt-2">* Pricing above is based on the agreed snapshot at check-in.</p>
+
+           {/* Aggregated Totals Breakdown */}
+           <div className="flex justify-end mt-4">
+              <div className="w-72 space-y-1.5 text-sm">
+                 <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-600">Pricing Mode:</span>
+                    <span className="font-bold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 border">
+                       {displayTax.taxMode === 'INCLUSIVE' ? 'GST Inclusive' : 'GST Exclusive'}
+                    </span>
+                 </div>
+                 <div className="flex justify-between text-xs">
+                    <span className="text-gray-600">Taxable Amount:</span>
+                    <span className="font-bold">₹{(displayTax.taxableAmount / 100).toFixed(2)}</span>
+                 </div>
+                 {displayTax.taxAmount > 0 ? (
+                    <>
+                       <div className="flex justify-between text-xs">
+                          <span className="text-gray-600">CGST ({displayTax.taxRate / 2 / 100}%):</span>
+                          <span className="font-bold">₹{(displayTax.cgstAmount / 100).toFixed(2)}</span>
+                       </div>
+                       <div className="flex justify-between text-xs">
+                          <span className="text-gray-600">SGST ({displayTax.taxRate / 2 / 100}%):</span>
+                          <span className="font-bold">₹{(displayTax.sgstAmount / 100).toFixed(2)}</span>
+                       </div>
+                    </>
+                 ) : (
+                    <div className="flex justify-between text-xs text-gray-500">
+                       <span>GST (0% / Exempt):</span>
+                       <span>₹0.00</span>
+                    </div>
+                 )}
+                 <div className="flex justify-between border-t-2 border-black pt-2 font-black text-base">
+                    <span>TOTAL:</span>
+                    <span>₹{(displayTax.finalAmount / 100).toFixed(2)}</span>
+                 </div>
+                 <div className="flex justify-between text-xs font-bold text-emerald-700">
+                    <span>Advance Paid:</span>
+                    <span>₹{(totalPaid / 100).toFixed(2)}</span>
+                 </div>
+                 <div className="flex justify-between text-xs font-bold border-t border-gray-200 pt-1">
+                    <span>Balance Due:</span>
+                    <span className={balanceDue > 0 ? 'text-rose-600 font-black' : 'text-emerald-700'}>
+                       ₹{(balanceDue / 100).toFixed(2)}
+                    </span>
+                 </div>
+              </div>
+           </div>
+           <p className="text-xs text-gray-500 mt-3">* Pricing above is based on the agreed snapshot at check-in.</p>
         </div>
 
         {/* Declarations & Signatures */}
@@ -345,46 +445,70 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
            <div className="mb-3 text-[11px] border-b border-dashed border-gray-400 pb-3">
               <p>Guest: <span className="font-bold">{guest.name}</span></p>
               <p>Mobile: <span className="font-bold">{guest.phone}</span></p>
-              <p>Room: <span className="font-bold">{leadStayRoom.room.roomNumber}</span></p>
+              <p>Room{stayRooms.length > 1 ? 's' : ''}: <span className="font-bold">{roomNumbersList}</span></p>
               <p>Date: {new Date(leadStayRoom.checkInDate).toLocaleDateString()} to {displayCheckOutDate.toLocaleDateString()}</p>
               <p>ID: {guest.documents.length > 0 ? guest.documents[0].documentType : 'None'}</p>
            </div>
 
            <table className="w-full text-[11px] mb-3">
               <tbody>
-                 <tr>
-                    <td>Room x{leadStayRoom.nights}</td>
-                    <td className="text-right">{(leadStayRoom.grossAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 {leadStayRoom.discountAmount > 0 && (
-                 <tr>
-                    <td>Discount</td>
-                    <td className="text-right">-{(leadStayRoom.discountAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 )}
-                 {leadStayRoom.extraChargesAmount > 0 && (
-                 <tr>
-                    <td>Extra</td>
-                    <td className="text-right">{(leadStayRoom.extraChargesAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 )}
+                 {stayRooms.map((sr, index) => {
+                    const rNum = sr.room?.roomNumber || `${index + 1}`;
+                    return (
+                       <React.Fragment key={sr.id || index}>
+                          <tr>
+                             <td>Room {rNum} x{sr.nights}</td>
+                             <td className="text-right">{(sr.grossAmount / 100).toFixed(2)}</td>
+                          </tr>
+                          {sr.discountAmount > 0 && (
+                             <tr>
+                                <td className="text-gray-600 pl-2">↳ Disc {rNum}</td>
+                                <td className="text-right text-gray-600">-{(sr.discountAmount / 100).toFixed(2)}</td>
+                             </tr>
+                          )}
+                          {sr.extraChargesAmount > 0 && (
+                             <tr>
+                                <td className="text-gray-600 pl-2">↳ Extra {rNum}</td>
+                                <td className="text-right">{(sr.extraChargesAmount / 100).toFixed(2)}</td>
+                             </tr>
+                          )}
+                       </React.Fragment>
+                    );
+                 })}
               </tbody>
            </table>
 
            <div className="border-t border-dashed border-gray-400 pt-2 mb-3 text-[11px]">
+              <div className="flex justify-between text-[10px] text-gray-600 mb-1">
+                 <span>Mode</span>
+                 <span className="uppercase font-bold">{displayTax.taxMode === 'INCLUSIVE' ? 'GST Incl.' : 'GST Excl.'}</span>
+              </div>
               <div className="flex justify-between">
                  <span>Taxable</span>
-                 <span>{(leadStayRoom.taxableAmount / 100).toFixed(2)}</span>
+                 <span>{(displayTax.taxableAmount / 100).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
-                 <span>Tax ({leadStayRoom.taxMode})</span>
-                 <span>{(leadStayRoom.taxAmount / 100).toFixed(2)}</span>
-              </div>
+              {displayTax.taxAmount > 0 ? (
+                 <>
+                    <div className="flex justify-between">
+                       <span>CGST ({displayTax.taxRate / 2 / 100}%)</span>
+                       <span>{(displayTax.cgstAmount / 100).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                       <span>SGST ({displayTax.taxRate / 2 / 100}%)</span>
+                       <span>{(displayTax.sgstAmount / 100).toFixed(2)}</span>
+                    </div>
+                 </>
+              ) : (
+                 <div className="flex justify-between text-gray-500">
+                    <span>GST (0% / Exempt)</span>
+                    <span>0.00</span>
+                 </div>
+              )}
            </div>
 
            <div className="border-t-2 border-black pt-2 mb-2 flex justify-between font-black text-sm">
               <span>TOTAL</span>
-              <span>₹{(leadStayRoom.finalAmount / 100).toFixed(2)}</span>
+              <span>₹{(displayTax.finalAmount / 100).toFixed(2)}</span>
            </div>
 
            <div className="flex justify-between text-[11px] font-bold">
@@ -393,7 +517,7 @@ export default async function GRCPrintPage({ params, searchParams }: { params: P
            </div>
            <div className="flex justify-between text-[11px] font-bold mb-4">
               <span>Balance Due</span>
-              <span>₹{Math.max(0, (leadStayRoom.finalAmount - totalPaid) / 100).toFixed(2)}</span>
+              <span>₹{(balanceDue / 100).toFixed(2)}</span>
            </div>
 
            {signatureUrl && (

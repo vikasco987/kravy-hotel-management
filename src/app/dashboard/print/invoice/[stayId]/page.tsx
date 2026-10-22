@@ -98,7 +98,26 @@ function InvoiceContent({ stayId }: { stayId: string }) {
     );
   }
 
-  const { stay, hotel, guest, leadStayRoom, invoice, businessProfile } = data;
+  const { stay, hotel, guest, leadStayRoom, invoice, businessProfile, aggregatedTax } = data;
+  const stayRooms: any[] = stay?.stayRooms?.length ? stay.stayRooms : [leadStayRoom];
+  const roomNumbersList = stayRooms.map((sr: any) => sr.room?.roomNumber).filter(Boolean).join(', ') || leadStayRoom.room.roomNumber;
+
+  const displayTax = aggregatedTax || {
+    grossAmount: leadStayRoom.grossAmount,
+    discountAmount: leadStayRoom.discountAmount,
+    extraChargesAmount: leadStayRoom.extraChargesAmount,
+    taxableAmount: leadStayRoom.taxableAmount,
+    cgstAmount: leadStayRoom.cgstAmount,
+    sgstAmount: leadStayRoom.sgstAmount,
+    taxAmount: leadStayRoom.taxAmount,
+    finalAmount: leadStayRoom.finalAmount,
+    taxRate: leadStayRoom.taxRate || 1200,
+    taxMode: leadStayRoom.taxMode || 'INCLUSIVE'
+  };
+
+  const finalTotal = invoice?.totalAmount ?? displayTax.finalAmount;
+  const paidTotal = invoice?.paidAmount ?? 0;
+  const balanceTotal = invoice?.balanceAmount ?? (finalTotal - paidTotal);
 
   const expectedOut = new Date(leadStayRoom.checkInDate);
   expectedOut.setDate(expectedOut.getDate() + leadStayRoom.nights);
@@ -209,7 +228,7 @@ function InvoiceContent({ stayId }: { stayId: string }) {
                  <h3 className="text-xs font-bold uppercase text-gray-400 mb-3 tracking-widest">Billed To:</h3>
                  <p className="font-bold text-lg">{guest.name}</p>
                  <p className="text-sm">Phone: {guest.phone}</p>
-                 <p className="text-sm">Room No: {leadStayRoom.room.roomNumber}</p>
+                 <p className="text-sm">Room{stayRooms.length > 1 ? 's' : ''}: <span className="font-bold">{roomNumbersList}</span></p>
               </div>
               <div>
                  <h3 className="text-xs font-bold uppercase text-gray-400 mb-3 tracking-widest">Stay Info:</h3>
@@ -233,45 +252,67 @@ function InvoiceContent({ stayId }: { stayId: string }) {
                  </tr>
               </thead>
               <tbody>
-                 <tr>
-                    <td className="p-3 border border-gray-300">Room Rent (Base)</td>
-                    <td className="p-3 border border-gray-300 text-center">{leadStayRoom.nights}</td>
-                    <td className="p-3 border border-gray-300 text-right">{(leadStayRoom.grossAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 {leadStayRoom.discountAmount > 0 && (
-                 <tr>
-                    <td className="p-3 border border-gray-300 text-green-700">Discount</td>
-                    <td className="p-3 border border-gray-300 text-center">-</td>
-                    <td className="p-3 border border-gray-300 text-right text-green-700">-{(leadStayRoom.discountAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 )}
-                 {leadStayRoom.extraChargesAmount > 0 && (
-                 <tr>
-                    <td className="p-3 border border-gray-300">Extra Charges</td>
-                    <td className="p-3 border border-gray-300 text-center">1</td>
-                    <td className="p-3 border border-gray-300 text-right">{(leadStayRoom.extraChargesAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 )}
+                  {stayRooms.map((sr: any, index: number) => {
+                     const roomName = sr.room?.roomNumber || `Room ${index + 1}`;
+                     const typeName = sr.room?.roomType?.name ? ` (${sr.room.roomType.name})` : '';
+                     return (
+                        <React.Fragment key={sr.id || index}>
+                           <tr>
+                              <td className="p-3 border border-gray-300 font-medium">Room {roomName}{typeName} — Rent</td>
+                              <td className="p-3 border border-gray-300 text-center">{sr.nights}</td>
+                              <td className="p-3 border border-gray-300 text-right">{(sr.grossAmount / 100).toFixed(2)}</td>
+                           </tr>
+                           {sr.discountAmount > 0 && (
+                              <tr>
+                                 <td className="p-3 border border-gray-300 text-green-700 pl-6">↳ Discount (Room {roomName})</td>
+                                 <td className="p-3 border border-gray-300 text-center">-</td>
+                                 <td className="p-3 border border-gray-300 text-right text-green-700">-{(sr.discountAmount / 100).toFixed(2)}</td>
+                              </tr>
+                           )}
+                           {sr.extraChargesAmount > 0 && (
+                              <tr>
+                                 <td className="p-3 border border-gray-300 pl-6">↳ Extra Charges (Room {roomName})</td>
+                                 <td className="p-3 border border-gray-300 text-center">1</td>
+                                 <td className="p-3 border border-gray-300 text-right">{(sr.extraChargesAmount / 100).toFixed(2)}</td>
+                              </tr>
+                           )}
+                        </React.Fragment>
+                     );
+                  })}
               </tbody>
            </table>
 
            <div className="flex justify-end mb-8">
-              <div className="w-64 space-y-2 text-sm">
+              <div className="w-72 space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                     <span className="text-gray-600">Pricing Mode:</span>
+                     <span className="font-bold text-xs uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 border">{displayTax.taxMode === "INCLUSIVE" ? "GST Inclusive" : "GST Exclusive"}</span>
+                  </div>
                  <div className="flex justify-between">
                     <span className="text-gray-600">Taxable Amount:</span>
-                    <span className="font-bold">{(leadStayRoom.taxableAmount / 100).toFixed(2)}</span>
+                    <span className="font-bold">{(displayTax.taxableAmount / 100).toFixed(2)}</span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-600">CGST ({leadStayRoom.taxRate/2/100}%):</span>
-                    <span className="font-bold">{(leadStayRoom.cgstAmount / 100).toFixed(2)}</span>
+                    <span className="text-gray-600">CGST ({displayTax.taxRate/2/100}%):</span>
+                    <span className="font-bold">{(displayTax.cgstAmount / 100).toFixed(2)}</span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-600">SGST ({leadStayRoom.taxRate/2/100}%):</span>
-                    <span className="font-bold">{(leadStayRoom.sgstAmount / 100).toFixed(2)}</span>
+                    <span className="text-gray-600">SGST ({displayTax.taxRate/2/100}%):</span>
+                    <span className="font-bold">{(displayTax.sgstAmount / 100).toFixed(2)}</span>
                  </div>
                  <div className="flex justify-between border-t-2 border-black pt-2 text-lg font-black mt-2">
                     <span>GRAND TOTAL:</span>
-                    <span>₹{(leadStayRoom.finalAmount / 100).toFixed(2)}</span>
+                    <span>₹{(finalTotal / 100).toFixed(2)}</span>
+                 </div>
+                 <div className="flex justify-between text-sm pt-1 text-emerald-700">
+                    <span>Paid Amount:</span>
+                    <span className="font-bold">₹{(paidTotal / 100).toFixed(2)}</span>
+                 </div>
+                 <div className="flex justify-between text-sm font-bold border-t border-gray-200 pt-1">
+                    <span>Balance Due:</span>
+                    <span className={balanceTotal > 0 ? "text-rose-600 font-black" : "text-emerald-700 font-bold"}>
+                       ₹{(Math.max(0, balanceTotal) / 100).toFixed(2)}
+                    </span>
                  </div>
               </div>
            </div>
@@ -343,49 +384,73 @@ function InvoiceContent({ stayId }: { stayId: string }) {
 
            <div className="mb-3 text-[11px] border-b border-dashed border-gray-400 pb-3">
               <p>Guest: <span className="font-bold">{guest.name}</span></p>
-              <p>Room: <span className="font-bold">{leadStayRoom.room.roomNumber}</span></p>
+              <p>Room{stayRooms.length > 1 ? 's' : ''}: <span className="font-bold">{roomNumbersList}</span></p>
               <p>Date: {new Date(leadStayRoom.checkInDate).toLocaleDateString()} to {displayCheckOutDate.toLocaleDateString()}</p>
            </div>
 
            <table className="w-full text-[11px] mb-3">
               <tbody>
-                 <tr>
-                    <td>Room x{leadStayRoom.nights}</td>
-                    <td className="text-right">{(leadStayRoom.grossAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 {leadStayRoom.discountAmount > 0 && (
-                 <tr>
-                    <td>Discount</td>
-                    <td className="text-right">-{(leadStayRoom.discountAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 )}
-                 {leadStayRoom.extraChargesAmount > 0 && (
-                 <tr>
-                    <td>Extra</td>
-                    <td className="text-right">{(leadStayRoom.extraChargesAmount / 100).toFixed(2)}</td>
-                 </tr>
-                 )}
+                  {stayRooms.map((sr: any, index: number) => {
+                     const rNum = sr.room?.roomNumber || `${index + 1}`;
+                     return (
+                        <React.Fragment key={sr.id || index}>
+                           <tr>
+                              <td>Room {rNum} x{sr.nights}</td>
+                              <td className="text-right">{(sr.grossAmount / 100).toFixed(2)}</td>
+                           </tr>
+                           {sr.discountAmount > 0 && (
+                              <tr>
+                                 <td className="text-gray-600 pl-2">↳ Disc {rNum}</td>
+                                 <td className="text-right text-gray-600">-{(sr.discountAmount / 100).toFixed(2)}</td>
+                              </tr>
+                           )}
+                           {sr.extraChargesAmount > 0 && (
+                              <tr>
+                                 <td className="text-gray-600 pl-2">↳ Extra {rNum}</td>
+                                 <td className="text-right">{(sr.extraChargesAmount / 100).toFixed(2)}</td>
+                              </tr>
+                           )}
+                        </React.Fragment>
+                     );
+                  })}
               </tbody>
            </table>
 
            <div className="border-t border-dashed border-gray-400 pt-2 mb-3 text-[11px]">
+              <div className="flex justify-between text-[10px] text-gray-600 mb-1">
+                 <span>Mode</span>
+                 <span className="uppercase font-bold">{displayTax.taxMode === "INCLUSIVE" ? "GST Incl." : "GST Excl."}</span>
+              </div>
               <div className="flex justify-between">
                  <span>Taxable</span>
-                 <span>{(leadStayRoom.taxableAmount / 100).toFixed(2)}</span>
+                 <span>{(displayTax.taxableAmount / 100).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                 <span>CGST</span>
-                 <span>{(leadStayRoom.cgstAmount / 100).toFixed(2)}</span>
+                 <span>CGST ({displayTax.taxRate/2/100}%)</span>
+                 <span>{(displayTax.cgstAmount / 100).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                 <span>SGST</span>
-                 <span>{(leadStayRoom.sgstAmount / 100).toFixed(2)}</span>
+                 <span>SGST ({displayTax.taxRate/2/100}%)</span>
+                 <span>{(displayTax.sgstAmount / 100).toFixed(2)}</span>
               </div>
            </div>
 
-           <div className="border-t-2 border-black pt-2 mb-4 flex justify-between font-black text-sm">
+           <div className="border-t-2 border-black pt-2 mb-2 flex justify-between font-black text-sm">
               <span>TOTAL</span>
-              <span>₹{(leadStayRoom.finalAmount / 100).toFixed(2)}</span>
+              <span>₹{(finalTotal / 100).toFixed(2)}</span>
+           </div>
+
+           <div className="border-t border-dashed border-gray-400 pt-1.5 mb-4 text-[11px] space-y-1">
+              <div className="flex justify-between text-gray-700">
+                 <span>Paid:</span>
+                 <span className="font-bold">₹{(paidTotal / 100).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between font-bold">
+                 <span>Balance:</span>
+                 <span className={balanceTotal > 0 ? 'text-rose-600' : 'text-emerald-700'}>
+                    ₹{(Math.max(0, balanceTotal) / 100).toFixed(2)}
+                 </span>
+              </div>
            </div>
 
            {signatureUrl && (

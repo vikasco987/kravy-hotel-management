@@ -24,12 +24,14 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const idsParam = searchParams.get('ids');
-    
+
     if (!idsParam) {
       return NextResponse.json({ error: 'Missing ids parameter' }, { status: 400 });
     }
 
     const ids = idsParam.split(',');
+
+    const { resolveTaxConfigForRoom } = await import('@/lib/pricing/taxResolver');
 
     const rooms = await prisma.room.findMany({
       where: {
@@ -37,11 +39,26 @@ export async function GET(request: Request) {
         hotelId: authContext.hotel.id
       },
       include: {
-        roomType: true
+        roomType: {
+          include: {
+            taxProfile: true
+          }
+        }
       }
     });
 
-    return NextResponse.json({ rooms });
+    const hotelId = authContext.hotel.id;
+    const enrichedRooms = await Promise.all(
+      rooms.map(async (room) => {
+        const taxConfig = await resolveTaxConfigForRoom(hotelId, room.roomTypeId);
+        return {
+          ...room,
+          taxConfig
+        };
+      })
+    );
+
+    return NextResponse.json({ rooms: enrichedRooms });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }

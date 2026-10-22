@@ -128,12 +128,18 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
   const sgstAmount = stay?.invoice?.sgstAmount || totalSgst || 0;
   const taxMode = activeRooms[0]?.taxMode || '';
   const taxRate = activeRooms[0]?.taxRate || 0;
+  const isInclusive = taxMode === 'INCLUSIVE';
 
+  // For INCLUSIVE, room gross / invoice subtotal already includes tax.
+  // When displaying breakdown:
+  // Base room charges = taxable amount (or total gross if tax is 0 or exclusive)
+  // Total amount = room gross + extras (for inclusive) OR taxable + extras + tax (for exclusive)
   const roomChargesSubtotal = stay?.invoice?.subtotal
       ? Math.max(0, stay.invoice.subtotal - extraServicesTotal)
       : totalRoomGross;
 
-  const totalAmount = stay?.invoice?.totalAmount || (roomChargesSubtotal + extraServicesTotal + taxAmount);
+  const totalAmount = stay?.invoice?.totalAmount
+      || (isInclusive ? (roomChargesSubtotal + extraServicesTotal) : (roomChargesSubtotal + extraServicesTotal + taxAmount));
   const balance = totalAmount - totalPaid;
 
   const firstRoom = reservation.rooms?.[0];
@@ -958,8 +964,12 @@ export function ReservationDetailsDrawer({ reservationId, onClose }: { reservati
                     )}
                     {taxAmount > 0 && (
                       <div className="flex justify-between items-center text-xs">
-                        <span className="font-medium text-gray-500">GST</span>
-                        <span className="font-bold text-gray-900">₹{(taxAmount/100).toLocaleString()}</span>
+                        <span className="font-medium text-gray-500">
+                          {isInclusive ? 'GST (Included in Rent)' : 'Taxes (GST)'}
+                        </span>
+                        <span className="font-bold text-gray-900">
+                          {isInclusive ? `₹${(taxAmount/100).toLocaleString()}` : `+₹${(taxAmount/100).toLocaleString()}`}
+                        </span>
                       </div>
                     )}
 

@@ -64,13 +64,15 @@ interface RoomSetupModalProps {
   initialData?: RoomPricingSnapshot;
   initialGuests?: GuestData[];
   defaultRent?: string;
+  initialTaxRate?: number; // basis points, e.g. 1200 for 12%
+  initialTaxMode?: 'INCLUSIVE' | 'EXCLUSIVE';
   onClose: () => void;
   onSave?: (snapshot: RoomPricingSnapshot, guests: GuestData[]) => void;
   onCheckInDateChange?: (date: string) => void;
   onCheckOutDateChange?: (date: string) => void;
 }
 
-export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, initialData, initialGuests, defaultRent, onClose, onSave, onCheckInDateChange, onCheckOutDateChange }: RoomSetupModalProps) {
+export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, initialData, initialGuests, defaultRent, initialTaxRate, initialTaxMode, onClose, onSave, onCheckInDateChange, onCheckOutDateChange }: RoomSetupModalProps) {
   const [rent, setRent] = useState(() => {
     if (initialData) {
       if (defaultRent && initialData.baseRate === 250000 && defaultRent !== "2500" && defaultRent !== "2500.00") {
@@ -83,8 +85,16 @@ export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, init
   const [discount, setDiscount] = useState(initialData ? (initialData.discountType === 'FIXED' ? ((initialData.discountValue || 0) / 100).toString() : (initialData.discountValue || 0).toString()) : "0");
   const [discountType, setDiscountType] = useState<"percent" | "amount">(initialData?.discountType === 'FIXED' ? 'amount' : 'percent');
   
-  const [taxMode, setTaxMode] = useState<"INCLUSIVE" | "EXCLUSIVE">(initialData?.taxMode || "INCLUSIVE");
-  const [taxRate, setTaxRate] = useState(initialData ? initialData.taxRate / 100 : 12);
+  const [taxMode, setTaxMode] = useState<"INCLUSIVE" | "EXCLUSIVE">(() => {
+    if (initialData?.taxMode) return initialData.taxMode;
+    if (initialTaxMode) return initialTaxMode;
+    return "INCLUSIVE";
+  });
+  const [taxRate, setTaxRate] = useState(() => {
+    if (initialData?.taxRate !== undefined) return initialData.taxRate / 100;
+    if (initialTaxRate !== undefined) return initialTaxRate / 100;
+    return 12;
+  });
   
   const [bedCharge, setBedCharge] = useState(initialData?.bedCharge ? (initialData.bedCharge / 100).toString() : "0");
   const [bedMode, setBedMode] = useState<"FIXED" | "DAILY">(initialData?.bedMode || "FIXED");
@@ -423,8 +433,8 @@ export default function RoomSetupModal({ roomNo, checkInDate, checkOutDate, init
                     </div>
                     <div className="relative">
                        <select value={taxMode} onChange={e => setTaxMode(e.target.value as 'INCLUSIVE'|'EXCLUSIVE')} className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold outline-none appearance-none">
-                          <option value="INCLUSIVE">12% GST - Inclusive</option>
-                          <option value="EXCLUSIVE">12% GST - Exclusive</option>
+                          <option value="INCLUSIVE">{taxRate > 0 ? `${taxRate}% GST — Inclusive` : "0% GST (Tax Exempt)"}</option>
+                          <option value="EXCLUSIVE">{taxRate > 0 ? `${taxRate}% GST — Exclusive` : "0% GST (Tax Exempt)"}</option>
                        </select>
                        <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
                     </div>

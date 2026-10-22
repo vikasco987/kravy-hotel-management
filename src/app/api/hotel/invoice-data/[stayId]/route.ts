@@ -181,28 +181,54 @@ export async function GET(req: Request, { params }: { params: Promise<{ stayId: 
         });
     }
 
-    if (invoice && invoice.status === 'DRAFT' && stay.reservation.status === 'CHECKED_IN') {
-        let invSubtotal = 0, invTax = 0, invTotal = 0, invTaxable = 0, invCgst = 0, invSgst = 0;
-        for (const sr of stay.stayRooms) {
-            invSubtotal += (sr.grossAmount - (sr.discountAmount || 0));
-            invTaxable += sr.taxableAmount;
-            invCgst += sr.cgstAmount;
-            invSgst += sr.sgstAmount;
-            invTax += sr.taxAmount;
-            invTotal += sr.finalAmount;
-        }
-        const extrasTotal = stay.roomCharges.reduce((acc: number, c: any) => acc + (c.amount * (c.quantity || 1)), 0);
-        invoice.subtotal = invSubtotal + extrasTotal;
-        invoice.taxAmount = invTax;
-        invoice.taxableAmount = invTaxable;
-        invoice.cgstAmount = invCgst;
-        invoice.sgstAmount = invSgst;
-        invoice.totalAmount = invTotal;
+    // Calculate multi-room aggregated tax summary for consistent printing
+    let aggSubtotal = 0, aggTaxable = 0, aggCgst = 0, aggSgst = 0, aggTax = 0, aggTotal = 0, aggDiscount = 0, aggExtra = 0;
+    for (const sr of stay.stayRooms) {
+      aggSubtotal += sr.grossAmount;
+      aggDiscount += (sr.discountAmount || 0);
+      aggTaxable += sr.taxableAmount;
+      aggCgst += sr.cgstAmount;
+      aggSgst += sr.sgstAmount;
+      aggTax += sr.taxAmount;
+      aggExtra += (sr.extraChargesAmount || 0);
+      aggTotal += sr.finalAmount;
     }
+    const extrasTotal = stay.roomCharges.reduce((acc: number, c: any) => acc + (c.amount * (c.quantity || 1)), 0);
+    const totalExtraSum = Math.max(aggExtra, extrasTotal);
+
+    if (invoice) {
+      if (invoice.status === 'DRAFT') {
+        invoice.subtotal = (aggSubtotal - aggDiscount) + totalExtraSum;
+        invoice.discountAmount = aggDiscount;
+        invoice.taxableAmount = aggTaxable;
+        invoice.cgstAmount = aggCgst;
+        invoice.sgstAmount = aggSgst;
+        invoice.taxAmount = aggTax;
+        invoice.totalAmount = aggTotal;
+      } else {
+        // For finalized invoices, ensure tax fields have values if they were null on legacy rows
+        if (!invoice.taxableAmount && aggTaxable) invoice.taxableAmount = aggTaxable;
+        if (!invoice.cgstAmount && aggCgst) invoice.cgstAmount = aggCgst;
+        if (!invoice.sgstAmount && aggSgst) invoice.sgstAmount = aggSgst;
+      }
+    }
+
+    const aggregatedTax = {
+      grossAmount: aggSubtotal,
+      discountAmount: aggDiscount,
+      extraChargesAmount: totalExtraSum,
+      taxableAmount: invoice?.taxableAmount || aggTaxable,
+      cgstAmount: invoice?.cgstAmount || aggCgst,
+      sgstAmount: invoice?.sgstAmount || aggSgst,
+      taxAmount: invoice?.taxAmount || aggTax,
+      finalAmount: invoice?.totalAmount || aggTotal,
+      taxRate: leadStayRoom?.taxRate || 1200,
+      taxMode: leadStayRoom?.taxMode || 'INCLUSIVE'
+    };
 
     return NextResponse.json({
        success: true,
-       data: { stay, hotel, guest, leadStayRoom, invoice, businessProfile }
+       data: { stay, hotel, guest, leadStayRoom, invoice, businessProfile, aggregatedTax }
     });
   } catch (error) {
     console.error('Invoice Data Error:', error);

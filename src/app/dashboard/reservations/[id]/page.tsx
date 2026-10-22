@@ -505,8 +505,14 @@ export default function ReservationDetails({ params }: { params: Promise<{ id: s
                   </div>
                   {stay?.invoice?.taxAmount > 0 && (
                     <div className="flex justify-between items-center text-sm">
-                      <span className="font-medium text-gray-500">Taxes (GST)</span>
-                      <span className="font-bold text-gray-900">₹{(stay.invoice.taxAmount/100).toLocaleString()}</span>
+                      <span className="font-medium text-gray-500">
+                        {stay?.invoice?.totalAmount === stay?.invoice?.subtotal ? 'GST (Included in Rent)' : 'Taxes (GST)'}
+                      </span>
+                      <span className="font-bold text-gray-900">
+                        {stay?.invoice?.totalAmount === stay?.invoice?.subtotal
+                          ? `₹${(stay.invoice.taxAmount/100).toLocaleString()}`
+                          : `+₹${(stay.invoice.taxAmount/100).toLocaleString()}`}
+                      </span>
                     </div>
                   )}
                   {stay?.roomCharges?.length > 0 && (

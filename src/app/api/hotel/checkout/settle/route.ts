@@ -69,6 +69,10 @@ export async function POST(req: Request) {
       // Server-side calculation of the final bill
       // All calculations are done in minor units (paise) to prevent float issues
       let roomSubtotal = 0;
+      let totalDiscount = 0;
+      let totalTaxable = 0;
+      let totalCgst = 0;
+      let totalSgst = 0;
       let taxes = 0;
       let extras = 0;
       let grandTotal = 0;
@@ -83,6 +87,10 @@ export async function POST(req: Request) {
         if (actualNights < 1) actualNights = 1;
 
         let srGross = sr.grossAmount;
+        let srDiscount = sr.discountAmount || 0;
+        let srTaxable = sr.taxableAmount;
+        let srCgst = sr.cgstAmount;
+        let srSgst = sr.sgstAmount;
         let srTax = sr.taxAmount;
         let srExtras = sr.extraChargesAmount;
         let srFinal = sr.finalAmount;
@@ -104,6 +112,10 @@ export async function POST(req: Request) {
               }))
           });
           srGross = pricing.grossAmount;
+          srDiscount = pricing.discountAmount;
+          srTaxable = pricing.taxableAmount;
+          srCgst = pricing.cgstAmount;
+          srSgst = pricing.sgstAmount;
           srTax = pricing.taxAmount;
           srExtras = pricing.extraChargesAmount;
           srFinal = pricing.finalAmount;
@@ -124,7 +136,11 @@ export async function POST(req: Request) {
           });
         }
 
-        roomSubtotal += (srGross || (sr.baseRate * actualNights)) - (sr.discountAmount || 0);
+        roomSubtotal += (srGross || (sr.baseRate * actualNights)) - srDiscount;
+        totalDiscount += srDiscount;
+        totalTaxable += srTaxable || 0;
+        totalCgst += srCgst || 0;
+        totalSgst += srSgst || 0;
         taxes += srTax || 0;
         extras += srExtras || 0;
         grandTotal += srFinal || 0;
@@ -199,6 +215,10 @@ export async function POST(req: Request) {
             where: { stayId: stay.id },
             data: {
               subtotal: combinedSubtotal,
+              discountAmount: totalDiscount,
+              taxableAmount: totalTaxable,
+              cgstAmount: totalCgst,
+              sgstAmount: totalSgst,
               taxAmount: taxes,
               totalAmount: grandTotal,
               paidAmount: payment.amountReceived,
@@ -213,6 +233,10 @@ export async function POST(req: Request) {
             where: { stayId: stay.id },
             data: {
               subtotal: { increment: combinedSubtotal },
+              discountAmount: { increment: totalDiscount },
+              taxableAmount: { increment: totalTaxable },
+              cgstAmount: { increment: totalCgst },
+              sgstAmount: { increment: totalSgst },
               taxAmount: { increment: taxes },
               totalAmount: { increment: grandTotal },
               paidAmount: { increment: payment.amountReceived },
@@ -229,6 +253,10 @@ export async function POST(req: Request) {
             stayId: stay.id,
             guestId: stay.reservation.guestId,
             subtotal: combinedSubtotal,
+            discountAmount: totalDiscount,
+            taxableAmount: totalTaxable,
+            cgstAmount: totalCgst,
+            sgstAmount: totalSgst,
             taxAmount: taxes,
             totalAmount: grandTotal,
             paidAmount: payment.amountReceived,

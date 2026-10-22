@@ -318,8 +318,14 @@ export default function GroupReservationView({ params }: { params: Promise<{ id:
                     </div>
                     {taxTotal > 0 && (
                       <div className="flex justify-between items-center text-sm">
-                        <span className="font-medium text-gray-500">Total Taxes (GST)</span>
-                        <span className="font-bold text-gray-900">₹{(taxTotal/100).toLocaleString()}</span>
+                        <span className="font-medium text-gray-500">
+                          {stay?.invoice?.totalAmount === stay?.invoice?.subtotal ? 'Total Taxes (GST Included)' : 'Total Taxes (GST)'}
+                        </span>
+                        <span className="font-bold text-gray-900">
+                          {stay?.invoice?.totalAmount === stay?.invoice?.subtotal
+                            ? `₹${(taxTotal/100).toLocaleString()}`
+                            : `+₹${(taxTotal/100).toLocaleString()}`}
+                        </span>
                       </div>
                     )}
                     {extrasTotal > 0 && (

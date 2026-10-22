@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Upload, Download, FileJson, ClipboardPaste, Info, AlertCircle, Sparkles, X } from "lucide-react";
+import { Plus, Upload, Download, FileJson, ClipboardPaste, Info, AlertCircle, Sparkles, X, Check, ChevronDown, Percent, ShieldCheck } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -160,6 +160,32 @@ export default function BusinessProfileForm({
     defaultValues: initialValues,
   });
 
+  const [hotelGstEnabled, setHotelGstEnabled] = useState(true);
+  const [hotelGstRate, setHotelGstRate] = useState(1200); // 12% in basis points
+  const [hotelTaxMode, setHotelTaxMode] = useState<"INCLUSIVE" | "EXCLUSIVE">("INCLUSIVE");
+  const [isLoadingHotelSettings, setIsLoadingHotelSettings] = useState(true);
+  const [hotelSettingsError, setHotelSettingsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/hotel/settings')
+      .then(res => res.json())
+      .then(res => {
+        if (res.success && res.data) {
+          setHotelGstEnabled(res.data.taxEnabled === true);
+          setHotelGstRate(typeof res.data.taxRate === 'number' ? res.data.taxRate : 1200);
+          setHotelTaxMode(res.data.taxMode === 'EXCLUSIVE' ? 'EXCLUSIVE' : 'INCLUSIVE');
+          setHotelSettingsError(null);
+        } else {
+          setHotelSettingsError(res.error || "Failed to load hotel settings");
+        }
+      })
+      .catch(err => {
+        console.error("Error loading hotel settings:", err);
+        setHotelSettingsError("Failed to connect to hotel settings service");
+      })
+      .finally(() => setIsLoadingHotelSettings(false));
+  }, []);
+
   const currentPinCode = watch("pinCode");
 
   useEffect(() => {
@@ -297,7 +323,29 @@ export default function BusinessProfileForm({
       const savedData = await res.json();
       console.log("Profile Saved Successfully:", savedData);
 
-      toast.success("Business profile saved successfully!");
+      // Persist Hotel GST Settings to HotelSettings model
+      try {
+        const settingsRes = await fetch("/api/hotel/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taxEnabled: hotelGstEnabled,
+            taxRate: hotelGstRate,
+            taxMode: hotelTaxMode
+          })
+        });
+
+        if (!settingsRes.ok) {
+          const errData = await settingsRes.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to save hotel GST settings");
+        }
+      } catch (settingsErr: any) {
+        console.error("Failed to save hotel GST settings:", settingsErr);
+        toast.error(`Business profile saved, but failed to save GST settings: ${settingsErr.message}`);
+        return;
+      }
+
+      toast.success("Business profile and GST settings saved successfully!");
 
       // Dispatch event to refresh GlobalHeader, Sidebar, RoomDashboard etc.
       notifyProfileUpdated(savedData);
@@ -438,6 +486,147 @@ export default function BusinessProfileForm({
         </Field>
       </Section>
 
+      {/* HOTEL ACCOMMODATION GST SETTINGS */}
+      <Card className="rounded-[32px] border-[var(--kravy-border)] bg-[var(--kravy-surface)] shadow-2xl overflow-hidden">
+        <CardHeader className="border-b border-[var(--kravy-border)] bg-[var(--kravy-bg-2)]/50 py-4 px-6 sm:px-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-[var(--kravy-brand)]/10 text-[var(--kravy-brand)] flex items-center justify-center font-bold">
+                <Percent size={16} />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-black text-[var(--kravy-text-primary)] tracking-tight uppercase tracking-wider">
+                  Hotel Accommodation GST Settings
+                </CardTitle>
+                <p className="text-[11px] text-[var(--kravy-text-muted)] font-medium">
+                  Room tariffs, extra charges & check-in billing tax rules
+                </p>
+              </div>
+            </div>
+            {isLoadingHotelSettings && (
+              <span className="text-[11px] font-medium text-[var(--kravy-text-muted)] animate-pulse">Loading settings...</span>
+            )}
+            {hotelSettingsError && (
+              <span className="text-[11px] font-semibold text-rose-500 flex items-center gap-1">
+                <AlertCircle size={13} /> {hotelSettingsError}
+              </span>
+            )}
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-6 sm:p-8 space-y-6">
+          {/* Toggle Card */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-[var(--kravy-border)] bg-[var(--kravy-bg-2)]/40 transition-colors">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-[var(--kravy-text-primary)]">Enable Hotel GST</span>
+                {hotelGstEnabled ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    Active
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-500 border border-gray-500/20">
+                    Disabled (0% Tax)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[var(--kravy-text-muted)] max-w-xl leading-relaxed">
+                Automatically calculate and split CGST & SGST on hotel room tariffs and guest folios. When disabled, 0% tax is applied to newly generated room tariffs.
+              </p>
+            </div>
+            <label className={`relative inline-flex items-center shrink-0 self-start sm:self-center ${isLoadingHotelSettings ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+              <input
+                type="checkbox"
+                checked={hotelGstEnabled}
+                disabled={isLoadingHotelSettings}
+                onChange={(e) => setHotelGstEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-[var(--kravy-brand)]"></div>
+            </label>
+          </div>
+
+          {/* Controls Grid */}
+          {hotelGstEnabled ? (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Default GST Rate */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center ml-1">
+                    <Label className="text-[11px] font-black text-[var(--kravy-text-primary)] uppercase tracking-wider">
+                      Default Hotel GST Rate
+                    </Label>
+                    <span className="text-[10px] font-mono font-bold text-[var(--kravy-brand)] bg-[var(--kravy-brand)]/10 px-2 py-0.5 rounded border border-[var(--kravy-brand)]/20">
+                      {(hotelGstRate / 100).toFixed(0)}% GST
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={hotelGstRate}
+                      onChange={(e) => setHotelGstRate(Number(e.target.value))}
+                      className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-12 pl-4 pr-10 outline-none font-bold text-sm focus:ring-2 focus:ring-[var(--kravy-brand)]/20 appearance-none transition-all cursor-pointer"
+                    >
+                      <option value={0}>0% GST — Tax Exempt / Unregistered</option>
+                      <option value={500}>5% GST — (2.5% CGST + 2.5% SGST)</option>
+                      <option value={1200}>12% GST — Standard Accommodation Slab (6% + 6%)</option>
+                      <option value={1800}>18% GST — Luxury / Premium Tariff Slab (9% + 9%)</option>
+                      <option value={2800}>28% GST — Special / Star Classification Slab (14% + 14%)</option>
+                    </select>
+                    <ChevronDown size={18} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--kravy-text-muted)]" />
+                  </div>
+                  <p className="text-[11px] text-[var(--kravy-text-muted)] leading-normal ml-1">
+                    Hotel-wide fallback rate. Active room-specific Tax Profiles take precedence. Please confirm the legally applicable slab with your accountant.
+                  </p>
+                </div>
+
+                {/* Default Pricing Mode */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center ml-1">
+                    <Label className="text-[11px] font-black text-[var(--kravy-text-primary)] uppercase tracking-wider">
+                      Default Pricing Mode
+                    </Label>
+                    <span className="text-[10px] font-mono font-bold text-[var(--kravy-text-primary)] bg-[var(--kravy-bg-2)] px-2 py-0.5 rounded border border-[var(--kravy-border)]">
+                      {hotelTaxMode}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={hotelTaxMode}
+                      onChange={(e) => setHotelTaxMode(e.target.value as 'INCLUSIVE' | 'EXCLUSIVE')}
+                      className="w-full bg-[var(--kravy-input-bg)] border-[var(--kravy-input-border)] text-[var(--kravy-text-primary)] rounded-xl h-12 pl-4 pr-10 outline-none font-bold text-sm focus:ring-2 focus:ring-[var(--kravy-brand)]/20 appearance-none transition-all cursor-pointer"
+                    >
+                      <option value="INCLUSIVE">INCLUSIVE — Displayed rent already includes GST</option>
+                      <option value="EXCLUSIVE">EXCLUSIVE — GST is added on top of base rent</option>
+                    </select>
+                    <ChevronDown size={18} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--kravy-text-muted)]" />
+                  </div>
+                  <p className="text-[11px] text-[var(--kravy-text-muted)] leading-normal ml-1">
+                    {hotelTaxMode === 'INCLUSIVE'
+                      ? 'Inclusive: e.g. ₹2,500 displayed rent already contains GST (guest pays ₹2,500 total).'
+                      : 'Exclusive: e.g. ₹2,500 base rent + 12% GST (₹300) = guest pays ₹2,800 total.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Precedence and Compliance Notice */}
+              <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 text-blue-900 dark:text-blue-300">
+                <ShieldCheck size={18} className="shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                <div className="text-[11px] leading-relaxed">
+                  <span className="font-bold">Configuration Precedence:</span> Any room assigned an active <span className="font-semibold underline">TaxProfile</span> overrides this hotel default. If hotel GST is toggled off, new bookings calculate with 0% GST. Existing checked-in stays and settled historical invoices remain strictly protected.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 text-amber-900 dark:text-amber-300 flex items-center gap-3">
+              <Info size={18} className="shrink-0 text-amber-600 dark:text-amber-400" />
+              <p className="text-xs font-medium">
+                Hotel GST is currently <span className="font-bold">Disabled</span>. All newly created room tariffs and booking check-ins will calculate with <span className="font-bold">0% tax (Tax Exempt)</span>. Enable the switch above to configure your default rate and pricing mode.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* BRANDING */}
       <Section title="Hotel Branding & Signatures">
         <DragDrop id="logo" label="Hotel Logo" preview={logoPreview} setPreview={setLogoPreview} />
@@ -533,157 +722,243 @@ export default function BusinessProfileForm({
     </form>
 
     {/* LIVE HOTEL GUEST FOLIO PREVIEW */}
-    <div className="w-[380px] shrink-0 sticky top-24 hidden xl:block shadow-2xl rounded-[32px] overflow-hidden border border-[var(--kravy-border)] bg-[var(--kravy-surface)] animate-in fade-in slide-in-from-right-8 transition-all">
-      <div className="px-6 py-5 border-b border-[var(--kravy-border)] bg-[var(--kravy-bg-2)]/50">
-        <h3 className="text-base font-black text-[var(--kravy-text-primary)] tracking-tight">Hotel Folio Preview</h3>
-        <p className="text-[10px] font-bold text-[var(--kravy-text-muted)] uppercase tracking-wider mt-0.5">Live Guest Invoice Rendering</p>
-      </div>
-      <div className="p-8 bg-[#E5E5E5] dark:bg-[#1A1A1A] flex justify-center min-h-[500px]">
-        <div
-          className="bg-white text-black p-4 shadow-xl origin-top mx-auto filter hover:brightness-[0.98] transition-all"
-          style={{ width: '68mm', minHeight: '120px', transform: 'scale(1.15)', marginBottom: '30px' }}
-        >
-          <div className="font-mono text-[10px] leading-tight">
-            {logoPreview && (
-              <div className={`mb-2 ${
-                watchedValues.logoAlign === 'left' ? 'flex justify-start text-left' :
-                watchedValues.logoAlign === 'right' ? 'flex justify-end text-right' :
-                'flex justify-center text-center'
-              }`}>
-                <img
-                  src={logoPreview}
-                  alt="Hotel Logo"
-                  className="object-contain"
-                  style={{
-                    maxHeight: getLogoDimensions(watchedValues.logoSize || 60).preview.maxHeight,
-                    maxWidth: getLogoDimensions(watchedValues.logoSize || 60).preview.maxWidth,
-                  }}
-                />
-              </div>
-            )}
-            <div className={`font-bold text-[13px] uppercase tracking-wide ${
-              watchedValues.logoAlign === 'left' ? 'text-left' :
-              watchedValues.logoAlign === 'right' ? 'text-right' :
-              'text-center'
-            }`}>
-              {watchedValues.businessName || "Kravy Hotel & Suites"}
-            </div>
-            {watchedValues.businessTagline && (
-              <div className={`text-[8.5px] italic opacity-80 mt-0.5 ${
-                watchedValues.logoAlign === 'left' ? 'text-left' :
-                watchedValues.logoAlign === 'right' ? 'text-right' :
-                'text-center'
-              }`}>
-                {watchedValues.businessTagline}
-              </div>
-            )}
-
-            {(watchedValues.businessAddress || watchedValues.district || selectedState || watchedValues.pinCode || watchedValues.contactPhone) && (
-              <div className="text-center mt-1 opacity-90 text-[8.5px] leading-tight">
-                {watchedValues.businessAddress}
-                {watchedValues.district && `, ${watchedValues.district}`}
-                {selectedState && `, ${selectedState}`}
-                {watchedValues.pinCode && ` - ${watchedValues.pinCode}`}
-                {watchedValues.contactPhone && (
-                  <div className="mt-0.5">Ph: {watchedValues.contactPhone}</div>
-                )}
-              </div>
-            )}
-            {watchedValues.gstNumber && (
-              <div className="text-center text-[8.5px] font-bold mt-0.5">
-                GSTIN: {watchedValues.gstNumber}
-              </div>
-            )}
-
-            <div className="mt-2 border-t border-dashed border-gray-400 pt-1.5 px-0.5">
-              <div className="flex justify-between items-center mb-1">
-                <div className="font-black uppercase text-[8px] tracking-wider text-black opacity-80">Guest Folio</div>
-                <div className="font-bold uppercase text-[7px] bg-black text-white px-1.5 py-0.5 rounded-sm">
-                  {watchedValues.businessType || "HOTEL"}
-                </div>
-              </div>
-              <div className="text-[8.5px] space-y-0.5">
-                <div>Guest: <span className="font-bold">Rahul Sharma</span></div>
-                <div>Room: <span className="font-bold">Deluxe 204 (2 Nights)</span></div>
-                <div className="text-[7.5px] text-gray-600">
-                  Stay: {new Date().toLocaleDateString('en-IN')} - 2 Guests
-                </div>
-              </div>
-            </div>
-
-            <div className="my-1.5 border-t border-dashed border-gray-400" />
-
-            <div className="flex justify-between font-semibold text-[8.5px] opacity-90">
-              <span className="flex-1 pr-1">Particulars</span>
-              <span className="w-[8mm] text-center shrink-0">Qty</span>
-              <span className="w-[12mm] text-right shrink-0">Total</span>
-            </div>
-
-            <div className="border-t border-dashed border-gray-400 my-1" />
-
-            <div className="flex justify-between text-[8.5px] opacity-90 mb-0.5">
-              <span className="flex-1 truncate pr-1">Room Rent (2 Nights)</span>
-              <span className="w-[8mm] text-center shrink-0">2</span>
-              <span className="w-[12mm] text-right shrink-0">5,000.00</span>
-            </div>
-            <div className="flex justify-between text-[8.5px] opacity-90 mb-0.5">
-              <span className="flex-1 truncate pr-1">CGST (6%)</span>
-              <span className="w-[8mm] text-center shrink-0">-</span>
-              <span className="w-[12mm] text-right shrink-0">300.00</span>
-            </div>
-            <div className="flex justify-between text-[8.5px] opacity-90 mb-0.5">
-              <span className="flex-1 truncate pr-1">SGST (6%)</span>
-              <span className="w-[8mm] text-center shrink-0">-</span>
-              <span className="w-[12mm] text-right shrink-0">300.00</span>
-            </div>
-
-            <div className="border-t border-dashed border-gray-400 my-1.5" />
-
-            <div className="flex justify-between font-bold text-[10px]">
-              <span>NET PAYABLE</span>
-              <span>₹5,600.00</span>
-            </div>
-
-            <div className="border-t border-dashed border-gray-400 my-1.5" />
-
-            {(watchedValues.upi && watchedValues.upiQrEnabled !== false) && (
-              <div className="my-2 text-center">
-                <div className="text-[7.5px] font-bold mb-1">SCAN TO PAY (FRONT DESK)</div>
-                <div className="inline-block border border-gray-300 p-1 rounded-md bg-white">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${watchedValues.upi}&pn=${watchedValues.businessName || "Hotel"}&am=5600.00&cu=INR`)}`}
-                    alt="UPI QR"
-                    className="w-[24mm] h-[24mm] object-contain block mix-blend-multiply"
-                  />
-                </div>
-                <div className="text-center text-[7.5px] mt-1 opacity-90">UPI: {watchedValues.upi}</div>
-              </div>
-            )}
-
-            <div className="text-center font-semibold mt-2 opacity-90 text-[8.5px] whitespace-pre-wrap">
-              {watchedValues.greetingMessage || "Thank you for staying with us!"}
-            </div>
-
-            {signaturePreview && (
-              <div className="mt-3 pt-1 border-t border-dotted border-gray-300 text-right">
-                <div className="flex justify-end">
-                  <img
-                    src={signaturePreview}
-                    alt="Signature"
-                    className="object-contain"
-                    style={{
-                      maxHeight: getSignatureDimensions(watchedValues.signatureSize || 120).preview.maxHeight,
-                      maxWidth: getSignatureDimensions(watchedValues.signatureSize || 120).preview.maxWidth,
-                    }}
-                  />
-                </div>
-                <div className="text-[7px] text-gray-500 uppercase mt-0.5">Authorized Signatory</div>
-              </div>
-            )}
-
-            <div className="h-[8mm] border-t border-dashed border-gray-200 mt-2" />
+    <div className="w-full xl:w-[390px] shrink-0 xl:sticky xl:top-24 shadow-2xl rounded-[32px] overflow-hidden border border-[var(--kravy-border)] bg-[var(--kravy-surface)] animate-in fade-in slide-in-from-right-8 transition-all">
+      <div className="px-6 py-4 border-b border-[var(--kravy-border)] bg-[var(--kravy-bg-2)]/50 flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-black text-[var(--kravy-text-primary)] tracking-tight uppercase tracking-wider">Hotel Folio Preview</h3>
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              Live Preview
+            </span>
           </div>
+          <p className="text-[10px] font-medium text-[var(--kravy-text-muted)] mt-0.5">
+            Simulated guest bill based on your selected GST configuration
+          </p>
         </div>
+      </div>
+
+      {/* Configuration Status Strip */}
+      <div className="px-6 py-2.5 bg-gray-50 dark:bg-gray-900 border-b border-[var(--kravy-border)] flex items-center justify-between text-[11px] font-semibold">
+        <span className="text-[var(--kravy-text-muted)]">Applied Configuration:</span>
+        <span className="font-mono font-bold text-[var(--kravy-text-primary)]">
+          {hotelGstEnabled ? `${(hotelGstRate / 100).toFixed(0)}% GST • ${hotelTaxMode}` : '0% GST (Tax Exempt)'}
+        </span>
+      </div>
+
+      <div className="p-4 sm:p-6 bg-[#E5E5E5] dark:bg-[#151515] flex justify-center overflow-x-auto min-h-[460px]">
+        {(() => {
+          // Dynamic calculation based on standard ₹2,500 room amount as requested:
+          const sampleBaseRent = 2500; // in rupees
+          const activeRate = hotelGstEnabled ? hotelGstRate : 0;
+          let sampleTaxable = sampleBaseRent;
+          let sampleTaxTotal = 0;
+          let samplePayable = sampleBaseRent;
+
+          if (hotelGstEnabled && activeRate > 0) {
+            if (hotelTaxMode === 'INCLUSIVE') {
+              // Taxable = Rent / (1 + Rate)
+              sampleTaxable = (sampleBaseRent * 10000) / (10000 + activeRate);
+              sampleTaxTotal = sampleBaseRent - sampleTaxable;
+              samplePayable = sampleBaseRent;
+            } else {
+              // EXCLUSIVE: GST added on top
+              sampleTaxable = sampleBaseRent;
+              sampleTaxTotal = (sampleTaxable * activeRate) / 10000;
+              samplePayable = sampleTaxable + sampleTaxTotal;
+            }
+          }
+
+          const sampleCgst = sampleTaxTotal / 2;
+          const sampleSgst = sampleTaxTotal - sampleCgst;
+          const halfRate = (activeRate / 200).toFixed(1).replace(/\.0$/, '');
+
+          return (
+            <div
+              className="bg-white text-black p-4 shadow-xl origin-top mx-auto filter hover:brightness-[0.99] transition-all rounded-sm max-w-full"
+              style={{ width: '72mm', minHeight: '130px' }}
+            >
+              <div className="font-mono text-[10px] leading-tight">
+                {/* Logo */}
+                {logoPreview && (
+                  <div className={`mb-2 ${
+                    watchedValues.logoAlign === 'left' ? 'flex justify-start text-left' :
+                    watchedValues.logoAlign === 'right' ? 'flex justify-end text-right' :
+                    'flex justify-center text-center'
+                  }`}>
+                    <img
+                      src={logoPreview}
+                      alt="Hotel Logo"
+                      className="object-contain"
+                      style={{
+                        maxHeight: getLogoDimensions(watchedValues.logoSize || 60).preview.maxHeight,
+                        maxWidth: getLogoDimensions(watchedValues.logoSize || 60).preview.maxWidth,
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Hotel Header */}
+                <div className={`font-bold text-[12px] uppercase tracking-wide leading-tight ${
+                  watchedValues.logoAlign === 'left' ? 'text-left' :
+                  watchedValues.logoAlign === 'right' ? 'text-right' :
+                  'text-center'
+                }`}>
+                  {watchedValues.businessName || "Kravy Grand Hotel"}
+                </div>
+                {watchedValues.businessTagline && (
+                  <div className={`text-[8.5px] italic opacity-80 mt-0.5 ${
+                    watchedValues.logoAlign === 'left' ? 'text-left' :
+                    watchedValues.logoAlign === 'right' ? 'text-right' :
+                    'text-center'
+                  }`}>
+                    {watchedValues.businessTagline}
+                  </div>
+                )}
+
+                {(watchedValues.businessAddress || watchedValues.district || selectedState || watchedValues.pinCode || watchedValues.contactPhone) && (
+                  <div className="text-center mt-1 opacity-90 text-[8.5px] leading-tight">
+                    {watchedValues.businessAddress}
+                    {watchedValues.district && `, ${watchedValues.district}`}
+                    {selectedState && `, ${selectedState}`}
+                    {watchedValues.pinCode && ` - ${watchedValues.pinCode}`}
+                    {watchedValues.contactPhone && (
+                      <div className="mt-0.5">Ph: {watchedValues.contactPhone}</div>
+                    )}
+                  </div>
+                )}
+
+                <div className="text-center text-[8.5px] font-bold mt-1">
+                  GSTIN: {watchedValues.gstNumber ? watchedValues.gstNumber.toUpperCase() : "NOT REGISTERED"}
+                </div>
+
+                {/* Folio Info */}
+                <div className="mt-2 border-t border-dashed border-gray-400 pt-1.5 px-0.5">
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="font-black uppercase text-[8px] tracking-wider text-black opacity-80">Guest Folio (Sample)</div>
+                    <div className="font-bold uppercase text-[7px] bg-black text-white px-1.5 py-0.5 rounded-sm">
+                      {watchedValues.businessType || "HOTEL"}
+                    </div>
+                  </div>
+                  <div className="text-[8.5px] space-y-0.5">
+                    <div>Guest: <span className="font-bold">Rahul Sharma</span></div>
+                    <div>Room: <span className="font-bold">Room 102 (Deluxe)</span></div>
+                    <div className="text-[7.5px] text-gray-600">
+                      Stay: 1 Night • Pricing: <span className="font-semibold">{hotelGstEnabled ? `GST ${hotelTaxMode}` : 'Exempt'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Particulars Table */}
+                <div className="my-1.5 border-t border-dashed border-gray-400" />
+
+                <div className="flex justify-between font-bold text-[8.5px] opacity-90">
+                  <span className="flex-1 pr-1">Particulars</span>
+                  <span className="w-[8mm] text-center shrink-0">Qty</span>
+                  <span className="w-[14mm] text-right shrink-0">Amount</span>
+                </div>
+
+                <div className="border-t border-dashed border-gray-400 my-1" />
+
+                {/* Room Rent */}
+                <div className="flex justify-between text-[8.5px] opacity-90 mb-0.5">
+                  <span className="flex-1 truncate pr-1">Room Rent</span>
+                  <span className="w-[8mm] text-center shrink-0">1</span>
+                  <span className="w-[14mm] text-right shrink-0">₹{sampleBaseRent.toFixed(2)}</span>
+                </div>
+
+                {/* Tax Breakdown */}
+                {hotelGstEnabled && activeRate > 0 ? (
+                  <>
+                    <div className="border-t border-dotted border-gray-300 my-1 pt-1 text-[8px] text-gray-600">
+                      <div className="flex justify-between">
+                        <span>Taxable Value:</span>
+                        <span>₹{sampleTaxable.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>CGST ({halfRate}%):</span>
+                        <span>₹{sampleCgst.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>SGST ({halfRate}%):</span>
+                        <span>₹{sampleSgst.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold text-gray-800">
+                        <span>Total GST ({(activeRate / 100).toFixed(0)}%):</span>
+                        <span>₹{sampleTaxTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="border-t border-dotted border-gray-300 my-1 pt-1 text-[8px] text-gray-600">
+                    <div className="flex justify-between italic">
+                      <span>GST (Tax Exempt / 0%):</span>
+                      <span>₹0.00</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t border-dashed border-gray-400 my-1.5" />
+
+                {/* Net Payable */}
+                <div className="flex justify-between font-black text-[10.5px]">
+                  <span>NET PAYABLE</span>
+                  <span>₹{samplePayable.toFixed(2)}</span>
+                </div>
+
+                {/* Mode Indicator Note */}
+                <div className="text-[7.5px] text-gray-500 italic mt-0.5">
+                  * {hotelGstEnabled
+                    ? (hotelTaxMode === 'INCLUSIVE'
+                      ? 'Inclusive Pricing: GST is included within the ₹2,500 rent.'
+                      : 'Exclusive Pricing: GST is added on top of base rent.')
+                    : 'GST Disabled: 0% tax applied.'}
+                </div>
+
+                <div className="border-t border-dashed border-gray-400 my-1.5" />
+
+                {/* UPI QR Code */}
+                {(watchedValues.upi && watchedValues.upiQrEnabled !== false) && (
+                  <div className="my-2 text-center">
+                    <div className="text-[7.5px] font-bold mb-1">SCAN TO PAY (FRONT DESK)</div>
+                    <div className="inline-block border border-gray-300 p-1 rounded-md bg-white">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${watchedValues.upi}&pn=${watchedValues.businessName || "Hotel"}&am=${samplePayable.toFixed(2)}&cu=INR`)}`}
+                        alt="UPI QR"
+                        className="w-[24mm] h-[24mm] object-contain block mix-blend-multiply"
+                      />
+                    </div>
+                    <div className="text-center text-[7.5px] mt-1 opacity-90">UPI: {watchedValues.upi}</div>
+                  </div>
+                )}
+
+                {/* Greeting Message */}
+                <div className="text-center font-semibold mt-2 opacity-90 text-[8.5px] whitespace-pre-wrap">
+                  {watchedValues.greetingMessage || "Thank you for staying with us!"}
+                </div>
+
+                {/* Signature */}
+                {signaturePreview && (
+                  <div className="mt-3 pt-1 border-t border-dotted border-gray-300 text-right">
+                    <div className="flex justify-end">
+                      <img
+                        src={signaturePreview}
+                        alt="Signature"
+                        className="object-contain"
+                        style={{
+                          maxHeight: getSignatureDimensions(watchedValues.signatureSize || 120).preview.maxHeight,
+                          maxWidth: getSignatureDimensions(watchedValues.signatureSize || 120).preview.maxWidth,
+                        }}
+                      />
+                    </div>
+                    <div className="text-[7px] text-gray-500 uppercase mt-0.5">Authorized Signatory</div>
+                  </div>
+                )}
+
+                <div className="h-[6mm] border-t border-dashed border-gray-200 mt-2" />
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
 

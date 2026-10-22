@@ -255,13 +255,25 @@ export async function POST(request: Request) {
         // Authoritative Server Calculation
         const baseRate = (room?.customPrice !== null && room?.customPrice !== undefined) ? room.customPrice : (room?.roomType?.basePrice || 250000);
 
+        // Resolve room's tax config with TaxProfile override and HotelSettings fallback
+        const { resolveTaxConfigForRoom } = await import('@/lib/pricing/taxResolver');
+        const resolvedTax = await resolveTaxConfigForRoom(hotelId, room?.roomTypeId);
+
+        // Use client-specified rate/mode if explicitly customized AND tax is enabled, otherwise authoritative resolved defaults (e.g. 0% if GST OFF)
+        const effectiveTaxRate = resolvedTax.taxEnabled
+          ? (pricing?.taxRate !== undefined ? pricing.taxRate : resolvedTax.taxRate)
+          : 0;
+        const effectiveTaxMode = resolvedTax.taxEnabled
+          ? (pricing?.taxMode || resolvedTax.taxMode)
+          : 'INCLUSIVE';
+
         const calcResult = PricingService.calculateRoomPricing({
-           baseRate: pricing?.baseRate || baseRate, // Allow manual base rate override for now
+           baseRate: pricing?.baseRate || baseRate, // Allow manual base rate override
            nights: nights,
            discountType: pricing?.discountType || null,
            discountValue: pricing?.discountValue || 0,
-           taxMode: pricing?.taxMode || 'INCLUSIVE',
-           taxRate: pricing?.taxRate || 1200,
+           taxMode: effectiveTaxMode,
+           taxRate: effectiveTaxRate,
            extraCharges: pricing ? [
              ...(pricing.bedCharge > 0 ? [{ amount: pricing.bedCharge, quantity: 1, chargeMode: pricing.bedMode }] : []),
              ...(pricing.otherCharge > 0 ? [{ amount: pricing.otherCharge, quantity: 1, chargeMode: pricing.otherMode }] : []),

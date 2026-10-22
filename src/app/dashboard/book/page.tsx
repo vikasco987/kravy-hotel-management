@@ -545,7 +545,7 @@ function GuestCheckInSuite() {
                                    </div>
                                  ) : (
                                    <span
-                                     onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${(roomData.customPrice ?? roomData.roomType?.basePrice ?? 250000)}&roomNumber=${encodeURIComponent(roomData.roomNumber || roomId.slice(-4))}`)}
+                                     onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${(roomData.customPrice ?? roomData.roomType?.basePrice ?? 250000)}&roomNumber=${encodeURIComponent(roomData.roomNumber || roomId.slice(-4))}&taxRate=${roomData.taxConfig?.taxRate ?? 1200}&taxMode=${roomData.taxConfig?.taxMode ?? 'INCLUSIVE'}`)}
                                      className="text-[10px] font-bold text-orange-600 cursor-pointer hover:bg-orange-100 flex items-center justify-center gap-1 bg-orange-50 px-2 py-1 rounded-full border border-orange-200 transition-colors"
                                    >
                                      <TriangleAlert size={10} /> Setup Missing
@@ -608,7 +608,7 @@ function GuestCheckInSuite() {
                               <td className="px-3 py-4">
                                  <div className="flex items-center justify-center gap-1">
                                     <button
-                                      onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${(roomData.customPrice ?? roomData.roomType?.basePrice ?? 250000)}&roomNumber=${encodeURIComponent(roomData.roomNumber || roomId.slice(-4))}`)}
+                                      onClick={() => router.push(`/dashboard/book/setup/${roomId}?checkIn=${checkInDate}&checkOut=${checkOutDate}&basePrice=${(roomData.customPrice ?? roomData.roomType?.basePrice ?? 250000)}&roomNumber=${encodeURIComponent(roomData.roomNumber || roomId.slice(-4))}&taxRate=${roomData.taxConfig?.taxRate ?? 1200}&taxMode=${roomData.taxConfig?.taxMode ?? 'INCLUSIVE'}`)}
                                       className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[10px] font-bold px-2 py-1.5 rounded-md flex items-center gap-1 shadow-sm transition-colors"
                                     >
                                        <Settings2 size={12} className="text-[#0070f3]" /> Setup

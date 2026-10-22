@@ -9,11 +9,15 @@ export default function SetupRoomPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-  
+
   const roomId = params.roomId as string;
   const basePriceParam = searchParams.get('basePrice');
   const roomNumberParam = searchParams.get('roomNumber');
   const defaultRent = basePriceParam ? (parseInt(basePriceParam) / 100).toString() : undefined;
+  const taxRateParam = searchParams.get('taxRate');
+  const taxModeParam = searchParams.get('taxMode') as 'INCLUSIVE' | 'EXCLUSIVE' | null;
+  const initialTaxRate = taxRateParam ? parseInt(taxRateParam) : undefined;
+  const initialTaxMode = taxModeParam || undefined;
   const displayRoomNo = roomNumberParam || roomId;
 
   const { roomPricing, roomGuests, checkInDate, checkOutDate, setRoomPricing, setRoomGuests, setCheckInDate, setCheckOutDate } = useBookingStore();
@@ -37,6 +41,8 @@ export default function SetupRoomPage() {
       initialData={roomPricing[roomId]}
       initialGuests={roomGuests[roomId]}
       defaultRent={defaultRent}
+      initialTaxRate={initialTaxRate}
+      initialTaxMode={initialTaxMode}
       onClose={handleClose}
       onSave={handleSave}
       onCheckInDateChange={setCheckInDate}

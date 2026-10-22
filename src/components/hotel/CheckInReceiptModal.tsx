@@ -303,6 +303,7 @@ export default function CheckInReceiptModal({
             {/* Thermal Alternative for Guest Info (visible only on thermal) */}
             <div className="hidden print:block thermal-show mb-4 border-b border-black pb-2 text-sm">
               <div><b>Guest:</b> {leadGuest.guestName} ({leadGuest.guestMobile})</div>
+              <div><b>Room{d.rooms.length > 1 ? 's' : ''}:</b> {d.rooms.map(r => r.roomNo).join(', ')}</div>
               <div><b>Check-in:</b> {d.checkInDate} <b>Out:</b> {d.checkOutDate}</div>
             </div>
 
@@ -366,7 +367,13 @@ export default function CheckInReceiptModal({
                     <span>{formatAmt(d.totalExtraCharges)}</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
-                    <span>GST Tax (12%):</span>
+                    <span>
+                      {d.totalGst > 0 && d.totalRoomRent > 0
+                        ? `GST Tax (${Math.round((d.totalGst / d.totalRoomRent) * 100)}%):`
+                        : d.totalGst > 0
+                        ? 'GST Tax:'
+                        : 'GST Tax (0% / Exempt):'}
+                    </span>
                     <span>{formatAmt(d.totalGst)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-[#0e2a6d]">
