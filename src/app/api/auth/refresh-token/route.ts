@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import crypto from "crypto";
+import { getAuthCookieOptions } from "@/lib/auth-utils";
 
 const JWT_SECRET = process.env.JWT_SECRET || "kravy_pos_secret_key_123";
 
@@ -64,20 +65,9 @@ export async function POST(req: Request) {
                 message: "Tokens refreshed successfully"
             });
 
-            response.cookies.set("kravy_auth_token", newAccessToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "lax",
-                maxAge: 90 * 24 * 60 * 60,
-                path: "/",
-            });
-            response.cookies.set("kravy_refresh_token", refreshTokenStr, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "lax",
-                maxAge: 60 * 60 * 24 * 90,
-                path: "/",
-            });
+            const cookieOptions = getAuthCookieOptions(req);
+            response.cookies.set("kravy_auth_token", newAccessToken, cookieOptions);
+            response.cookies.set("kravy_refresh_token", refreshTokenStr, cookieOptions);
 
             return response;
         }
@@ -118,13 +108,7 @@ export async function POST(req: Request) {
                 message: "Tokens refreshed successfully"
             });
 
-            const cookieOptions = {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "lax" as const,
-                maxAge: 90 * 24 * 60 * 60,
-                path: "/"
-            };
+            const cookieOptions = getAuthCookieOptions(req);
 
             response.cookies.set("kravy_auth_token", newAccessToken, cookieOptions);
             response.cookies.set("kravy_refresh_token", refreshTokenStr, cookieOptions);

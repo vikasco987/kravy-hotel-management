@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { getAuthCookieOptions } from "@/lib/auth-utils";
 
 const JWT_SECRET = process.env.JWT_SECRET || "kravy_pos_secret_key_123";
 
@@ -132,21 +133,9 @@ export async function POST(req: NextRequest) {
       token
     });
 
-    response.cookies.set("kravy_auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 90 * 24 * 60 * 60, // 15 minutes
-      path: "/"
-    });
-
-    response.cookies.set("kravy_refresh_token", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 90 * 24 * 60 * 60, // 90 days
-      path: "/"
-    });
+    const cookieOptions = getAuthCookieOptions(req);
+    response.cookies.set("kravy_auth_token", token, cookieOptions);
+    response.cookies.set("kravy_refresh_token", refreshToken, cookieOptions);
 
     // 🔐 6. Track Session
     try {

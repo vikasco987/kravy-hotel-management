@@ -6,6 +6,55 @@ import { cache } from 'react';
 const JWT_SECRET = process.env.JWT_SECRET || "kravy_pos_secret_key_123";
 
 /**
+ * Determines whether cookies should have the `Secure` flag set.
+ *
+ * Defaults to true in production ONLY if:
+ * 1. An incoming request explicitly indicates HTTPS via `x-forwarded-proto === 'https'` or `url.protocol === 'https:'`, OR
+ * 2. `COOKIE_SECURE` is explicitly set to 'true'.
+ *
+ * If `COOKIE_SECURE` is explicitly 'false', or if deployed over plain HTTP (such as an EC2 IP
+ * like http://13.206.229.179 behind standard HTTP Nginx/PM2), the `Secure` attribute is omitted.
+ * This prevents modern browsers from silently dropping Set-Cookie over HTTP.
+ */
+export function isSecureCookie(req?: { headers?: Headers | { get(name: string): string | null } }): boolean {
+  if (process.env.COOKIE_SECURE === "false") {
+    return false;
+  }
+  if (process.env.COOKIE_SECURE === "true") {
+    return true;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return false;
+  }
+  // In production, check forwarded proto if available
+  if (req?.headers) {
+    const proto = typeof req.headers.get === "function" ? req.headers.get("x-forwarded-proto") : null;
+    if (proto) {
+      return proto.split(",")[0].trim().toLowerCase() === "https";
+    }
+  }
+  // If NEXTAUTH_URL or APP_URL is configured with http://, respect HTTP
+  const appUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (appUrl && appUrl.startsWith("http://")) {
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Returns the standard cookie options for auth and refresh tokens.
+ */
+export function getAuthCookieOptions(req?: { headers?: Headers | { get(name: string): string | null } }, maxAgeSeconds = 90 * 24 * 60 * 60) {
+  return {
+    httpOnly: true,
+    secure: isSecureCookie(req),
+    sameSite: "lax" as const,
+    maxAge: maxAgeSeconds,
+    path: "/"
+  };
+}
+
+/**
  * Returns the effective Clerk ID (the Owner's ID) for the current user.
  * Works for both Owners and Staff.
  * Supports Admin Impersonation (View-As) via 'x-impersonate-id' header or search params.

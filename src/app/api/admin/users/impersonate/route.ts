@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getAuthUser } from "@/lib/auth-utils";
+import { getAuthUser, getAuthCookieOptions } from "@/lib/auth-utils";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
@@ -48,12 +48,7 @@ export async function POST(req: Request) {
 
     // 4. Set cookie
     const cookieStore = await cookies();
-    cookieStore.set("kravy_auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 7200 // 2 hours
-    });
+    cookieStore.set("kravy_auth_token", token, getAuthCookieOptions(req, 7200));
 
     return NextResponse.json({ success: true, redirect: "/dashboard" });
   } catch (error: any) {

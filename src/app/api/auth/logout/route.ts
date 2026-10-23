@@ -3,10 +3,11 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
+import { isSecureCookie } from "@/lib/auth-utils";
 
 const JWT_SECRET = process.env.JWT_SECRET || "kravy_pos_secret_key_123";
 
-export async function POST() {
+export async function POST(req?: Request) {
   try {
     const cookieStore = await cookies();
     const kravyRefreshStr = cookieStore.get("kravy_refresh_token")?.value;
@@ -59,11 +60,12 @@ export async function POST() {
     }
 
     const response = NextResponse.json({ success: true, message: "Logged out successfully" });
+    const secureFlag = isSecureCookie(req);
 
     // Clear authentication cookies by setting them with an expired date and maxAge 0
     response.cookies.set("kravy_auth_token", "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: secureFlag,
       sameSite: "lax",
       expires: new Date(0),
       maxAge: 0,
@@ -72,7 +74,7 @@ export async function POST() {
 
     response.cookies.set("kravy_refresh_token", "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: secureFlag,
       sameSite: "lax",
       expires: new Date(0),
       maxAge: 0,
@@ -81,7 +83,7 @@ export async function POST() {
 
     response.cookies.set("staff_token", "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: secureFlag,
       sameSite: "lax",
       expires: new Date(0),
       maxAge: 0,
@@ -90,7 +92,7 @@ export async function POST() {
 
     response.cookies.set("staff_refresh_token", "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: secureFlag,
       sameSite: "lax",
       expires: new Date(0),
       maxAge: 0,
