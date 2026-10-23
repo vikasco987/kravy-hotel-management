@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 };
 
 import { ConfirmProvider } from "@/components/ConfirmContext";
+import { Toaster } from "sonner";
 
 export default function RootLayout({
   children,
@@ -47,6 +48,7 @@ export default function RootLayout({
               </main>
             </div>
           </div>
+          <Toaster richColors position="top-right" closeButton />
         </ConfirmProvider>
       </body>
     </html>

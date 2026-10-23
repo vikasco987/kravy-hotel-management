@@ -107,6 +107,14 @@ export async function POST(req: NextRequest) {
     const browser = /chrome/i.test(userAgent) ? "Chrome" : /safari/i.test(userAgent) ? "Safari" : /firefox/i.test(userAgent) ? "Firefox" : /edg/i.test(userAgent) ? "Edge" : "Other";
     const os = /windows/i.test(userAgent) ? "Windows" : /mac/i.test(userAgent) ? "macOS" : /linux/i.test(userAgent) ? "Linux" : /android/i.test(userAgent) ? "Android" : /iphone|ipad/i.test(userAgent) ? "iOS" : "Other";
 
+    // Edge middleware strictly inspects page-level permissions (e.g., page:rooms, page:housekeeping)
+    // for route gating. Action-level permissions (action:*) are queried dynamically from MongoDB
+    // by getAuthUser() in all backend API routes. Filtering to page permissions reduces JWT header
+    // payload by ~75% and prevents Nginx 502 "upstream sent too big header" errors.
+    const pagePermissions = Array.isArray(staff.permissions)
+      ? staff.permissions.filter((p: string) => typeof p === "string" && p.startsWith("page:"))
+      : [];
+
     // Access token (15m or 90d to match existing system)
     const token = jwt.sign(
       {
@@ -118,7 +126,7 @@ export async function POST(req: NextRequest) {
         isStaff: true,
         email: staff.email,
         name: staff.name,
-        permissions: Array.isArray(staff.permissions) ? staff.permissions : [],
+        permissions: pagePermissions,
         jtiHash: hashedJti
       },
       JWT_SECRET,

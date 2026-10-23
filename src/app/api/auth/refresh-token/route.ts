@@ -86,6 +86,10 @@ export async function POST(req: Request) {
                 return NextResponse.json({ success: false, message: "Refresh token revoked or already used" }, { status: 401 });
             }
 
+            const pagePermissions = Array.isArray(staff.permissions)
+                ? staff.permissions.filter((p: string) => typeof p === "string" && p.startsWith("page:"))
+                : [];
+
             const newAccessToken = jwt.sign(
                 {
                     staffId: staff.id,
@@ -96,7 +100,7 @@ export async function POST(req: Request) {
                     isStaff: true,
                     email: staff.email,
                     name: staff.name,
-                    permissions: Array.isArray(staff.permissions) ? staff.permissions : [],
+                    permissions: pagePermissions,
                     jtiHash: hashedJti
                 },
                 JWT_SECRET,

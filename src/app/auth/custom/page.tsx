@@ -19,7 +19,8 @@ import {
   Users,
   CheckCircle2,
   Building2,
-  Hotel
+  Hotel,
+  AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -37,6 +38,7 @@ export default function CustomAuthPage() {
     return "staff_login";
   });
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
@@ -45,9 +47,12 @@ export default function CustomAuthPage() {
       const urlParams = new URLSearchParams(window.location.search);
       const errorStr = urlParams.get("error");
       if (errorStr === "session_expired" || errorStr === "invalid_session") {
-        toast.error("Your session has expired. Please sign in again to continue.");
+        const msg = "Your session has expired. Please sign in again to continue.";
+        setErrorMessage(msg);
+        toast.error(msg);
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (errorStr) {
+        setErrorMessage(errorStr);
         toast.error(errorStr);
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -68,6 +73,11 @@ export default function CustomAuthPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
+    // Clear previous error when user edits input
+    if (errorMessage) {
+      setErrorMessage(null);
+    }
+
     // Phone Validation: Numbers only, max 10 digits
     if (name === "phone") {
       const cleaned = value.replace(/\D/g, "").slice(0, 10);
@@ -85,57 +95,132 @@ export default function CustomAuthPage() {
     setFormData({ ...formData, [name]: value });
   };
 
+  /**
+   * Translates HTTP responses into secure, accurate, user-friendly messages.
+   * Never leaks internal stack traces, DB queries, or credentials.
+   */
+  const resolveErrorMessage = (status: number, data: any): string => {
+    if (status === 400) {
+      return (typeof data?.error === "string" && data.error.trim())
+        ? data.error
+        : "Invalid request. Please check all required fields.";
+    }
+    if (status === 401) {
+      return "Invalid email/phone or password. Please check your credentials and try again.";
+    }
+    if (status === 403) {
+      return (typeof data?.error === "string" && data.error.trim())
+        ? data.error
+        : "Access denied. Your account is not authorized or has been deactivated.";
+    }
+    if (status === 500) {
+      return "Something went wrong on the server. Please try again later.";
+    }
+    if (status === 502 || status === 503 || status === 504) {
+      return "The server is temporarily unavailable. Please try again shortly.";
+    }
+    if (status >= 500) {
+      return "The server is temporarily unavailable. Please try again shortly.";
+    }
+    return (typeof data?.error === "string" && data.error.trim())
+      ? data.error
+      : "Unable to complete request. Please verify details and try again.";
+  };
+
   const handleAction = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent duplicate submission while in progress
+    if (loading) {
+      return;
+    }
+
+    // Clear previous error on every new submit attempt
+    setErrorMessage(null);
     setLoading(true);
 
     try {
       if (mode === "staff_login") {
         const identifier = (formData.identifier || formData.email || formData.phone).trim();
         if (!identifier || !formData.password) {
-          toast.error("Please enter your email/phone and password.");
+          const msg = "Please enter your email/phone and password.";
+          setErrorMessage(msg);
+          toast.error(msg);
           setLoading(false);
           return;
         }
 
-        const res = await fetch("/api/staff/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier, password: formData.password })
-        });
-        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
-
-        if (!res.ok) {
-          throw new Error(data.error || "Invalid credentials. Please verify and try again.");
+        let res: Response;
+        try {
+          res = await fetch("/api/staff/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier, password: formData.password })
+          });
+        } catch {
+          const networkErrorMsg = "The server is temporarily unavailable. Please try again shortly.";
+          setErrorMessage(networkErrorMsg);
+          toast.error(networkErrorMsg);
+          setLoading(false);
+          return;
         }
 
-        toast.success(`Welcome back, ${data.staff?.name || "Staff Member"}!`);
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          const errMsg = resolveErrorMessage(res.status, data);
+          setErrorMessage(errMsg);
+          toast.error(errMsg);
+          setLoading(false);
+          return;
+        }
+
+        toast.success(`Welcome back, ${data?.staff?.name || "Staff Member"}!`);
         setTimeout(() => {
-          window.location.href = data.redirectUrl || "/dashboard";
+          window.location.href = data?.redirectUrl || "/dashboard";
         }, 350);
       } else if (mode === "admin_login") {
         const identifier = (formData.identifier || formData.email || formData.phone).trim().toLowerCase();
         if (!identifier || !formData.password) {
-          toast.error("Please enter your admin email/phone and password.");
+          const msg = "Please enter your admin email/phone and password.";
+          setErrorMessage(msg);
+          toast.error(msg);
           setLoading(false);
           return;
         }
 
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier, password: formData.password })
-        });
-        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
+        let res: Response;
+        try {
+          res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier, password: formData.password })
+          });
+        } catch {
+          const networkErrorMsg = "The server is temporarily unavailable. Please try again shortly.";
+          setErrorMessage(networkErrorMsg);
+          toast.error(networkErrorMsg);
+          setLoading(false);
+          return;
+        }
+
+        const data = await res.json().catch(() => null);
 
         if (!res.ok) {
-          if (data.notVerified) {
+          if (data?.notVerified) {
             setMode("verify");
             setFormData(prev => ({ ...prev, email: data.email || prev.email }));
-            toast.info(data.error || "Account verification required.");
+            const verificationMsg = data.error || "Account verification required.";
+            setErrorMessage(verificationMsg);
+            toast.info(verificationMsg);
+            setLoading(false);
             return;
           }
-          throw new Error(data.error || "Admin login failed. Please check credentials.");
+          const errMsg = resolveErrorMessage(res.status, data);
+          setErrorMessage(errMsg);
+          toast.error(errMsg);
+          setLoading(false);
+          return;
         }
 
         toast.success("Signed in successfully as Administrator!");
@@ -144,74 +229,137 @@ export default function CustomAuthPage() {
         }, 350);
       } else if (mode === "signup") {
         if (formData.phone.length !== 10) {
-          toast.error("Please enter a valid 10-digit phone number.");
+          const msg = "Please enter a valid 10-digit phone number.";
+          setErrorMessage(msg);
+          toast.error(msg);
           setLoading(false);
           return;
         }
-        const res = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData)
-        });
 
-        const responseText = await res.text();
-        let data: any = {};
+        let res: Response;
         try {
-          data = JSON.parse(responseText);
+          res = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(formData)
+          });
         } catch {
-          throw new Error(`Server Error (${res.status}): ${responseText.substring(0, 50)}...`);
+          const networkErrorMsg = "The server is temporarily unavailable. Please try again shortly.";
+          setErrorMessage(networkErrorMsg);
+          toast.error(networkErrorMsg);
+          setLoading(false);
+          return;
         }
 
+        const data = await res.json().catch(() => null);
+
         if (!res.ok) {
-          if (data.needsVerification) {
+          if (data?.needsVerification) {
             setMode("verify");
             setFormData(prev => ({ ...prev, email: data.email || prev.email }));
-            toast.info(data.error || "Verification required");
+            const verificationMsg = data.error || "Verification required";
+            setErrorMessage(verificationMsg);
+            toast.info(verificationMsg);
+            setLoading(false);
             return;
           }
-          throw new Error(data.error || "Failed to register");
+          const errMsg = resolveErrorMessage(res.status, data);
+          setErrorMessage(errMsg);
+          toast.error(errMsg);
+          setLoading(false);
+          return;
         }
         toast.success("OTP sent to your email!");
         setMode("verify");
       } else if (mode === "verify") {
         const cleanEmail = formData.email.trim().toLowerCase();
-        const res = await fetch("/api/auth/verify-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail, otp: formData.otp })
-        });
-        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
-        if (!res.ok) throw new Error(data.error || "Verification failed");
+        let res: Response;
+        try {
+          res = await fetch("/api/auth/verify-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: cleanEmail, otp: formData.otp })
+          });
+        } catch {
+          const networkErrorMsg = "The server is temporarily unavailable. Please try again shortly.";
+          setErrorMessage(networkErrorMsg);
+          toast.error(networkErrorMsg);
+          setLoading(false);
+          return;
+        }
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const errMsg = resolveErrorMessage(res.status, data);
+          setErrorMessage(errMsg);
+          toast.error(errMsg);
+          setLoading(false);
+          return;
+        }
         toast.success("Account verified! Please login.");
         setMode("admin_login");
       } else if (mode === "forgot") {
-        const res = await fetch("/api/auth/forgot-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: formData.email })
-        });
-        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
-        if (!res.ok) throw new Error(data.error || "Request failed");
+        let res: Response;
+        try {
+          res = await fetch("/api/auth/forgot-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: formData.email })
+          });
+        } catch {
+          const networkErrorMsg = "The server is temporarily unavailable. Please try again shortly.";
+          setErrorMessage(networkErrorMsg);
+          toast.error(networkErrorMsg);
+          setLoading(false);
+          return;
+        }
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const errMsg = resolveErrorMessage(res.status, data);
+          setErrorMessage(errMsg);
+          toast.error(errMsg);
+          setLoading(false);
+          return;
+        }
         toast.success("Reset OTP sent to your email!");
         setMode("reset");
       } else if (mode === "reset") {
-        const res = await fetch("/api/auth/reset-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: formData.email,
-            otp: formData.otp,
-            newPassword: formData.newPassword
-          })
-        });
-        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
-        if (!res.ok) throw new Error(data.error || "Reset failed");
+        let res: Response;
+        try {
+          res = await fetch("/api/auth/reset-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: formData.email,
+              otp: formData.otp,
+              newPassword: formData.newPassword
+            })
+          });
+        } catch {
+          const networkErrorMsg = "The server is temporarily unavailable. Please try again shortly.";
+          setErrorMessage(networkErrorMsg);
+          toast.error(networkErrorMsg);
+          setLoading(false);
+          return;
+        }
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const errMsg = resolveErrorMessage(res.status, data);
+          setErrorMessage(errMsg);
+          toast.error(errMsg);
+          setLoading(false);
+          return;
+        }
         toast.success("Password reset successfully! Please sign in.");
         setMode("admin_login");
       }
     } catch (error: any) {
       console.error("Auth Error:", error);
-      toast.error(error.message || "Something went wrong. Please try again.");
+      const fallbackMsg = "Something went wrong. Please try again.";
+      setErrorMessage(fallbackMsg);
+      toast.error(fallbackMsg);
     } finally {
       setLoading(false);
     }
@@ -400,6 +548,7 @@ export default function CustomAuthPage() {
                 onClick={() => {
                   setMode("admin_login");
                   setShowPassword(false);
+                  setErrorMessage(null);
                 }}
                 className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   isAdminMode
@@ -416,6 +565,7 @@ export default function CustomAuthPage() {
                 onClick={() => {
                   setMode("staff_login");
                   setShowPassword(false);
+                  setErrorMessage(null);
                 }}
                 className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   isStaffMode
@@ -431,6 +581,20 @@ export default function CustomAuthPage() {
 
           {/* MAIN AUTH FORM */}
           <form onSubmit={handleAction} className="space-y-4">
+            {/* Inline Error Banner */}
+            {errorMessage && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start gap-2.5 shadow-xs transition-all animate-in fade-in slide-in-from-top-1 duration-200"
+              >
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div className="flex-1 leading-relaxed">
+                  {errorMessage}
+                </div>
+              </div>
+            )}
+
             {/* Full Name (Sign Up only) */}
             {mode === "signup" && (
               <div className="relative group">
