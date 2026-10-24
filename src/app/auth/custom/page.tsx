@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   Building2,
   Hotel,
-  AlertCircle
+  AlertCircle,
+  Phone
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -630,6 +631,28 @@ export default function CustomAuthPage() {
                     placeholder="name@hotel.com"
                     required
                     value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 transition"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 10-Digit Phone Number (Sign Up only) */}
+            {mode === "signup" && (
+              <div className="relative group">
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 block">
+                  10-Digit Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={17} />
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="e.g. 9876543210"
+                    maxLength={10}
+                    required
+                    value={formData.phone}
                     onChange={handleInputChange}
                     className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 transition"
                   />

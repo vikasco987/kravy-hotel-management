@@ -98,3 +98,21 @@ test('Duplicate submit guard logic: while loading is true, handler drops subsequ
   assert.equal(attemptSubmit(), 'proceeded');
   assert.equal(callCount, 2);
 });
+
+test('Signup phone validation: strictly enforces 10-digit format', () => {
+  function validateSignupPhone(phone) {
+    const cleaned = (phone || '').replace(/\D/g, '');
+    if (cleaned.length !== 10) {
+      return { valid: false, error: 'Please enter a valid 10-digit phone number.' };
+    }
+    return { valid: true, phone: cleaned };
+  }
+
+  assert.equal(validateSignupPhone('').valid, false);
+  assert.equal(validateSignupPhone('12345').valid, false);
+  assert.equal(validateSignupPhone('98765432101').valid, false);
+  assert.equal(validateSignupPhone('9876543210').valid, true);
+  assert.equal(validateSignupPhone('98765 43210').valid, true);
+  assert.equal(validateSignupPhone('98765 43210').phone, '9876543210');
+});
+
