@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import KravyLogo from "@/components/common/KravyLogo";
 
 type AuthMode = "admin_login" | "staff_login" | "signup" | "verify" | "forgot" | "reset";
 
@@ -389,17 +390,13 @@ export default function CustomAuthPage() {
 
         {/* Top: Hotel Branding */}
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-amber-500/95 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-amber-500/20 border border-amber-400/40">
-            <Hotel size={24} strokeWidth={2.4} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-black tracking-tight text-white">KRAVY</span>
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400/90 block leading-tight">
-              Hotel Management
-            </span>
-          </div>
+          <KravyLogo
+            size={44}
+            showText={true}
+            textClassName="text-xl font-black tracking-tight text-white leading-tight"
+            subtextClassName="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400/90 block leading-tight mt-0.5"
+            priority={true}
+          />
         </div>
 
         {/* Center: Main Headline, Pitch & 4 Feature Cards */}
@@ -503,14 +500,13 @@ export default function CustomAuthPage() {
       <div className="w-full lg:w-[46%] xl:w-[44%] flex items-center justify-center p-6 sm:p-10 relative overflow-y-auto">
         <div className="w-full max-w-[430px] my-auto">
           {/* Top Logo for Mobile Screens */}
-          <div className="flex lg:hidden items-center justify-center gap-2.5 mb-6">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-md">
-              <Hotel size={22} strokeWidth={2.5} />
-            </div>
-            <div className="text-left">
-              <span className="text-lg font-black tracking-tight text-slate-900 block leading-tight">KRAVY</span>
-              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 block">Hotel Management</span>
-            </div>
+          <div className="flex lg:hidden items-center justify-center mb-6">
+            <KravyLogo
+              size={40}
+              showText={true}
+              textClassName="text-lg font-black tracking-tight text-slate-900 leading-tight"
+              subtextClassName="text-[9px] font-bold uppercase tracking-widest text-slate-500 block"
+            />
           </div>
 
           {/* Heading Icon & Welcome */}

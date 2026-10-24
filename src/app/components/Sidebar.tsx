@@ -19,6 +19,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { ROUTE_PAGE_PERMISSION_MAP } from '@/lib/permissions';
+import KravyLogo from '@/components/common/KravyLogo';
 
 const MENU_ITEMS = [
   { name: 'Dashboard', icon: Home, href: '/dashboard' },
@@ -112,31 +113,14 @@ export default function Sidebar() {
       {/* Top Header: Logo, Kravy brand, and Collapse toggle icon */}
       <div className="h-[74px] flex items-center justify-between px-5 pt-2 shrink-0">
         <div className="flex items-center gap-3">
-          {/* Logo Mark: Stylized vibrant neon purple-indigo K */}
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7928ca] via-[#6366f1] to-[#38bdf8] p-[1.5px] shadow-[0_0_18px_rgba(121,40,202,0.45)] shrink-0 flex items-center justify-center">
-            <div className="w-full h-full bg-[#0c0d1c] rounded-[10px] flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]">
-                <path
-                  d="M5 4.5V19.5M5 12L15 4.5M9.5 12L16.5 19.5"
-                  stroke="url(#kravy-gradient)"
-                  strokeWidth="3.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <defs>
-                  <linearGradient id="kravy-gradient" x1="5" y1="4.5" x2="16.5" y2="19.5" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#c084fc" />
-                    <stop offset="0.5" stopColor="#818cf8" />
-                    <stop offset="1" stopColor="#38bdf8" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-white text-lg font-black tracking-tight leading-tight">Kravy</span>
-            <span className="text-[10px] font-medium text-slate-400 tracking-wide leading-none mt-0.5">Hotel Management</span>
-          </div>
+          {/* Official Kravy Logo & Branding */}
+          <KravyLogo
+            size={40}
+            showText={true}
+            textClassName="text-white text-lg font-black tracking-tight leading-tight"
+            subtextClassName="text-[10px] font-medium text-slate-400 tracking-wide leading-none mt-0.5"
+            priority={true}
+          />
         </div>
 
         {/* Collapse toggle icon button */}

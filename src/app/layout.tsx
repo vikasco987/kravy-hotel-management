@@ -19,6 +19,10 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "Kravy Hotel Management",
   description: "Manage your hotel rooms and bookings efficiently with Kravy.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/images/kravy-logo.png",
+  },
 };
 
 import { ConfirmProvider } from "@/components/ConfirmContext";
